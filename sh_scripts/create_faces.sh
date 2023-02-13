@@ -1,5 +1,4 @@
 #!/bin/bash
-pkill -9 -f cv2_capture_automate.py
 source /home/$USER/Desktop/data_details.sh
 
 zenity --question --title="Creating the faces" --width 500 --height 100 --text="Please verify the following details\nFamily ID: $famId \nData save path: $savePath" --no-wrap

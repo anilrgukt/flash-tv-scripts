@@ -1,0 +1,13 @@
+[Unit]
+Description=FLASH-TV startup script
+
+
+## VERY IMPORTANT TO Modify the username correctly
+[Service]
+ExecStart=/bin/bash /home/flashsys002/Desktop/flash_run_on_boot.sh
+StandardOutput=file:/var/log/logstdout.log
+StandardError=file:/var/log/logstderr.log
+
+[Install]
+WantedBy=multi-user.target
+

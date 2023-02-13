@@ -1,7 +1,4 @@
 #!/bin/bash
-pkill -9 -f cv2_capture_automate.py
-#source /home/flash/Desktop/data_details.sh
-
 
 zenity --warning --title "Warning Message" --width 500 --height 100 --text "Please close folder windows or programs (Cheese, incomplete protocols) that you are not using. \n\nReducing the clutter helps."
 
@@ -19,22 +16,23 @@ do
 	fi
 done
 
+source data_details.sh
 
-famId=$(zenity --entry --width 500 --height 100 --title="Please input Family ID" --text="Family ID :")
-savePath=$(zenity --width 700 --height 500  --file-selection --title="Choose a directory to save the data" --directory)
-
-echo "famId=${famId}" > data_details.sh
-echo "savePath=${savePath}" >> data_details.sh
-#famId=$(zenity --entry --title="Please input Family ID" --text="Family ID :")
-
-
-zenity --question --title="Building Gallery for FLASH-TV face verification" --width 500 --height 100 --text="Please verify the following details\nFamily ID: $famId \nData save path: $savePath" --no-wrap
+zenity --question --title="Creating the faces" --width 500 --height 100 --text="Please verify the following details\nFamily ID: $famId \nUser Name: $usrName \nData save path: $savePath" --no-wrap
 user_resp=$?
 
 if [ $user_resp -eq 1 ]; then
-	echo "Exitted the code $user_resp"
+	#echo "Exitted the code $user_resp"
+	zenity --warning --text="Exiting the code since data details are not correct. Please modify them and restart the script."
 	exit 
+	#famId=$(zenity --entry --title="Please input Family ID" --text="Family ID :")
+	#usrName=$(zenity --entry --title="Please input Device User Name" --text="User Name :")
+	#savePath=$(zenity  --file-selection --title="Choose a directory to save the data" --directory)
+	#echo "famId=${famId}" > data_details.sh
+	#echo "usrName=${usrName}" >> data_details.sh
+	#echo "savePath=${savePath}" >> data_details.sh
 fi
+
 
 zenity --question --title="Building Gallery for FLASH-TV face verification" --width 500 --height 100 --text="Click YES to start video streaming\nFamily ID: $famId \nData save path: $savePath" --no-wrap
 user_resp=$?
@@ -44,8 +42,8 @@ if [ $user_resp -eq 1 ]; then
 	exit 
 fi
 
-source /home/$USER/py38/bin/activate
-cd /home/$USER/Desktop/FLASH_TV_v3
+source /home/$usrName/py38/bin/activate
+cd /home/$usrName/Desktop/FLASH_TV_v3
 
 echo "Everything is a success"
 
