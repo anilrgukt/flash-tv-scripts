@@ -1,6 +1,8 @@
 # FLASH-Tv-scripts
+
 > FLASH tv runtime and installation scripts
-<img src="pngs/teaser.png"/>
+
+<img src="pngs/teaser_small.png"/>
 
 
 ## sh scipts
