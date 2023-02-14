@@ -50,6 +50,7 @@ git clone --recursive -b v1.6.x https://github.com/apache/mxnet.git mxnet
 # export PATH=/usr/local/cuda/bin:$PATH
 # export MXNET_HOME=$HOME/mxnet/
 # export PYTHONPATH=$MXNET_HOME/python:$PYTHONPATH
+
 PATH1="export PATH=/usr/local/cuda/bin:\$PATH"
 PATH2="export MXNET_HOME=\$HOME/mxnet/"
 PATH3="export PYTHONPATH=\$MXNET_HOME/python:\$PYTHONPATH"
@@ -72,6 +73,7 @@ cd /home/$USER/mxnet/python
 pip3 install -e .
 
 #Copy folders listed in FLASH_filesetup.sh before doing the following 
+
 #### INSIGHTFACE installation
 source ~/py38/bin/activate
 cd /home/$USER/insightface/python-package/ 
