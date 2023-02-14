@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # FILE setup
 
 #from /harddisk/FLASH_TV_installation
