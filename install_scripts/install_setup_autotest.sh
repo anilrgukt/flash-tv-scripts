@@ -15,6 +15,8 @@ sudo apt install -y \
 	python3-testresources \
 	libatlas-base-dev 
 
+cd /home/$USER
+
 # Create a venv if it doesn't already exist
 if ! ls | grep -q "py38"
 then 
@@ -43,13 +45,11 @@ pip install --upgrade \
 	scikit-image
 
 # install mxnet - use the below version
-#in /home/$USER
+
+cd /home/$USER
 git clone --recursive -b v1.6.x https://github.com/apache/mxnet.git mxnet
 
 # export all the paths mentioned in the installation instructions to ~/.bashrc
-# export PATH=/usr/local/cuda/bin:$PATH
-# export MXNET_HOME=$HOME/mxnet/
-# export PYTHONPATH=$MXNET_HOME/python:$PYTHONPATH
 
 PATH1="export PATH=/usr/local/cuda/bin:\$PATH"
 PATH2="export MXNET_HOME=\$HOME/mxnet/"
@@ -87,6 +87,3 @@ source ~/py38/bin/activate
 cd /home/$USER/FLASH_TV/darknet_face_release
 make clean
 make -j12 all
-
-
-
