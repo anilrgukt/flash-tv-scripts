@@ -1,4 +1,4 @@
-#do not rerun these commands, see homeassistant_usage.sh for how to initialize homeassistant after this
+#do not rerun these commands to start homeassistant, see homeassistant_usage.sh for how to initialize homeassistant after this
 
 #for Python 3.10 easy install
 sudo add-apt-repository ppa:deadsnakes/ppa
@@ -31,7 +31,6 @@ systemctl enable dbus-broker.service
 #may be necessary also
 sudo systemctl --global enable dbus-broker.service
 
-
 #add new user for homeassistant
 sudo useradd -rm homeassistant
 
@@ -59,3 +58,4 @@ pip3 install wheel
 pip3 install homeassistant==2023.2.3
 
 #reboot the system after the above
+#reboot
