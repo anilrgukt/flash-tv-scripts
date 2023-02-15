@@ -1,16 +1,13 @@
 #!/bin/bash
-source /home/$USER/Desktop/data_details.sh
+source data_details.sh
 
 zenity --question --title="Creating the faces" --width 500 --height 100 --text="Please verify the following details\nFamily ID: $famId \nData save path: $savePath" --no-wrap
 user_resp=$?
 
 if [ $user_resp -eq 1 ]; then
 	#echo "Exitted the code $user_resp"
-	#exit 
-	famId=$(zenity --entry --title="Please input Family ID" --text="Family ID :")
-	savePath=$(zenity  --file-selection --title="Choose a directory to save the data" --directory)
-	echo "famId=${famId}" > data_details.sh
-	echo "savePath=${savePath}" >> data_details.sh
+	zenity --warning --text="Exiting the code since data details are not correct. Please modify them and restart the script."
+	exit 
 fi
 
 mkdir -p /home/$USER/Desktop/FLASH_TV_v3/"${famId}_faces"
