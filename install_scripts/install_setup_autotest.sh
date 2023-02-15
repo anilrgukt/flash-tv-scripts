@@ -61,7 +61,7 @@ grep -xqF -- "$PATH3" "$FILE" || echo "$PATH3" >> "$FILE"
 
 source ~/.bashrc
 
-cp /media/flashsys00x/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/mxnet_config.mk /home/$USER/mxnet/config.mk
+cp ~/flash-tv-scripts/install_scripts/mxnet_config.mk /home/$USER/mxnet/config.mk
 
 cd /home/$USER/mxnet
 
