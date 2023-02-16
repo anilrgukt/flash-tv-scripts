@@ -18,7 +18,8 @@ do
 	pkill -9 -f test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py
 	
 	mkdir -p "${logFile}/varlogs_${dt}"
-	mv /var/log/"${famId}_flash_logstdout.log" /var/log/"${famId}_flash_logstderr.log" /var/log/"${famId}_flash_logstdoutp.log" /var/log/"${famId}_flash_logstderrp.log" "${logFile}/varlogs_${dt}"
+	mv /var/log/"${famId}_flash_logstdout.log" /var/log/"${famId}_flash_logstderr.log" "${logFile}/varlogs_${dt}"
+	cp /var/log/"${famId}_flash_logstdoutp.log" /var/log/"${famId}_flash_logstderrp.log" "${logFile}/varlogs_${dt}"
 	
 	sleep 20;
 	systemctl start flash-run-on-boot.service
