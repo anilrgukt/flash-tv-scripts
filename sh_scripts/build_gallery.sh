@@ -47,7 +47,7 @@ cd /home/$usrName/Desktop/FLASH_TV_v3
 
 echo "Everything is a success"
 
-python cv2_capture_automate.py $famId $usrName $savePath
+python cv2_capture_automate.py $famId $savePath $usrName
 
 
 

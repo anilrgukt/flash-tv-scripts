@@ -1,0 +1,12 @@
+[Unit]
+Description=FLASH periodic restart sript
+
+
+[Service]
+ExecStart=/bin/bash /home/flashsys002/Desktop/flash_periodic_restart.sh
+StandardOutput=file:/var/log/logstdoutp.log
+StandardError=file:/var/log/logstderrp.log
+
+[Install]
+WantedBy=multi-user.target
+
