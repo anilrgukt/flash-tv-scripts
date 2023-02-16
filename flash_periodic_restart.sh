@@ -1,8 +1,7 @@
-export famId=114
-export usrName=flashsys002
+export famId=XXX
+export usrName=flashsysXXX
 
 logFilePath=/home/$usrName/data/${famId}_data
-
 logFile=/home/$usrName/data/${famId}_data/logs
 mkdir -p $logFile
 

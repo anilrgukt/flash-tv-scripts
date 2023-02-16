@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export famId=114
-export usrName=flashsys002
+export famId=XXX
+export usrName=flashsysXXX
 
 export LD_LIBRARY_PATH=/home/$usrName/mxnet/lib:$LD_LIBRARY_PATH
 export PATH=/usr/local/cuda-11/bin:$PATH
