@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Enter the 6 digit family ID below (3 digit family ID, and 3 digit Jetson device ID)
-famId=114089
-usrName=akv
+famId=114XXX
+usrName=flashsysXXX
 savePath=/home/$usrName/data/"${famId}_data"
 
 

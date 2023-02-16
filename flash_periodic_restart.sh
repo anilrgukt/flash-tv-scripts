@@ -15,6 +15,8 @@ do
 	systemctl stop flash-run-on-boot.service
 	systemctl status flash-run-on-boot.service > "${logFile}/logend_${dt}.txt"
 	
+	pkill -9 -f test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py
+	
 	mkdir -p "${logFile}/varlogs_${dt}"
 	cp /var/log/logstdout.log /var/log/logstderr.log /var/log/logstdoutp.log /var/log/logstderrp.log "${logFile}/varlogs_${dt}"
 	
