@@ -36,10 +36,10 @@ sudo useradd -rm homeassistant
 
 #set up homeassistant folder
 sudo mkdir /srv/homeassistant
-sudo chown homeassistant:homeassistant /srv/homeassistant
+sudo chmod -R 777 /srv/homeassistant
 
 #add and set password for homeassistant sudo just in case, do these commands as flashsysxxx user (I used ha123)
-usermod -aG sudo homeassistant
+sudo usermod -aG sudo homeassistant
 sudo passwd homeassistant 
 
 #login to homeassistant account
