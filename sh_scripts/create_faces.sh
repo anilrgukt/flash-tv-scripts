@@ -10,7 +10,7 @@ if [ $user_resp -eq 1 ]; then
 	exit 
 fi
 
-mkdir -p /home/$USER/Desktop/FLASH_TV_v3/"${famId}_faces"
+mkdir -p $savePath/"${famId}_faces"
 
 
 if [ ! -d $savePath/"${famId}_face_crops" ]
@@ -33,7 +33,7 @@ for i in $savePath/"${famId}_face_crops"/tc_selected/*.png;
 do 
 	#echo $i;
 	n=$((n+1))
-	cp $i /home/$USER/Desktop/FLASH_TV_v3/"${famId}_faces"/"${famId}_tc${n}.png"
+	cp $i $savePath/"${famId}_faces"/"${famId}_tc${n}.png"
 done
 
 nsib=`ls $savePath/"${famId}_face_crops"/sib_selected/*.png | wc -l`
@@ -50,7 +50,7 @@ for i in $savePath/"${famId}_face_crops"/sib_selected/*.png;
 do 
 	#echo $i;
 	n=$((n+1))
-	cp $i /home/$USER/Desktop/FLASH_TV_v3/"${famId}_faces"/"${famId}_sib${n}.png"
+	cp $i $savePath/"${famId}_faces"/"${famId}_sib${n}.png"
 done
 
 
@@ -67,7 +67,7 @@ for i in $savePath/"${famId}_face_crops"/par_selected/*.png;
 do 
 	#echo $i;
 	n=$((n+1))
-	cp $i /home/$USER/Desktop/FLASH_TV_v3/"${famId}_faces"/"${famId}_parent${n}.png"
+	cp $i $savePath/"${famId}_faces"/"${famId}_parent${n}.png"
 done
 
 # poster processing
@@ -76,6 +76,6 @@ for i in /home/$USER/Desktop/poster_faces/*.png;
 do 
 	#echo $i;
 	n=$((n+1))
-	cp $i /home/$USER/Desktop/FLASH_TV_v3/"${famId}_faces"/"${famId}_poster${n}.png"
+	cp $i $savePath/"${famId}_faces"/"${famId}_poster${n}.png"
 done
 

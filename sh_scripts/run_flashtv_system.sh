@@ -48,8 +48,6 @@ fi
 source /home/$usrName/py38/bin/activate
 cd /home/$usrName/Desktop/FLASH_TV_v3
 
-cp -r "${famId}_faces" $savePath
-
 echo "Everything is a success"
 
 python test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId $savePath save-image $usrName
