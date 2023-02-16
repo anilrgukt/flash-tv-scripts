@@ -52,7 +52,7 @@ cp -r "${famId}_faces" $savePath
 
 echo "Everything is a success"
 
-python test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId $usrName $savePath save-image
+python test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId $savePath save-image $usrName
 
 
 
