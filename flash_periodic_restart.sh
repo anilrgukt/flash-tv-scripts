@@ -1,3 +1,5 @@
+#!/bin/bash
+
 export famId=XXX
 export usrName=flashsysXXX
 
