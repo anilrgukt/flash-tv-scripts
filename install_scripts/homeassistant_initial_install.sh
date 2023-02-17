@@ -36,14 +36,10 @@ sudo useradd -rm homeassistant
 
 #set up homeassistant folder
 sudo mkdir /srv/homeassistant
-sudo chmod -R 777 /srv/homeassistant
 
 #add and set password for homeassistant sudo just in case, do these commands as flashsysxxx user (I used ha123)
 sudo usermod -aG sudo homeassistant
 sudo passwd homeassistant 
-
-#login to homeassistant account
-sudo -u homeassistant -H -s
 
 #go to homeassistant directory
 cd /srv/homeassistant
@@ -56,6 +52,8 @@ source bin/activate
 pip install --upgrade pip
 pip3 install wheel
 pip3 install homeassistant==2023.2.3
+
+sudo chmod -R 777 /srv/homeassistant
 
 #reboot the system after the above
 #reboot
