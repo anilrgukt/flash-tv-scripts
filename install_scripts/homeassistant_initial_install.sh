@@ -8,28 +8,28 @@ sudo apt update
 sudo apt install -y python3.10 python3.10-dev python3.10-venv python3-pip bluez libffi-dev libssl-dev libjpeg-dev zlib1g-dev autoconf build-essential libopenjp2-7 libtiff5 libturbojpeg0-dev tzdata
 
 #install dbus-broker dependencies
-sudo apt install git ninja-build pkg-config python-docutils libsystemd-dev
+#sudo apt install git ninja-build pkg-config python-docutils libsystemd-dev
 
 #meson 1.0 required for dbus-broker install, necessary to do it this way because Ubuntu 20.04 only supports meson 0.53 with apt
-sudo pip3 install meson --upgrade
+#sudo pip3 install meson --upgrade
 
 sudo apt upgrade -y
 
 #download dbus-broker source and build
-cd ~
-git clone https://github.com/bus1/dbus-broker
-cd dbus-broker 
-mkdir build
-cd build/
-meson setup . ..
-ninja
-ninja test
-ninja install
+#cd ~
+#git clone https://github.com/bus1/dbus-broker
+#cd dbus-broker 
+#mkdir build
+#cd build/
+#meson setup . ..
+#ninja
+#ninja test
+#ninja install
 
 # enable dbus-broker
-systemctl enable dbus-broker.service
+#systemctl enable dbus-broker.service
 #may be necessary also
-sudo systemctl --global enable dbus-broker.service
+#sudo systemctl --global enable dbus-broker.service
 
 #add new user for homeassistant
 sudo useradd -rm homeassistant
@@ -43,6 +43,8 @@ sudo passwd homeassistant
 
 #go to homeassistant directory
 cd /srv/homeassistant
+
+sudo chmod -R 777 /srv/homeassistant
 
 #create Python 3.10 virtual environment and activate it 
 python3.10 -m venv .
