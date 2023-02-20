@@ -8,7 +8,7 @@ sudo apt update
 sudo apt install -y python3.10 python3.10-dev python3.10-venv python3-pip bluez libffi-dev libssl-dev libjpeg-dev zlib1g-dev autoconf build-essential libopenjp2-7 libtiff5 libturbojpeg0-dev tzdata
 
 #install dbus-broker dependencies
-#sudo apt install git ninja-build pkg-config python-docutils libsystemd-dev
+#sudo apt install -y git ninja-build pkg-config python-docutils libsystemd-dev
 
 #meson 1.0 required for dbus-broker install, necessary to do it this way because Ubuntu 20.04 only supports meson 0.53 with apt
 #sudo pip3 install meson --upgrade
@@ -37,7 +37,7 @@ sudo useradd -rm homeassistant
 #set up homeassistant folder
 sudo mkdir /srv/homeassistant
 
-#add and set password for homeassistant sudo just in case, do these commands as flashsysxxx user (I used ha123)
+#add and set password for homeassistant sudo just in case, do these commands as flashsysxxx user (I used flash123)
 sudo usermod -aG sudo homeassistant
 sudo passwd homeassistant 
 
@@ -53,7 +53,7 @@ source bin/activate
 #install Python dependencies and then homeassistant
 pip install --upgrade pip
 pip3 install wheel
-pip3 install homeassistant==2023.2.3
+pip3 install homeassistant
 
 sudo chmod -R 777 /srv/homeassistant
 
