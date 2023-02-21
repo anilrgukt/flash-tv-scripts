@@ -1,12 +1,15 @@
 [Unit]
 Description=FLASH-TV startup script
-
+StartLimitIntervalSec=0
 
 ## VERY IMPORTANT TO Modify the username correctly
 [Service]
 ExecStart=/bin/bash /home/flashsysXXX/Desktop/flash_run_on_boot.sh
-StandardOutput=file:/var/log/XXX_flash_logstdout.log
-StandardError=file:/var/log/XXX_flash_logstderr.log
+StandardOutput=append:/home/flashsysXXX/data/XXX_flash_logstdout.log
+StandardError=append:/home/flashsysXXX/data/XXX_flash_logstderr.log
+Restart=always
+RestartSec=1
+
 
 [Install]
 WantedBy=multi-user.target
