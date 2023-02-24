@@ -4,7 +4,7 @@ StartLimitIntervalSec=0
 
 ## VERY IMPORTANT TO Modify the username correctly
 [Service]
-ExecStart=/bin/bash /home/flashsysXXX/Desktop/flash-tv-scripts/flash_run_on_boot.sh
+ExecStart=/bin/bash /home/flashsysXXX/flash-tv-scripts/flash_run_on_boot.sh
 StandardOutput=append:/home/flashsysXXX/data/XXX_data/XXX_flash_logstdout.log
 StandardError=append:/home/flashsysXXX/data/XXX_data/XXX_flash_logstderr.log
 Restart=always
