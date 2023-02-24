@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export famId=XXX
+export famId=123XXX
 export usrName=flashsysXXX
 
 export LD_LIBRARY_PATH=/home/$usrName/mxnet/lib:$LD_LIBRARY_PATH
