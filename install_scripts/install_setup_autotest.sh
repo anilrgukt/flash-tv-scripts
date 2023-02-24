@@ -23,7 +23,7 @@ cd /home/$USER
 # Create a venv if it doesn't already exist
 if ! ls | grep -q "py38"
 then 
-	python3 -m venv /home/$USER/py38
+	python3 -m venv ~/py38
 fi
 
 # Activate the virtual env
@@ -64,29 +64,29 @@ grep -xqF -- "$PATH3" "$FILE" || echo "$PATH3" >> "$FILE"
 
 source ~/.bashrc
 
-cp ~/flash-tv-scripts/install_scripts/mxnet_config.mk /home/$USER/mxnet/config.mk
+cp ~/flash-tv-scripts/install_scripts/mxnet_config.mk ~/mxnet/config.mk
 
-cd /home/$USER/mxnet
-
-# maybe needs libatlas-base-dev installed
+cd ~/mxnet
 make -j12
 
 # remember to install the python bindings
-cd /home/$USER/mxnet/python
+cd ~/mxnet/python
 pip3 install -e .
 
 #Copy folders listed in FLASH_filesetup.sh before doing the following 
 
 #### INSIGHTFACE installation
 source ~/py38/bin/activate
-cd /home/$USER/insightface/python-package/ 
+cd ~/insightface/python-package/ 
 python setup.py install 
 
-cd /home/$USER/insightface/detection/RetinaFace/
+cd ~/insightface/detection/RetinaFace/
 make -j12
 
 #### DARKNET face release installation
 source ~/py38/bin/activate
-cd /home/$USER/FLASH_TV/darknet_face_release
+cd ~/FLASH_TV/darknet_face_release
 make clean
 make -j12 all
+
+#reboot
