@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export famId=XXX
+export famId=123XXX
 export usrName=flashsysXXX
 
 #logFilePath=/home/$usrName/data/${famId}_data
