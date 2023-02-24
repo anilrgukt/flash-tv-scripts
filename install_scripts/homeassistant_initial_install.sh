@@ -32,19 +32,20 @@ sudo apt upgrade -y
 #sudo systemctl --global enable dbus-broker.service
 
 #add new user for homeassistant
-sudo useradd -rm homeassistant
+#sudo useradd -rm homeassistant
 
 #set up homeassistant folder
-sudo mkdir /srv/homeassistant
+cd ~
+mkdir ha
 
 #add and set password for homeassistant sudo just in case, do these commands as flashsysxxx user (I used flash123)
-sudo usermod -aG sudo homeassistant
-sudo passwd homeassistant 
+#sudo usermod -aG sudo homeassistant
+#sudo passwd homeassistant 
 
 #go to homeassistant directory
-cd /srv/homeassistant
+cd ha
 
-sudo chmod -R 777 /srv/homeassistant
+#sudo chmod -R 777 ha
 
 #create Python 3.10 virtual environment and activate it 
 python3.10 -m venv .
@@ -55,7 +56,7 @@ pip install --upgrade pip
 pip3 install wheel
 pip3 install homeassistant
 
-sudo chmod -R 777 /srv/homeassistant
+#sudo chmod -R 777 ha
 
 #reboot the system after the above
 #reboot
