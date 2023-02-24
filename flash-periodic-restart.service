@@ -3,7 +3,7 @@ Description=FLASH periodic restart sript
 
 
 [Service]
-ExecStart=/bin/bash /home/flashsysXXX/Desktop/flash-tv-scripts/flash_periodic_restart.sh
+ExecStart=/bin/bash /home/flashsysXXX/flash-tv-scripts/flash_periodic_restart.sh
 StandardOutput=append:/home/flashsysXXX/data/XXX_data/XXX_flash_logstdoutp.log
 StandardError=append:/home/flashsysXXX/data/XXX_data/XXX_flash_logstderrp.log
 
