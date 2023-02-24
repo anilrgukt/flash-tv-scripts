@@ -17,19 +17,19 @@ cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/.i
 sudo cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/.insightface /root
 
 #FLASH_TV_v2 ----> in /home/$USER/Desktop
-cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/FLASH_TV_v2 /home/$USER/Desktop
+cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/FLASH_TV_v2 ~/Desktop
 #FLASH_TV_v3 ----> in /home/$USER/Desktop
-cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/FLASH_TV_v3 /home/$USER/Desktop
+cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/FLASH_TV_v3 ~/Desktop
 
 #flash-run-on-boot.service ---> in /home/$USER/Desktop
-#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/flash-run-on-boot.service /home/$USER/Desktop
+#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/flash-run-on-boot.service ~/Desktop
 #flash-run_on_boot.sh ----> in /home/$USER/Desktop
-#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/flash_run_on_boot.sh /home/$USER/Desktop
+#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/flash_run_on_boot.sh ~/Desktop
 
 
 #build_gallery.sh ----> in /home/$USER/Desktop
-#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/build_gallery.sh /home/$USER/Desktop
+#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/build_gallery.sh ~/Desktop
 #create_faces.sh ----> in /home/$USER/Desktop
-#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/create_faces.sh /home/$USER/Desktop
+#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/create_faces.sh ~/Desktop
 #run_flashtv_system.sh ----> in /home/$USER/Desktop
-#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/run_flashtv_system.sh /home/$USER/Desktop
+#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/run_flashtv_system.sh ~/Desktop
