@@ -1,7 +1,10 @@
 #!/bin/bash
 
+#Set up RTC
+sudo sed -i 's/ATTR{hctosys}=="1"/ATTR{hctosys}=="0"/g' /lib/udev/rules.d/50-udev-default.rules
+
 #### General dependencies
-sudo apt install -y screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0
+sudo apt install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0
 
 #### PYTORCH dependencies
 # visit https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html
