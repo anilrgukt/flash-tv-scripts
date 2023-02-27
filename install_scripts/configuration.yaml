@@ -1,0 +1,32 @@
+
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+# Text to speech
+tts:
+  - platform: google_translate
+
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+notify:
+  - platform: file
+    name: filenotify
+    filename: ~/ha/tv_power_5s.csv
+    #timestamp: true
+
+automation:
+  - alias: sensor_values_to_file
+    initial_state: 'on'
+    trigger:
+      - platform: time_pattern
+        seconds: /5
+    action:
+      - service: notify.filenotify
+        data_template: 
+          message: "{{states('sensor.plug_mini_XXXX_power')}};{{now().strftime('%m.%d.%Y')}}; {{now().strftime('%H.%M.%S')}}"
+  - !include automations.yaml      
