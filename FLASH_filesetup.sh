@@ -6,6 +6,8 @@ sudo cp ~/flash-tv-scripts/flash-periodic-restart.service /etc/systemd/system
 sudo cp ~/flash-tv-scripts/homeassistant-run-on-boot.service /etc/systemd/system
 sudo systemctl daemon-reload
 
+rm ~/flash-tv-scripts/video_capture
+
 #from /harddisk/FLASH_TV_installation
 
 #FLASH_TV ----> in /home/$USER
