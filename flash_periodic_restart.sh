@@ -9,7 +9,7 @@ mkdir -p $logFile
 
 while true;
 do
-	sleep 600;
+	sleep 21600;
 	export dt=`date`;
 	systemctl status flash-run-on-boot.service > "${logFile}/log_${dt}.txt"
 	systemctl stop flash-run-on-boot.service
