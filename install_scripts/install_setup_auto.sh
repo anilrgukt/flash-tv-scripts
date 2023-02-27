@@ -29,12 +29,12 @@ fi
 # Activate the virtual env
 source ~/py38/bin/activate
 
-# use numpy=='1.21.2'
+# numpy=='1.21.2'???
 # scipy=='1.5.3'???
 
-export TORCH_INSTALL=https://developer.download.nvidia.com/compute/redist/jp/v502/pytorch/torch-1.13.0a0+936e9305.nv22.11-cp38-cp38-linux_aarch64.whl
+export TORCH_INSTALL=https://developer.download.nvidia.cn/compute/redist/jp/v51/pytorch/torch-1.14.0a0+44dac51c.nv23.01-cp38-cp38-linux_aarch64.whl
 
-python3 -m pip install --upgrade pip; python3 -m pip install aiohttp numpy=='1.21.2' scipy; export "LD_LIBRARY_PATH=/usr/lib/llvm-8/lib:$LD_LIBRARY_PATH"; python3 -m pip install --upgrade protobuf; python3 -m pip install --no-cache $TORCH_INSTALL; pip install torchvision
+python3 -m pip install --upgrade pip; python3 -m pip install aiohttp numpy=='1.19.4' scipy=='1.5.3' export "LD_LIBRARY_PATH=/usr/lib/llvm-8/lib:$LD_LIBRARY_PATH"; python3 -m pip install --upgrade protobuf; python3 -m pip install --no-cache $TORCH_INSTALL
 
 #### MXNET dependencies
 # check instructions at https://mxnet.apache.org/versions/1.9.1/get_started/jetson_setup
