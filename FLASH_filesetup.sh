@@ -21,15 +21,7 @@ cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/FL
 #FLASH_TV_v3 ----> in /home/$USER/Desktop
 cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/FLASH_TV_v3 ~/Desktop
 
-#flash-run-on-boot.service ---> in /home/$USER/Desktop
-#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/flash-run-on-boot.service ~/Desktop
-#flash-run_on_boot.sh ----> in /home/$USER/Desktop
-#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/flash_run_on_boot.sh ~/Desktop
-
-
-#build_gallery.sh ----> in /home/$USER/Desktop
-#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/build_gallery.sh ~/Desktop
-#create_faces.sh ----> in /home/$USER/Desktop
-#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/create_faces.sh ~/Desktop
-#run_flashtv_system.sh ----> in /home/$USER/Desktop
-#cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/run_flashtv_system.sh ~/Desktop
+sudo cp ~/flash-tv-scripts/flash-run-on-boot.service /etc/systemd/system
+sudo cp ~/flash-tv-scripts/flash-periodic-restart.service /etc/systemd/system
+sudo cp ~/flash-tv-scripts/homeassistant-run-on-boot.service /etc/systemd/system
+sudo systemctl daemon-reload
