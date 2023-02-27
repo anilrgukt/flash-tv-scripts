@@ -1,6 +1,8 @@
 read -p 'Enter FLASH device ID (3 digits):' deviceID
 read -p 'Enter family ID (3 digits probably):' familyID
 
+mkdir ~/data/$deviceID$familyID_data
+
 sed -i "s/XXX/$deviceID/g" ~/flash-tv-scripts/flash-periodic-restart.service
 sed -i "s/123/$familyID/g" ~/flash-tv-scripts/flash-periodic-restart.service
 sed -i "s/XXX/$deviceID/g" ~/flash-tv-scripts/flash_periodic_restart.sh
