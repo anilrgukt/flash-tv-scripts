@@ -1,0 +1,16 @@
+[Unit]
+Description=Home Assistant
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+#User=%i
+WorkingDirectory=/home/flashsysXXX/.homeassistant
+ExecStart=/home/flashsysXXX/ha/bin/hass -c "/home/flashsysXXX/.homeassistant"
+StandardOutput=append:/home/flashsysXXX/ha/123XXX_ha_logstdout.log
+StandardError=append:/home/flashsysXXX/ha/123XXX_ha_logstderr.log
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
