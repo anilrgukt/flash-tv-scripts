@@ -72,7 +72,7 @@ done
 
 # poster processing
 n=0
-for i in /home/$USER/Desktop/poster_faces/*.png;
+for i in ../poster_faces/*.png;
 do 
 	#echo $i;
 	n=$((n+1))
