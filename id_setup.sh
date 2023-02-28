@@ -19,8 +19,8 @@ sed -i "s/XXX/$deviceID/g" ~/flash-tv-scripts/flash_run_on_boot.sh
 sed -i "s/123/$familyID/g" ~/flash-tv-scripts/flash_run_on_boot.sh
 sed -i "s/XXX/$deviceID/g" ~/flash-tv-scripts/homeassistant-run-on-boot.service
 sed -i "s/123/$familyID/g" ~/flash-tv-scripts/homeassistant-run-on-boot.service
-sed -i "s/XXX/$deviceID/g" ~/flash-tv-scripts/runtime_scripts/data_details.sh
-sed -i "s/123/$familyID/g" ~/flash-tv-scripts/runtime_scripts/data_details.sh
+sed -i "s/XXX/$deviceID/g" ~/flash-tv-scripts/sh_scripts/data_details.sh
+sed -i "s/123/$familyID/g" ~/flash-tv-scripts/sh_scripts/data_details.sh
 sed -i "s/XXX/$deviceID/g" ~/flash-tv-scripts/install_scripts/configuration.yaml
 sed -i "s/123/$familyID/g" ~/flash-tv-scripts/install_scripts/configuration.yaml
 
