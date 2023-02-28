@@ -28,4 +28,4 @@ hass
 # Save the file and copy it to overrwrite the configuration.yaml in the .homeassistant folder
 # Start homeassistant again and make sure there are no errors
 # Check ~/ha to make sure the .csv log is being written (this will not be the only way of obtaining the data but it is useful as a backup)
-# Leave homeassistant on and check for errors if there's time
+# Make sure to turn off the internet, leave homeassistant on, and check for errors if there's time
