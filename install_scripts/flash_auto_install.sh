@@ -1,8 +1,5 @@
 #!/bin/bash
 
-#Set up RTC
-sudo sed -i 's/ATTR{hctosys}=="1"/ATTR{hctosys}=="0"/g' /lib/udev/rules.d/50-udev-default.rules
-
 #### General dependencies
 sudo apt install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0
 
