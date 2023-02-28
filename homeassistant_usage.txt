@@ -1,4 +1,5 @@
 # MUST PERFORM THIS PROCEDURE MANUALLY FOR NOW
+# MAKE SURE YOU HAVE ALREADY RUN full_initial_setup.sh WITH NO ERRORS AND ALL IDS ARE SET UP
 
 # You have to run homeassistant at least once manually before copying the configuration file
 cd ~/ha
@@ -18,8 +19,8 @@ hass
 ### SHOULD BE DONE AT HOMES
 # After the Bluetooth module is configured, if the smart plug is plugged into a socket it should show up on the same screen
 # If the smart plug does not show up, try pressing the button on its side to make sure it's turned on (there should be a white LED light)
-# NOTE THE FOUR CHARACTER ID OF THE SMART PLUG, MAKE SURE YOU KNOW WHICH ONE IT CORRESPONDS TO, DO NOT MIX THEM UP
-# Configure and set up the smart plug, set the area to whatever matches, you can add a new area if necessary
+# NOTE THE FOUR CHARACTER ID OF THE SMART PLUG, MAKE SURE YOU KNOW WHICH PLUG AND LOCATION IT CORRESPONDS TO, DO NOT MIX THEM UP
+# Configure and set up the smart plug, set the area to whatever matches, you can name a new area if necessary
 # Click on the History tab on the middle left, then Choose entity, and select "Plug Mini XXXX Power"
 # If the data is coming in as expected, go on to the next steps, otherwise troubleshoot
 # STOP HOMEASSISTANT (Ctrl-C)
@@ -34,4 +35,5 @@ hass
 # Make sure the homeassistant data is copied and saved in multiple ways (.csv in ~/data/123XXX_data folder, .csv from addon, .db from ~/.homeassistant folder, etc.)
 # Make sure homeassistant is shutdown
 # Delete the ~/.homeassistant folder and the .csv file in the ~/ha folder
+# RUN family_change_setup.sh IF YOU HAVEN'T ALREADY
 # Redo the above steps from the beginning
