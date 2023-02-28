@@ -16,7 +16,7 @@ scene: !include scenes.yaml
 notify:
   - platform: file
     name: filenotify
-    filename: /home/flashsysXXX/data/123XXX_data/tv_power_5s.csv
+    filename: /home/flashsysXXX/data/123XXX_data/123XXX_tv_power_5s.csv
     #timestamp: true
 
 automation:
