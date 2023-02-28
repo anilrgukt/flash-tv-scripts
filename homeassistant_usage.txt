@@ -31,7 +31,7 @@ hass
 # Make sure to turn off the internet, leave homeassistant on and make sure the service is running, and check for errors if there's time
 
 ### WHEN CHANGING FAMILIES/PLUGS AND REUSING THE DEVICE
-# Make sure the homeassistant data is copied and saved in multiple ways (.csv in ~/ha folder, .csv from addon, .db from ~/.homeassistant folder, etc.)
+# Make sure the homeassistant data is copied and saved in multiple ways (.csv in ~/data/123XXX_data folder, .csv from addon, .db from ~/.homeassistant folder, etc.)
 # Make sure homeassistant is shutdown
 # Delete the ~/.homeassistant folder and the .csv file in the ~/ha folder
 # Redo the above steps from the beginning
