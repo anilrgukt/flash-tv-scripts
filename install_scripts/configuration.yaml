@@ -28,5 +28,5 @@ automation:
     action:
       - service: notify.filenotify
         data_template: 
-          message: "{{states('sensor.plug_mini_XXXX_power')}};{{now().strftime('%m.%d.%Y')}}; {{now().strftime('%H.%M.%S')}}"
+          message: "{{states('sensor.plug_mini_YYYY_power')}};{{now().strftime('%m.%d.%Y')}}; {{now().strftime('%H.%M.%S')}}"
   - !include automations.yaml      
