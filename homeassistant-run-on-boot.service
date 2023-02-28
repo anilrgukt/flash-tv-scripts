@@ -4,7 +4,7 @@ StartLimitIntervalSec=0
 
 [Service]
 Type=simple
-#User=%i
+User=flashsysXXX
 WorkingDirectory=/home/flashsysXXX/.homeassistant
 ExecStart=/home/flashsysXXX/ha/bin/hass -c "/home/flashsysXXX/.homeassistant"
 StandardOutput=append:/home/flashsysXXX/data/123XXX_data/123XXX_ha_logstdout.log
