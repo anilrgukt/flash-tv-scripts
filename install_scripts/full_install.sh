@@ -112,4 +112,8 @@ cd ~/FLASH_TV/darknet_face_release
 make clean
 make -j12 all
 
-#reboot
+# Update and upgrade just to make sure
+sudo apt update
+sudo apt upgrade -y
+
+#reboot preferred
