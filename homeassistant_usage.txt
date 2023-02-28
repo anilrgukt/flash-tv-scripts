@@ -1,0 +1,29 @@
+#!/bin/bash
+# MUST PERFORM THIS PROCEDURE MANUALLY FOR NOW
+
+# You have to run homeassistant at least once manually before copying the configuration file
+cd ~/ha
+source bin/activate
+hass
+
+### MUST BE DONE BEFORE GOING TO FAMILY HOME
+# Now that homeassistant has initialized you have to open localhost:8123 in your browser and follow the setup
+# While you are setting it up, it might refresh/reset the page once or twice, just redo it
+# Choose the name, username and password, I chose them to be the same as the device's
+# Name the installation the same as the username
+# If you are not at a family's home, click Detect to set the metrics and move the location away a little if preferred
+# Do not select anything to share (this is already the default so just press Next)
+# Ignore the devices and click Finish
+# Click on Settings then Devices & Services and make sure the native Bluetooth module is discovered and configure it if it already isn't
+
+### CAN BE DONE AT FAMILY'S HOME
+# After the Bluetooth module is configured, if the smart plug is plugged into a socket it should show up on the same screen
+# If the smart plug does not show up, try pressing the button on its side to make sure it's turned on (there should be a white LED light)
+# NOTE THE FOUR CHARACTER ID OF THE SMART PLUG, MAKE SURE YOU KNOW WHICH ONE IT CORRESPONDS TO, DO NOT MIX THEM UP
+# Configure and set up the smart plug, set the area to whatever matches, you can add a new area if necessary
+# STOP HOMEASSISTANT (Ctrl-C)
+# Open the configuration.yaml in the flash-tv-scripts/install_scripts folder, NOT THE ONE IN the .homeassistant folder
+# Look for the line where it says 'sensor.plug_mini_XXXX_power' and ONLY REPLACE THE XXXX WITH THE FOUR CHARACTER ID YOU NOTED EARLIER
+# Save the file and copy it to overrwrite the configuration.yaml in the .homeassistant folder
+# Start homeassistant again and make sure there are no errors
+# Check ~/ha to make sure the .csv log is being written (this will not be the only way of obtaining the data but it is useful as a backup)
