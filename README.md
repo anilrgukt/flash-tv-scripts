@@ -8,7 +8,7 @@
 Instructions for running all the scripts properly, WIP
 
 ## full_initial_configuration.sh
-Bash script that automatically runs other bash scripts for procedures marked with an asterisk(\*), needs to be run once on every new Jetson
+Bash script that automatically runs or sets up other bash scripts for procedures marked with an asterisk(\*), needs to be run once on every new Jetson
 
 ## runtime_scripts
 Bash scripts for running initial FLASH-TV protocols for setup, including building the gallery, creating faces, and running TV gaze estimation with images saved
