@@ -1,9 +1,7 @@
 #!/bin/bash
 
-# Disable currently running services
-sudo systemctl disable flash-periodic-restart.service
-sudo systemctl disable flash-run-on-boot.service
-sudo systemctl disable homeassistant-run-on-boot.service
+# Disable and stop currently running services
+bash -x ~/flash-tv-scripts/stop_services.sh
 
 # Copy, load, and enable services
 sudo cp ~/flash-tv-scripts/services/flash-run-on-boot.service /etc/systemd/system
