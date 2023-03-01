@@ -1,14 +1,40 @@
-# FLASH-Tv-scripts
+# FLASH-TV Scripts
 
-> FLASH tv runtime and installation scripts
+> FLASH-TV runtime and installation scripts
 
 <img src="pngs/teaser_small.png"/>
 
+## INSTRUCTIONS.txt
+Instructions for running all the scripts properly, WIP
 
-## sh scipts
-This has the scripts for setting up initial FLASH-TV protocols including building gallery, creating faces, running tv gaze estimation with images saved
+## runtime_scripts
+Bash scripts for running initial FLASH-TV protocols for setup, including building the gallery, creating faces, and running TV gaze estimation with images saved
 
-## install scripts
-To install ML libaries necessary for FLASH-TV 
+## install_scripts
+Bash scripts for installing ML libaries and packages necessary for running FLASH-TV and Home Assistant on the Jetsons\*
 
-> Make sure you downloaded the necessary software (insight_face, darkent_face_release etc.) and placed them in the right location
+> Make sure you have downloaded the necessary software (insight_face, darknet_face_release etc.) and placed them in the right locations\*
+
+## setup_scripts
+Bash scripts for the initial setup of the Jetsons in order to be able to run the other scripts and services and properly save data\*
+
+## services
+Services for systemd and bash scripts that will run FLASH-TV and Home Assistant on boot and restart FLASH-TV periodically\*
+
+> Check service status with test_services.sh if necessary
+
+## python_scripts
+Python scripts for running for FLASH-TV detection, recognition, and gaze estimation
+
+## video_capture_scripts
+Bash scripts only used on laptop for camera video verification, deleted on Jetsons during setup\*
+
+## full_initial_configuration.sh
+Bash script that automatically runs other bash scripts with procedures marked with an asterisk(\*)
+
+## participant_change.sh 
+Bash script that automatically runs bash scripts for changing the setup when changing participants
+
+## homeassistange_usage.txt
+Instructions for setting up Home Assistant manually after installation as the process cannot be automated at the moment
+
