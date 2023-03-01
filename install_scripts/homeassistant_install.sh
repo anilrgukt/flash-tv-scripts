@@ -1,5 +1,5 @@
 #!/bin/bash
-#see homeassistant_usage.sh for how to initialize homeassistant after this
+#see homeassistant_setup.txt for how to initialize homeassistant after this
 
 #for Python 3.10 easy install
 sudo add-apt-repository -y ppa:deadsnakes/ppa
