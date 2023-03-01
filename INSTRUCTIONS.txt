@@ -20,7 +20,7 @@ On each new Jetson, ideally after flashing it to NVIDIA JetPack 5.1 using SDKMan
   - Make sure to check if the script needs the password every 15 minutes, or you can set the password timeout to be 6 hours (read the "suedit" file in 
     install_scripts)
 
-If the Jetson loses power while running the script, run "stop_services.sh" and start the script again
+If the Jetson loses power while running the script, run "stop_services.sh" before starting the script again
 After intial setup is finished, make sure there were no important errors and then read and follow "homeassistant_setup.txt"
 Once you know the ID of the family the Jetson will be going to, run "participant_change.sh" and enter it again
 
