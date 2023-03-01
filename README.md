@@ -24,7 +24,7 @@ Services for systemd and bash scripts that will run FLASH-TV and Home Assistant 
 > Check service status with test_services.sh if necessary
 
 ## python_scripts
-Python scripts for running for FLASH-TV detection, recognition, and gaze estimation
+Python scripts for running FLASH-TV detection, recognition, and gaze estimation algorithms
 
 ## video_capture_scripts
 Bash scripts only used on laptop for camera video verification, deleted on Jetsons during setup\*
