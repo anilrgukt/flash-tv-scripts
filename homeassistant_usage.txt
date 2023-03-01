@@ -1,12 +1,11 @@
 # MUST PERFORM THIS PROCEDURE MANUALLY FOR NOW
 # MAKE SURE YOU HAVE ALREADY RUN full_initial_setup.sh WITH NO ERRORS AND ALL IDS ARE SET UP AND SERVICES HAVE BEEN ENABLED BUT NOT STARTED
 
+### SHOULD BE DONE BEFORE GOING TO HOMES
 # You have to run homeassistant at least once manually before copying the configuration file
 cd ~/ha
 source bin/activate
 hass
-
-### SHOULD BE DONE BEFORE GOING TO HOMES
 # Now that homeassistant has initialized you have to open localhost:8123 in the browser and follow the setup with the instructions below
 # While you are setting it up, it might refresh/reset the page once or twice, just redo it
 # Choose the name (username should autofill to be the same as name) and password (I chose them to be the same as the Jetson's)
