@@ -21,14 +21,21 @@ camStat=`ls /sys/class/video4linux/`
 for videoId in $camStat
 do
 	var=`cat /sys/class/video4linux/$videoId/name`
-	if [ "$var" == "C930e" ]; then # Integrated Camera: Integrated C
+	if (echo "$var" | grep -iq "C930e") ; then # Integrated Camera: Integrated C
 		echo "Camera is identified"
+		camFound=1
 		break
-	else
-		zenity --warning --title="Warning message" --width 500 --height 100 --text="Exiting the code since Logitech c930e camera is not detected. Please connect the camera and restart the script."
-		exit 
+	else 
+		camFound=0
 	fi
 done
+
+if [ $camFound == 0 ]; then
+	zenity --warning --title="Warning message" --width 500 --height 100 --text="Exiting the code since Logitech c930e camera is not detected. Please connect the camera and restart the script."
+	exit
+else 
+	break
+fi
 
 echo $var, $videoId
 
