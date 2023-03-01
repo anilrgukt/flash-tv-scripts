@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Remove video capture folder just in case as it's unnecessary for Jetsons
+rm -r ~/flash-tv-scripts/video_capture_scripts
+
 # Take input
 read -p 'Enter FLASH device ID (3 digits):' deviceID
 read -p 'Enter family ID (3 digits probably):' familyID
