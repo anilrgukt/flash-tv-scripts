@@ -5,9 +5,6 @@
 sudo sed -i 's/ATTR{hctosys}=="1"/ATTR{hctosys}=="0"/g' /lib/udev/rules.d/50-udev-default.rules 
 sudo hwclock -w
 
-# Remove video capture folder just in case as it's unnecessary for Jetsons
-rm -r ~/flash-tv-scripts/video_capture_scripts
-
 #from /harddisk/FLASH_TV_installation
 
 #FLASH_TV ----> in /home/$USER
