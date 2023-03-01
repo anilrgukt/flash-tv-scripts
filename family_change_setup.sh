@@ -1,10 +1,5 @@
 #!/bin/bash
+# MUST DELETE AND RECLONE flash-tv-scripts directory BEFORE RUNNING THIS OR IT WILL NOT WORK PROPERLY
 
-read -p 'Enable logging (y/n)?' answer
-if [ "$answer" = "${answer#[Yy]}" ] ;then
-    bash -x ~/flash-tv-scripts/id_setup.sh
-    bash -x ~/flash-tv-scripts/service_setup.sh
-else
-    bash ~/flash-tv-scripts/id_setup.sh
-    bash ~/flash-tv-scripts/service_setup.sh
-fi
+bash -x ~/flash-tv-scripts/id_setup.sh
+bash -x ~/flash-tv-scripts/service_setup.sh
