@@ -7,6 +7,9 @@
 ## INSTRUCTIONS.txt
 Instructions for running all the scripts properly, WIP
 
+## FLASH-TV Installation Checklist.pdf
+Checklist for the actual setup procedure for FLASH-TV at participants' homes
+
 ## full_initial_configuration.sh
 Bash script that automatically runs or sets up other bash scripts for procedures marked with an asterisk(\*), needs to be run once on every new Jetson
 
