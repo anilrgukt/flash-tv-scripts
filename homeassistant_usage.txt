@@ -1,5 +1,5 @@
 # MUST PERFORM THIS PROCEDURE MANUALLY FOR NOW
-# MAKE SURE YOU HAVE ALREADY RUN full_initial_setup.sh WITH NO ERRORS AND ALL IDS ARE SET UP AND SERVICES HAVE BEEN TESTED
+# MAKE SURE YOU HAVE ALREADY RUN full_initial_setup.sh WITH NO ERRORS AND ALL IDS ARE SET UP AND SERVICES HAVE BEEN ENABLED BUT NOT STARTED
 
 # You have to run homeassistant at least once manually before copying the configuration file
 cd ~/ha
@@ -33,7 +33,9 @@ hass
 
 ### WHEN CHANGING FAMILIES/PLUGS AND REUSING THE DEVICE
 # Make sure the homeassistant data is copied and saved in multiple ways (.csv in ~/data/123XXX_data folder, .csv from addon, .db from ~/.homeassistant folder, etc.)
+# Make sure the FLASH-TV data (~/data folder) is copied and saved as well just case
 # Make sure homeassistant is shutdown
-# Delete the ~/.homeassistant folder and the .csv file in the ~/ha folder
+# Delete the flash-tv-scripts folder, the ~/.homeassistant folder, and the .csv file in the ~/data/123XXX_data folder
+# Reclone the flash-tv-scripts folder
 # RUN family_change_setup.sh IF YOU HAVEN'T ALREADY
 # Redo the above steps from the beginning
