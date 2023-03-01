@@ -3,10 +3,10 @@
 
 #for Python 3.10 easy install
 sudo add-apt-repository -y ppa:deadsnakes/ppa
-sudo apt update
+sudo apt-get update
 
 #install homeassistant dependencies
-sudo apt install -y python3.10 python3.10-dev python3.10-venv python3-pip bluez libffi-dev libssl-dev libjpeg-dev zlib1g-dev autoconf build-essential libopenjp2-7 libtiff5 libturbojpeg0-dev tzdata
+sudo apt-get install -y python3.10 python3.10-dev python3.10-venv python3-pip bluez libffi-dev libssl-dev libjpeg-dev zlib1g-dev autoconf build-essential libopenjp2-7 libtiff5 libturbojpeg0-dev tzdata
 
 #set up homeassistant folder
 cd /home/$USER
