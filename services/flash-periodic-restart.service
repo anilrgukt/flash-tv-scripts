@@ -1,9 +1,9 @@
 [Unit]
-Description=FLASH periodic restart sript
+Description=FLASH periodic restart script
 StartLimitIntervalSec=0
 
 [Service]
-ExecStart=/bin/bash /home/flashsysXXX/flash-tv-scripts/flash_periodic_restart.sh
+ExecStart=/bin/bash /home/flashsysXXX/flash-tv-scripts/services/flash_periodic_restart.sh
 StandardOutput=append:/home/flashsysXXX/data/123XXX_data/123XXX_flash_logstdoutp.log
 StandardError=append:/home/flashsysXXX/data/123XXX_data/123XXX_flash_logstderrp.log
 Restart=always
