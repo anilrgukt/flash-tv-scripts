@@ -1,11 +1,11 @@
 #!/bin/bash
 
 #### General dependencies
-sudo apt install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0
+sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0
 
 #### PYTORCH dependencies
 # visit https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html
-sudo apt install -y \
+sudo apt-get install -y \
 	build-essential \
 	git \
 	libopenblas-dev \
