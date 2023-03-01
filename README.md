@@ -37,6 +37,6 @@ Bash scripts only used on laptop for camera video verification, deleted on Jetso
 ## participant_change.sh 
 Bash script that automatically runs other bash scripts for changing the setup (IDs, services) when changing participants
 
-## homeassistange_usage.txt
+## homeassistant_setup.txt
 Instructions for setting up Home Assistant manually after installation as the process cannot be automated at the moment
 
