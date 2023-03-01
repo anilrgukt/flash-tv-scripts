@@ -25,6 +25,7 @@ Bash scripts for the initial setup of the Jetsons in order to be able to run the
 Services for systemd and bash scripts that will run FLASH-TV and Home Assistant on boot and restart FLASH-TV periodically\*
 
 > Start and check status of all services quickly with test_services.sh if necessary
+> 
 > Disable and stop all services quickly with stop_services.sh if necessary
 
 ## python_scripts
