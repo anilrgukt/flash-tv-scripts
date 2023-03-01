@@ -1,0 +1,15 @@
+# Setup
+Make sure you cloned this directory, "flash-tv-scripts", in the "/home/$USER" folder (aka "~" or "/home/flashsysXXX")
+On each new Jetson, after flashing etc, run the "full_initial_setup.sh" script using bash ONCE.
+If you don't know the family ID yet then just put 123.
+Make sure to check if the script needs the sudo password every 15 minutes, or you can set the sudo timeout to be 6 hours
+After intital setup is finished, read and follow "homeassistant_usage.txt"
+
+# Changing Families
+Make sure all the data from FLASH and homeassistant is stored in the "~/data" folder and back it up to external storage
+Back up the .db files from the "~/.homeassistant" folder (might be automated in the future)
+Really make sure "~/data" is backed up to external storage as everything is stored in there
+Delete the "~/flash-tv-scripts" folder, the "~/.homeassistant" folder (show hidden files if you don't see it), and the "~/data" folder only if necessary
+Clone the flash-tv-scripts folder again and run "family_change_setup.sh" using bash
+You should know the family ID before doing this, but if you don't, just put 123 and run it again later
+Read and follow "homeassistant_usage.txt" again
