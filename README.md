@@ -1,6 +1,6 @@
 # FLASH-TV Scripts
 
-> FLASH-TV runtime and installation scripts
+> FLASH-TV installation, setup, configuration, and runtime scripts
 
 <img src="pngs/teaser_small.png"/>
 
