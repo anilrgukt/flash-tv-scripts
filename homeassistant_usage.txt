@@ -8,12 +8,14 @@ source bin/activate
 hass
 # Now that homeassistant has initialized you have to open localhost:8123 in the browser and follow the setup with the instructions below
 # While you are setting it up, it might refresh/reset the page once or twice, just redo it
+# It also might hang for a while, just be patient
 # Choose the name (username should autofill to be the same as name) and password (I chose them to be the same as the Jetson's)
 # Name the installation the same as the username
 # If you are not at a family's home, click Detect to set the metrics and move the location pin away a little if preferred
 # Do not select anything to share (this should already be the default so just press Next)
 # Ignore the devices and click Finish
 # Click on Settings on the bottom left, then Devices & Services, and make sure the native Bluetooth module is discovered and configure it if it already isn't
+# Ignore all other devices and disable the default ones if you wish
 
 ### SHOULD BE DONE AT HOMES
 # After the Bluetooth module is configured, if the smart plug is plugged into a socket it should show up on the same screen
