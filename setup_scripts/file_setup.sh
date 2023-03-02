@@ -27,4 +27,4 @@ cp -r /media/$USER/696f0b73-ad9f-44a2-9cbd-fd09be1e4164/FLASH_TV_installation/FL
 
 # New Python scripts
 
-cp -r ~/flash-tv-scripts/python_scripts ~/Desktop/FLASH_TV_v3
+cp -r ~/flash-tv-scripts/python_scripts/. ~/Desktop/FLASH_TV_v3
