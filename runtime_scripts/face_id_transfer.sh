@@ -6,7 +6,7 @@ read -p 'Enter the ID of the device you are transferring faces TO (3 digits):' n
 
 for face in $faces
 do
-  mv -v "$face" "${face/olddeviceID/newdeviceID}"
+  mv -v "$face" "${face/$olddeviceID/$newdeviceID}"
 done
 
 
