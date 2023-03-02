@@ -1,4 +1,4 @@
-faces = `ls ~/data/123XXX_data/123XXX_faces/`
+faces=`ls ~/data/123XXX_data/123XXX_faces/`
 cd ~/data/123XXX_data/123XXX_faces/
 
 read -p 'Enter the ID of the device you are transferring faces FROM (3 digits):' olddeviceID
