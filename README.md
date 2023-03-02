@@ -6,7 +6,7 @@
 
 # FLASH-TV Installation on NVIDIA Jetson AGX Orin Devkits
 Please read the [INSTRUCTIONS](./INSTRUCTIONS.txt) file above for details
-> Make sure you have downloaded or copied the necessary software (insight_face, darknet_face_release etc.) and placed it in the right locations(\*placement only, when external hard disk is connected)
+> Make sure you have downloaded or copied the necessary software (insight_face, darknet_face_release etc.) and placed it in the right locations(\*placement only, when specific external hard disk is connected)
 
  - full_initial_configuration.sh
    > Bash script that automatically runs or sets up other bash scripts for procedures marked with an asterisk(\*), needs to be run once on every new Jetson
