@@ -40,7 +40,7 @@ fi
 echo $var, $videoId
 
 #famId=$(zenity --entry --title="Please input Family ID" --text="Family ID :")
-source data_details.sh
+source video_data_details.sh
 
 zenity --question --title="Capturing the video" --width 500 --height 100 --text="Please verify the following details\nFamily ID: $videoFileName \nData save path: $savePath" --no-wrap
 user_resp=$?
