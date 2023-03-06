@@ -35,5 +35,5 @@ Copy/clone the flash-tv-scripts folder into the /home/flashsysXXX directory agai
 You should know the family ID before doing this, but if you don't, just type 123 and run "participant_change.sh" again later
 Read and follow "homeassistant_setup.txt" again
 
-# Runtime Scripts and Data Collection
-See the FLASH-TV installation checklist for more detailed instructions
+# Runtime Scripts, In-Home Installation, Data Collection
+See the FLASH-TV in-home installation checklist for more detailed instructions
