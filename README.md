@@ -15,8 +15,7 @@ Please read the [INSTRUCTIONS](./INSTRUCTIONS.txt) file above for details
    > Bash scripts for installing ML libaries and packages necessary for running FLASH-TV and Home Assistant on the Jetsons\*
 
 # FLASH-TV In-Home Data Collection
-Please use the [check list](https://docs.google.com/document/d/1YsyBKnJgQ7WB-XFTUHe-cB27ZMZT5CRpLUyl3zfOLHs/) and [slides](https://bcmedu-my.sharepoint.com/:f:/g/personal/207282_bcm_edu/EqhtrTeGWm9DqhoshCBtBtUB0J5otZWmKRoay09M_0a9Hw?e=gyoOaa) on onedrive for detailed instructions 
-- runtime_scripts
+Please see the [checklist](https://docs.google.com/document/d/1YsyBKnJgQ7WB-XFTUHe-cB27ZMZT5CRpLUyl3zfOLHs/) and [slides](https://bcmedu-my.sharepoint.com/:f:/g/personal/207282_bcm_edu/EqhtrTeGWm9DqhoshCBtBtUB0J5otZWmKRoay09M_0a9Hw?e=gyoOaa) for detailed instructions. The checklist is also hosted as a [pdf](./FLASH-TV_In-Home_Installation_Checklist.pdf) in this repository and updated periodically.
   > Bash scripts for running initial FLASH-TV protocols for setup, including building the gallery, creating faces, and running TV gaze estimation with images saved
 - setup_scripts
   > Bash scripts for the initial setup of the Jetsons in order to be able to run the other scripts and services and properly save data\*
