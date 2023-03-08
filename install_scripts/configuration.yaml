@@ -36,12 +36,12 @@ automation:
         {{now().strftime(''%H.%M.%S'')}}'
   mode: single
   
-- alias: Restart Bluetooth Hourly
+- alias: Restart Bluetooth Every 6 Hours
   description: ''
   initial_state: 'on'
   trigger:
   - platform: time_pattern
-    hours: /1
+    hours: /6
   condition: []
   action:
   - service: shell_command.bluetoothctl_off
