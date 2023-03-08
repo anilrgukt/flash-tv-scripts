@@ -266,7 +266,7 @@ class WebcamVideoStream:
         if not self.vid.isOpened():
             # camera failed
             print('THE camera could not be opened', datetime.now())
-            raise IOError(("Couldn't open video file or webcam at", datetime.now()))
+            raise IOError(("Couldn't open video file or webcam at", str(datetime.now())))
         if width is not None and height is not None:
             self.vid.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             self.vid.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
