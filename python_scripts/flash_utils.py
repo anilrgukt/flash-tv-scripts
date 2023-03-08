@@ -6,6 +6,7 @@ import threading
 
 from skimage.transform import resize
 from imageio import imread, imsave
+from datetime import datetime
 
 def draw_rect_det(img, dboxes, save_file):
     cv_img = np.copy(img)
@@ -264,7 +265,8 @@ class WebcamVideoStream:
         self.vid = cv2.VideoCapture(src, cv2.CAP_V4L2)
         if not self.vid.isOpened():
             # camera failed
-            raise IOError(("Couldn't open video file or webcam."))
+            print('THE camera could not be opened', datetime.now())
+            raise IOError(("Couldn't open video file or webcam at", datetime.now()))
         if width is not None and height is not None:
             self.vid.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             self.vid.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
