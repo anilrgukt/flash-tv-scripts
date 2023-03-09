@@ -33,8 +33,6 @@ done
 if [ $camFound == 0 ]; then
 	zenity --warning --title="Warning message" --width 500 --height 100 --text="Exiting the code since Logitech c930e camera is not detected. Please connect the camera and restart the script."
 	exit
-else 
-	break
 fi
 
 echo $var, $videoId
