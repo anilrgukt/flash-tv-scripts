@@ -1,10 +1,6 @@
 #!/bin/bash
 # FILE setup
 
-# Set up RTC
-sudo sed -i 's/ATTR{hctosys}=="1"/ATTR{hctosys}=="0"/g' /lib/udev/rules.d/50-udev-default.rules 
-sudo hwclock -w
-
 # from /harddisk/FLASH_TV_installation
 
 #FLASH_TV ----> in /home/$USER
