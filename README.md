@@ -5,7 +5,7 @@
 <img src="pngs/teaser_small.png"/>
 
 # FLASH-TV Installation on NVIDIA Jetson AGX Orin Devkits
-Please read the [setup instructions](./Setup_Instructions.pdf) file above for details
+Please read the [setup instructions](./Setup_Instructions.pdf) and [Home Assistant usage](./Home_Assistant_Usage.pdf) files above for details
 > Make sure you have downloaded or copied the necessary software (insight_face, darknet_face_release etc.) and placed it in the right locations(\*placement only, when specific external hard disk is connected)
 
  - full_initial_configuration.sh
@@ -31,5 +31,3 @@ Please see the [checklist](https://docs.google.com/document/d/1YsyBKnJgQ7WB-XFTU
   > Bash scripts used on a laptop for video data collection for human ground truth labeling, deleted on Jetsons(\*deletion only)
 - python_scripts
   > Python scripts for running FLASH-TV detection, recognition, and target child's gaze estimation
-- [Home_Assistant_Usage.pdf](./Home_Assistant_Usage.pdf)
-  > Instructions for setting up Home Assistant manually after installation as the process cannot be automated at the moment
