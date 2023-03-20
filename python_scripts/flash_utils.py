@@ -282,8 +282,8 @@ class WebcamVideoStream:
         self.ret, self.frame = self.vid.read()
         if not self.ret:
             self.vid.release()
-            print("Couldn't open video frame.", str(datetime.now())
-            raise IOError(("Couldn't open video frame.", str(datetime.now()))
+            print("Couldn't open video frame.", str(datetime.now()))
+            raise IOError(("Couldn't open video frame.", str(datetime.now())))
 
         # initialize the variable used to indicate if the thread should
         # check camera vid shape
