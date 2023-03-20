@@ -259,23 +259,31 @@ class WebcamVideoStream:
         if self.vid.isOpened():
             self.vid.release()
         return
-
+        
     def start(self, src, width=None, height=None, fps=None):
         # initialize the video camera stream and read the first frame
         self.vid = cv2.VideoCapture(src, cv2.CAP_V4L2)
+        
         if not self.vid.isOpened():
             # camera failed
             print('THE camera could not be opened', datetime.now())
             raise IOError(("Couldn't open video file or webcam at", str(datetime.now())))
+        
+        codec = cv2.VideoWriter_fourcc('M','J','P','G')
+        self.vid.set(6, codec)
+        
         if width is not None and height is not None:
             self.vid.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             self.vid.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
         if fps is not None:
         	self.vid.set(5, fps)
+        	
+        	
         self.ret, self.frame = self.vid.read()
         if not self.ret:
             self.vid.release()
-            raise IOError(("Couldn't open video frame."))
+            print("Couldn't open video frame.", str(datetime.now())
+            raise IOError(("Couldn't open video frame.", str(datetime.now()))
 
         # initialize the variable used to indicate if the thread should
         # check camera vid shape
