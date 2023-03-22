@@ -761,7 +761,7 @@ savePath = str(sys.argv[2])
 writeImg = True if sys.argv[3]=='save-image' else False
 
 
-tmp_fname = str(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+tmp_fname = str(datetime.now().strftime("%Y-%m-%d %H-%M-%S"))
 tmp_fname = '_'.join(tmp_fname.split(' '))
 
 fname_log = os.path.join(savePath, str(famid) + '_flash_log_'+tmp_fname+'.txt') 
