@@ -260,7 +260,7 @@ class WebcamVideoStream:
             self.vid.release()
         return
         
-    def start(self, src, width=None, height=None, fps=None):
+    def start(self, src, width=None, height=None, fps=None, set_codec=True):
         # initialize the video camera stream and read the first frame
         self.vid = cv2.VideoCapture(src, cv2.CAP_V4L2)
         
@@ -269,12 +269,14 @@ class WebcamVideoStream:
             print('THE camera could not be opened', datetime.now())
             raise IOError(("Couldn't open video file or webcam at", str(datetime.now())))
         
-        codec = cv2.VideoWriter_fourcc('M','J','P','G')
-        self.vid.set(6, codec)
+        if set_codec:
+            codec = cv2.VideoWriter_fourcc('M','J','P','G')
+            self.vid.set(6, codec)
         
         if width is not None and height is not None:
             self.vid.set(cv2.CAP_PROP_FRAME_WIDTH, width)
             self.vid.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
+            
         if fps is not None:
         	self.vid.set(5, fps)
         	
