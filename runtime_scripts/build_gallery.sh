@@ -43,7 +43,8 @@ if [ $user_resp -eq 1 ]; then
 fi
 
 source /home/$usrName/py38/bin/activate
-cd /home/$usrName/Desktop/FLASH_TV_v3
+#cd /home/$usrName/Desktop/FLASH_TV_v3
+cd /home/$usrName/flash-tv-scripts/python_scripts
 
 echo "Everything is a success"
 
