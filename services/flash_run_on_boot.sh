@@ -17,7 +17,7 @@ source /home/$usrName/py38/bin/activate
 # runs a while loop for the flash-tv algorithm 
 while true;
 do
-	python /home/$usrName/Desktop/FLASH_TV_v3/test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId /home/$usrName/data/${famId}_data no-save-image $usrName 
+	python /home/$usrName/flash-tv-scripts/python_scripts/test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId /home/$usrName/data/${famId}_data no-save-image $usrName 
 done
 
 
