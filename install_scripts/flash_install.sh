@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #### General dependencies
-sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0
+sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0 nano 
 
 #### PYTORCH dependencies
 # visit https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html
