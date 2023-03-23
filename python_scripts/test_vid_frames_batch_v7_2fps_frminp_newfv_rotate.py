@@ -897,8 +897,9 @@ while True:
 			
 			frm_counter = frame_counts[-1]
 			tdet = time.time()
-			#tmp = [cv2.imwrite(os.path.join(frames_path, str(frame_counts[k]).zfill(6)+'.png'), frame_1080p_ls[k]) for k in range(3,5)]
-			#del tmp
+			if write_img_data:
+				tmp = [cv2.imwrite(os.path.join(frames_path, str(frame_counts[k]).zfill(6)+'.png'), frame_1080p_ls[k]) for k in range(3,5)]
+				del tmp
 			
 			
 			frames_list.append(frame_counts[3])
