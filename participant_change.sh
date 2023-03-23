@@ -6,10 +6,8 @@ read -p 'Enter plug ID (4 characters lowercase) or YYYY (uppercase) if the plug 
 
 sed -i "s/YYYY/$plugID/g" ~/flash-tv-scripts/install_scripts/configuration.yaml
 
-# Copying the config file to the Home Assistant directory
-cp ~/flash-tv-scripts/install_scripts/configuration.yaml ~/.homeassistant
-
 bash -x ~/flash-tv-scripts/setup_scripts/id_setup.sh
 bash -x ~/flash-tv-scripts/setup_scripts/service_setup.sh
 
-
+# Copying the config file to the Home Assistant directory
+cp ~/flash-tv-scripts/install_scripts/configuration.yaml ~/.homeassistant
