@@ -9,5 +9,14 @@ sed -i "s/YYYY/$plugID/g" ~/flash-tv-scripts/install_scripts/configuration.yaml
 bash -x ~/flash-tv-scripts/setup_scripts/id_setup.sh
 bash -x ~/flash-tv-scripts/setup_scripts/service_setup.sh
 
+zenity --question --title="Verify Plug ID" --width 500 --height 100 --text="Please verify the following details\nPlug ID: $plugID\nFamily ID: $familyID\nDevice ID: $deviceID" --no-wrap
+user_resp=$?
+
+if [ $user_resp -eq 1 ]; then
+	#echo "Exitted the code $user_resp"
+	zenity --warning --text="Exiting the code since data details are not correct. Please modify them and restart the script."
+	exit 
+fi
+
 # Copying the config file to the Home Assistant directory
 cp ~/flash-tv-scripts/install_scripts/configuration.yaml ~/.homeassistant
