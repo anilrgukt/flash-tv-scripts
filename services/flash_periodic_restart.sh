@@ -10,7 +10,9 @@ mkdir -p $logFile
 while true;
 do
 	sleep 21600;
-	export dt=`date`;
+	#DOW=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
+	#dt=`date`;
+	dt=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
 	systemctl status flash-run-on-boot.service > "${logFile}/log_${dt}.txt"
 	systemctl stop flash-run-on-boot.service
 	systemctl status flash-run-on-boot.service > "${logFile}/logend_${dt}.txt"
