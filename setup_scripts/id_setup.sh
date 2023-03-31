@@ -7,6 +7,14 @@ rm -r ~/flash-tv-scripts/video_capture_scripts
 read -p 'Enter FLASH device ID (3 digits):' deviceID
 read -p 'Enter family ID (3 digits probably):' familyID
 
+zenity --question --title="Verify Device and Family ID" --width 500 --height 100 --text="Please verify the following details\nFamily ID: $familyID\nDevice ID: $deviceID" --no-wrap
+user_resp=$?
+
+if [ $user_resp -eq 1 ]; then
+	zenity --warning --text="Exiting the code since data details are not correct. Please modify them and restart the script."
+	exit 
+fi
+
 # Create data directory
 mkdir ~/data
 mkdir ~/data/${familyID}${deviceID}_data
