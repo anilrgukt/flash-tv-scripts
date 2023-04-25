@@ -16,6 +16,7 @@ do
 	systemctl status flash-run-on-boot.service > "${logFile}/log_${dt}.txt"
 	systemctl stop flash-run-on-boot.service
 	systemctl status flash-run-on-boot.service > "${logFile}/logend_${dt}.txt"
+	timedatectl status > "${logFile}/timedate_${dt}.txt"
 	
 	pkill -9 -f test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py
 	
