@@ -5,8 +5,10 @@
 Please refer to these publications for technical details:
  - Vadathya et al. An Objective System for Quantitative Assessment of Television Viewing Among Children (Family Level Assessment of Screen Use in the Home-Television): System Development Study, _JMIR Pediatrics and Parenting 5.1 (2022): e33569._
 
-## Installation Instructions on NVIDIA Jetson AGX Orin Devkits 
+## Installation Instructions 
 Please download the files from this google drive [link](https://drive.google.com/drive/folders/1hth1P58s5V-CGqdMYpZw2_dalI-RecTm?usp=share_link) and follow the below instructions
+> Prerequisites: Nvidia CUDA enabled GPU (8GB memory), Python3, PyTorch, MXNet
+
  - Place the exactracted zip files from drive in to the locations as specified in `setup_scripts/file_setup.sh`
  - Run `install_scripts/flash_install.sh` to install all the components necessary for FLASH-TV (insightface, darknet face release)
  - This creates a python virtual environmen at `/home/$usrName/py38` from which we execute FLASH-TV algorithms
