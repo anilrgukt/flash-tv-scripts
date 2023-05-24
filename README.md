@@ -4,7 +4,34 @@
 
 <img src="pngs/teaser_small.png"/>
 
-# FLASH-TV Installation on NVIDIA Jetson AGX Orin Devkits
+# FLASH-TV Installation on NVIDIA Jetson AGX Orin Devkits 
+## Quick Instructions
+Please download the files from this google drive [link](https://drive.google.com/drive/folders/1hth1P58s5V-CGqdMYpZw2_dalI-RecTm?usp=share_link) and follow the below instructions
+ - Place the exactracted zip files from drive in to the locations as specified in `setup_scripts/file_setup.sh`
+ - Run `install_scripts/flash_install.sh` to install all the components necessary for FLASH-TV (insightface, darknet face release)
+ - This creates a python virtual environmen at `/home/$usrName/py38` from which we execute FLASH-TV algorithms
+
+## FLASH-TV demo 
+ - After the above installation steps are executed without any errors
+ - Create a sample gallery of faces that you want to recognize. Take a look at the example gallery in `examples/gallery_faces`
+ - Please read the below instructions completely before executing FLASH-TV
+ - Run FLASH-TV v3.0 as indicated in the `runtime_scripts/run_flashtv_system.sh`
+  
+  > Sample execution code
+  For example, create a folder for saving data at `/home/user/123_data`. Create a sample gallery similar to the [example](examples/gallery_faces) and name it as `123_faces` and put in the `123_data` folder.
+  
+  ```
+  source /home/$usrName/py38/bin/activate
+  cd /home/$usrName/flash-tv-scripts/python_scripts
+  python test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId $savePath save-image $usrName
+  ```
+  
+  - `famId` is a 3 digit unique ID for the specific data e.g. 123
+  - `savePath` specifies the location where data is saved e.g. `/home/user/123_data`
+  - `save-image` indicates whether to save image outputs, to not save specify `no-save-image`
+  - `usrName` indicates the user name of the user account
+
+# FLASH-TV Installation on NVIDIA Jetson AGX Orin Devkits - Detailed for data collection
 Please read the [setup instructions](./Setup_Instructions.pdf) and [Home Assistant usage](./Home_Assistant_Usage.pdf) files above for details
 > Make sure you have downloaded or copied the necessary software (insight_face, darknet_face_release etc.) and placed it in the right locations(\*placement only, when specific external hard disk is connected)
 
