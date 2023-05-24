@@ -1,8 +1,11 @@
-# FLASH-TV Scripts
-
+# Family Level Assessment of Screen Use in the Home-Television (FLASH-TV) Scripts
 > FLASH-TV installation, setup, configuration, and runtime scripts
-
 <img src="pngs/teaser_small.png"/>
+
+Please refer to these publications for technical details:
+ - Vadathya et al. An Objective System for Quantitative Assessment of Television Viewing Among Children (Family Level Assessment of Screen Use in the Home-Television): System Development Study, _JMIR Pediatrics and Parenting 5.1 (2022): e33569._
+
+
 
 # FLASH-TV Installation on NVIDIA Jetson AGX Orin Devkits 
 ## Installation Instructions
