@@ -5,7 +5,7 @@
 <img src="pngs/teaser_small.png"/>
 
 # FLASH-TV Installation on NVIDIA Jetson AGX Orin Devkits 
-## Quick Instructions
+## Installation Instructions
 Please download the files from this google drive [link](https://drive.google.com/drive/folders/1hth1P58s5V-CGqdMYpZw2_dalI-RecTm?usp=share_link) and follow the below instructions
  - Place the exactracted zip files from drive in to the locations as specified in `setup_scripts/file_setup.sh`
  - Run `install_scripts/flash_install.sh` to install all the components necessary for FLASH-TV (insightface, darknet face release)
@@ -31,7 +31,7 @@ Please download the files from this google drive [link](https://drive.google.com
   - `save-image` indicates whether to save image outputs, to not save specify `no-save-image`
   - `usrName` indicates the user name of the user account
 
-# FLASH-TV Installation on NVIDIA Jetson AGX Orin Devkits - Detailed for data collection
+# Details for data collection - FLASH-TV Installation on NVIDIA Jetson AGX Orin Devkits
 Please read the [setup instructions](./Setup_Instructions.pdf) and [Home Assistant usage](./Home_Assistant_Usage.pdf) files above for details
 > Make sure you have downloaded or copied the necessary software (insight_face, darknet_face_release etc.) and placed it in the right locations(\*placement only, when specific external hard disk is connected)
 
