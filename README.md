@@ -5,10 +5,7 @@
 Please refer to these publications for technical details:
  - Vadathya et al. An Objective System for Quantitative Assessment of Television Viewing Among Children (Family Level Assessment of Screen Use in the Home-Television): System Development Study, _JMIR Pediatrics and Parenting 5.1 (2022): e33569._
 
-
-
-# FLASH-TV Installation on NVIDIA Jetson AGX Orin Devkits 
-## Installation Instructions
+## Installation Instructions on NVIDIA Jetson AGX Orin Devkits 
 Please download the files from this google drive [link](https://drive.google.com/drive/folders/1hth1P58s5V-CGqdMYpZw2_dalI-RecTm?usp=share_link) and follow the below instructions
  - Place the exactracted zip files from drive in to the locations as specified in `setup_scripts/file_setup.sh`
  - Run `install_scripts/flash_install.sh` to install all the components necessary for FLASH-TV (insightface, darknet face release)
