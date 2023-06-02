@@ -51,7 +51,12 @@ cd /home/$usrName/flash-tv-scripts/python_scripts
 
 echo "Everything is a success"
 
-python test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId $savePath save-image $usrName
+while true;
+do
+	python test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId $savePath save-image $usrName;
+	sleep 30;
+done
+	
 
 
 

@@ -12,6 +12,7 @@ import sys
 import random
 import subprocess
 import threading as th
+import traceback
 from queue import Queue
 
 from flash_utils import *
@@ -770,11 +771,34 @@ frame_counter = 1
 frames_path = os.path.join(savePath, str(famid)+'_frames')
 results_path = os.path.join(savePath, str(famid)+'_test_res') # '/media/FLASH_SSD/525_test_res/'
 
-if not os.path.exists(frames_path):
-	os.makedirs(frames_path)
-
 if not os.path.exists(results_path):
 	os.makedirs(results_path)
+
+if not os.path.exists(frames_path):
+	os.makedirs(frames_path)
+else:
+	if len(os.listdir(frames_path)) > 0:
+		file_ls = next(os.walk(savePath))[1]
+		file_ls_ = []
+		for f in file_ls: 
+			if f.startswith(str(famid)+'_frames'):
+				file_ls_.append(f)
+		
+		f_ = None
+		for i, f in enumerate(file_ls_):
+			f_path = os.path.join(savePath, f)
+			if len(f_path) > 0:
+				continue
+			else:
+				f_ = f
+		
+		if f_ is None:
+			frames_path = os.path.join(savePath, str(famid)+'_frames_'+str(i+2))
+			results_path = os.path.join(savePath, str(famid)+'_test_res_'+str(i+2))
+			
+			os.makedirs(frames_path)
+			os.makedirs(results_path)	
+	
 
 log_file = [fname_log, frame_counter]
 print('log file', log_file)
@@ -860,396 +884,401 @@ while True:
 	qempty_start = None
 
 
-	while True:
-		if (batch7_count+1) % 100 == 0:
-			#stop_capture = True
-			if batch7_write:
-				print('############################################################')
-				print('Time for processing 100 batch7s: ', time.time()-t_batch_start)
-				print('############################################################')
-				t_batch_start = time.time()
-			batch7_write = False
-			
-		tc_check_time_now = datetime.now()
-		time_diff = tc_check_time_now - tc_seen_last_time
-		
-		if time_diff.total_seconds() >= 1500:
-			stop_capture = True
-			break
-		
-		ni=4
-		for idx in range(ni):
-			time_diff = datetime.now() - gal_updated_time[idx]
-			if time_diff.total_seconds() >= 150.0:
-				gal_update[idx] = True
+	try:
+		while True:
+			if (batch7_count+1) % 100 == 0:
+				#stop_capture = True
+				if batch7_write:
+					print('############################################################')
+					print('Time for processing 100 batch7s: ', time.time()-t_batch_start)
+					print('############################################################')
+					t_batch_start = time.time()
+				batch7_write = False
 				
-				
-		if not q.empty():
-			qempty_start = None
-			batch7_list = q.get()
-		
-			batch7_count+=1 
-			batch7_write = True
+			tc_check_time_now = datetime.now()
+			time_diff = tc_check_time_now - tc_seen_last_time
 			
-			frame_1080p_ls = [b[0] for b in batch7_list]
-			frame_counts = [b[1] for b in batch7_list]
-			frame_stamps = [b[2] for b in batch7_list]
+			if time_diff.total_seconds() >= 1500:
+				stop_capture = True
+				break
 			
-			frm_counter = frame_counts[-1]
-			tdet = time.time()
-			if write_img_data:
-				tmp = [cv2.imwrite(os.path.join(frames_path, str(frame_counts[k]).zfill(6)+'.png'), frame_1080p_ls[k]) for k in range(3,5)]
-				del tmp
-			
-			
-			frames_list.append(frame_counts[3])
-			time_stamps_list.append(frame_stamps[3])
-			gaze_list.append(np.array([None, None]))
-			
-			frame_1080p_ls = [cv2.cvtColor(img1080, cv2.COLOR_BGR2RGB) for img1080 in frame_1080p_ls]
-			frame_608p_ls = [cv2.resize(img1080, (608,342)) for img1080 in frame_1080p_ls]
-			
-			frame_1080p_ls = [frame_1080p_ls[3],frame_1080p_ls[4]]
-			frame_608p_ls = [frame_608p_ls[3],frame_608p_ls[4]]
-				
-			# run face detector
-			if rotate_tofindtc:
-				img2 = frame_1080p_ls[1]
-				img1 = frame_1080p_ls[0]
-				rotate_flip, quad = rotate_bool[rotate_status]
-				
-				if rotate_flip >= 0:
-					if rotate_flip:
-						img2 = cv2.rotate(img2[:,:,::-1], cv2.ROTATE_90_CLOCKWISE)
-						#img1 = cv2.rotate(img1[:,:,::-1], cv2.ROTATE_90_CLOCKWISE)
-						rotate_angle = -90
-					else:
-						img2 = cv2.rotate(img2[:,:,::-1], cv2.ROTATE_90_COUNTERCLOCKWISE)
-						#img1 = cv2.rotate(img1[:,:,::-1], cv2.ROTATE_90_COUNTERCLOCKWISE)
-						rotate_angle = 90
+			ni=4
+			for idx in range(ni):
+				time_diff = datetime.now() - gal_updated_time[idx]
+				if time_diff.total_seconds() >= 150.0:
+					gal_update[idx] = True
 					
-					#img2 = cv2.resize(img2, (1920, 1080))
-					img2 = img2[quad*640:(quad+1)*640,:,::-1]
-					#img1 = img1[quad*640:(quad+1)*640,:,::-1]
-					#img2 = img2[840:,:,::-1]
-				
-				#img1 = frame_1080p_ls[0]
-				frame_bbox_ls = [face_detector(img1[:,:,::-1]), face_detector(img2[:,:,::-1], threshold=0.11)] # rgb to bgr for face detector input
-				#frame_bbox_ls[0] = rotate_transform(frame_bbox_ls[0], rotate_angle, quad)
-				if rotate_flip >= 0:
-					frame_bbox_ls[1] = rotate_transform(frame_bbox_ls[1], rotate_angle, quad)
-				rotate_count +=1
-			else:
-				frame_bbox_ls = [face_detector(frame[:,:,::-1]) for frame in frame_1080p_ls] # rgb to bgr for face detector input
-				rotate_count = 0
-				rotate_count_tc = 0
-				rotate_flip = False
-			#print('for face detector', time.time()-tdet)
-			#print(frm_counter, len(frame_bbox_ls[0]), len(frame_bbox_ls[1]), rotate_angle, rotate_flip, quad) #, frame_bbox_ls[1])
-			
-			tfv = time.time()
-			# pipe per frame dets to batch of facial images for faster face rec 
-			detFacesLog, bboxFaces, idxFaces = pipe_frames_data_to_faces(fmodel, frame_bbox_ls, frame_1080p_ls, area_threshold=35, det_threshold=0.11)
-			
-			#for face_count, face in enumerate(detFacesLog[::2]):
-			#	#print('saving', face.shape, frame_counts[3])
-			#	cv2.imwrite(os.path.join(aux_path, str(frame_counts[3]).zfill(6)+'_'+str(face_count).zfill(2)+'.png'), face[:,:,::-1])
-		
-		
-			dist, detFacesLog, det_emb = get_face_embeddings(fmodel, nmodel, detFacesLog, mean)
-			
-			if detFacesLog.shape[0]>0:
-				face_seen_last_time = datetime.now()
-
-			thrs = threshold
-			dist_cmp = np.array([])
-			ni = 4
-			if dist.shape[0]>0:
-				dist_res = np.copy(dist) - thrs
-				dist_res[dist_res>0] = 0
-				dist_res = -(dist_res)
-				#print(dist_cmp)
-				dist_cmp = dist_res[:, :ni] + dist_res[:, ni:ni*2] + dist_res[:, ni*2:ni*3] + \
-							dist_res[:, ni*3:ni*4] + dist_res[:, ni*4:ni*5] + dist_res[:, ni*5:ni*6]
-						
-			dist_res = dist
-		
-			frame_ver_bbox_ls = []
-			tc_bbox_ls = []
-			tc_faces_ls = []
-			angle=None
-			for frm_idx in range(2):
-				#frm_boxes = [bboxFaces[cidx] for cidx, i in enumerate(idxFaces) if i==frm_idx]
-				face2frm_idx = [cidx for cidx, i in enumerate(idxFaces) if i==frm_idx]
-				frm_boxes = [bboxFaces[i] for i in face2frm_idx]
-				frm_distcmp = [dist_cmp[i] for i in face2frm_idx]
-				frm_distcmp = np.array(frm_distcmp)
-
-				idxs = [0,1,2,3]
-				gt_idxs = [-4,-3,-2]
-				for i in range(frm_distcmp.shape[0]):
-					di = frm_distcmp[i]
-					idx = di.argmax()
-					if save_feat:
-						frm_boxes[i]['feat'] = det_emb[face2frm_idx[i],:]
-					else:
-						frm_boxes[i]['feat'] = np.array([])
 					
-					face_i = detFacesLog[face2frm_idx[i]]
-						
-					if (idx in idxs) and frm_distcmp[:,idx].max()<=di[idx] and di[idx]>0: # 
-						frm_boxes[i]['idx'] = idx
-						idxs.remove(idx)
-						
-						if idx==0:
-							#print(face_i.shape, face_i.max())
-							face_tc, [nsW,nsH,offW,offH,sl,st] = get_tc_face(frame_1080p_ls[frm_idx], frm_boxes[i], wsc, hsc)
-							rotated_face_tc, angle = rotate_tc_face(face_tc, frm_boxes[i], wsc, hsc, sl, st, offW, offH,angle)
-							
-							#print(frm_idx, frm_boxes[i])
-							#cv2.imwrite(os.path.join(aux_path, str(frame_counts[3]).zfill(6)+'_'+str(frm_idx).zfill(2)+'_unrot.png'), face_tc[:,:,::-1])
-							#cv2.imwrite(os.path.join(aux_path, str(frame_counts[3]).zfill(6)+'_'+str(frm_idx).zfill(2)+'_rot.png'), rotated_face_tc[:,:,::-1])
-							frm_boxes[i]['angle'] = angle
-							#print(frame_counts[3], frm_idx, angle)
-							
-							#imsave('tmp_tc_'+str(frame_counts[3]).zfill(6)+'.png', rotated_face_tc)
-							tc_faces_ls.append(rotated_face_tc)
-							#tc_faces_ls.append(face_tc)
-							tc_bbox_ls.append(frm_boxes[i])
-							if rotate_tofindtc and frm_idx==1:
-								rotate_count_tc += 1
-								#print('rotated tc detected')
-							
-						if idx<3 and di[idx]>gal_add_thrshld and gal_update[idx]:
-							tmp = 10
-							gt_embedding[gt_idxs[idx],:] = frm_boxes[i]['feat']
-							gal_update[idx] = False
-							gal_updated_time[idx] = datetime.now()
-							print('Updated gallery at idx:', idx, 'at', gal_updated_time[idx].time())
-							#upFace = detFacesLog[face2frm_idx[i]]
-							#fi_name = fis[0][:6]+'_update_'+str(idx)+'.png'
-							#imsave(os.path.join(savePath, fi_name), upFace)
-						#if (idx==0):
-						#continue
-						#imsave(tcPath+fi[:-7]+'.png', detFacesLog[i])
-						#np.save(featPath+fi[:-7]+'.npy', det_emb[i, :embedding_size])
-					else:
-						if len(frm_boxes)>0:
-							frm_boxes[i]['idx'] = 4
-							
-				#print('Frame appends', frm_idx, len(frm_boxes), idxs)
-				frame_ver_bbox_ls.append(frm_boxes)
+			if not q.empty():
+				qempty_start = None
+				batch7_list = q.get()
+			
+				batch7_count+=1 
+				batch7_write = True
 				
-				if rotate_tofindtc and frm_idx==1:
-					#if 0 in idxs:
-					if rotate_flip<0:
-						if 0 in idxs:
-							rotate_status = rotate_count%6
-					else:
-						if len(frm_boxes)<1:
-							#rotate_flip = not rotate_flip
-							rotate_status = rotate_count%6
-							#print('changing rot stat', rotate_status, rotate_count)
-
-			if len(tc_faces_ls)>=1:
+				frame_1080p_ls = [b[0] for b in batch7_list]
+				frame_counts = [b[1] for b in batch7_list]
+				frame_stamps = [b[2] for b in batch7_list]
 				
-				tc_seen_last_time = datetime.now()
-				#frames_ls.append(frames_ls[-1])
-				if len(tc_faces_ls)<=1:
-					for i in range(7-len(tc_faces_ls)):
-						tc_faces_ls.append(tc_faces_ls[-1])
+				frm_counter = frame_counts[-1]
+				tdet = time.time()
+				if write_img_data:
+					tmp = [cv2.imwrite(os.path.join(frames_path, str(frame_counts[k]).zfill(6)+'.png'), frame_1080p_ls[k]) for k in range(3,5)]
+					del tmp
+				
+				
+				frames_list.append(frame_counts[3])
+				time_stamps_list.append(frame_stamps[3])
+				gaze_list.append(np.array([None, None]))
+				
+				frame_1080p_ls = [cv2.cvtColor(img1080, cv2.COLOR_BGR2RGB) for img1080 in frame_1080p_ls]
+				frame_608p_ls = [cv2.resize(img1080, (608,342)) for img1080 in frame_1080p_ls]
+				
+				frame_1080p_ls = [frame_1080p_ls[3],frame_1080p_ls[4]]
+				frame_608p_ls = [frame_608p_ls[3],frame_608p_ls[4]]
+					
+				# run face detector
+				if rotate_tofindtc:
+					img2 = frame_1080p_ls[1]
+					img1 = frame_1080p_ls[0]
+					rotate_flip, quad = rotate_bool[rotate_status]
+					
+					if rotate_flip >= 0:
+						if rotate_flip:
+							img2 = cv2.rotate(img2[:,:,::-1], cv2.ROTATE_90_CLOCKWISE)
+							#img1 = cv2.rotate(img1[:,:,::-1], cv2.ROTATE_90_CLOCKWISE)
+							rotate_angle = -90
+						else:
+							img2 = cv2.rotate(img2[:,:,::-1], cv2.ROTATE_90_COUNTERCLOCKWISE)
+							#img1 = cv2.rotate(img1[:,:,::-1], cv2.ROTATE_90_COUNTERCLOCKWISE)
+							rotate_angle = 90
+						
+						#img2 = cv2.resize(img2, (1920, 1080))
+						img2 = img2[quad*640:(quad+1)*640,:,::-1]
+						#img1 = img1[quad*640:(quad+1)*640,:,::-1]
+						#img2 = img2[840:,:,::-1]
+					
+					#img1 = frame_1080p_ls[0]
+					frame_bbox_ls = [face_detector(img1[:,:,::-1]), face_detector(img2[:,:,::-1], threshold=0.11)] # rgb to bgr for face detector input
+					#frame_bbox_ls[0] = rotate_transform(frame_bbox_ls[0], rotate_angle, quad)
+					if rotate_flip >= 0:
+						frame_bbox_ls[1] = rotate_transform(frame_bbox_ls[1], rotate_angle, quad)
+					rotate_count +=1
 				else:
-					#print('going for 2', len(tc_faces_ls))
-					tc_faces_ls = [tc_faces_ls[0]]*3 + tc_faces_ls + [tc_faces_ls[-1]]*2
-					#tc_faces_ls = [tc_faces_ls[1]]*7 # + tc_faces_ls + [tc_faces_ls[-1]]*2
+					frame_bbox_ls = [face_detector(frame[:,:,::-1]) for frame in frame_1080p_ls] # rgb to bgr for face detector input
+					rotate_count = 0
+					rotate_count_tc = 0
+					rotate_flip = False
+				#print('for face detector', time.time()-tdet)
+				#print(frm_counter, len(frame_bbox_ls[0]), len(frame_bbox_ls[1]), rotate_angle, rotate_flip, quad) #, frame_bbox_ls[1])
 				
-				source_video_7fps = torch.FloatTensor(7,3,224,224) 
-				for idx, img in enumerate(tc_faces_ls):
-					#print('image max', img.min(), img.max())
-					img_ar = 1*img
-					im = Image.fromarray(np.uint8(img_ar))
-					source_video_7fps[idx,...] = image_transform(im)
-					
-				source_video_7fps = source_video_7fps.view(21,224,224)
+				tfv = time.time()
+				# pipe per frame dets to batch of facial images for faster face rec 
+				detFacesLog, bboxFaces, idxFaces = pipe_frames_data_to_faces(fmodel, frame_bbox_ls, frame_1080p_ls, area_threshold=35, det_threshold=0.11)
 				
-				batch10_frames.append(frame_counts[3])
-				batch10_faces.append(source_video_7fps)
-				batch10_imgs.append(frame_608p_ls[0])
-				batch10_tcpos.append([tc_bbox_ls[0], len(frame_ver_bbox_ls[0])])
-				batch10_ts.append(frame_stamps[3])
-			else:
-				output_name = str(frame_counts[3]).zfill(6)+'.png'
-				if len(frame_608p_ls)>=0:
-					#sid = len(frame_608p_ls)-1
-					sid = 0
-				idx = -1
-				print(frame_counts[3], frame_stamps[3], [None, None])
-				
-				if sid>=0:
-					Nfaces = len(frame_ver_bbox_ls[sid])
-				else:
-					Nfaces = 0
-				TC_ident = 0
-				fid = open(log_fname,'a')
-				write_line = ' '.join([str(frame_stamps[3]), str(frame_counts[3]).zfill(6), str(Nfaces), str(TC_ident), str(None), str(None), str(None), str(None), str(None), str(None), str(None), 'Gaze-no-det'])
-				write_line = write_line + '\n'
-				fid.write(write_line)
-				fid.close()
-				
-				fid = open(log_fname[:-4]+'_reg.txt','a')
-				write_line = ' '.join([str(frame_stamps[3]), str(frame_counts[3]).zfill(6), str(Nfaces), str(TC_ident), str(None), str(None), str(None), str(None), str(None), str(None), str(None), 'Gaze-no-det'])
-				write_line = write_line + '\n'
-				fid.write(write_line)
-				fid.close()
-				
-				fid = open(log_fname[:-4]+'_rot.txt','a')
-				write_line = ' '.join([str(frame_stamps[3]), str(frame_counts[3]).zfill(6), str(Nfaces), str(TC_ident), str(None), str(None), str(None), str(None), str(None), str(None), str(None), 'Gaze-no-det'])
-				write_line = write_line + '\n'
-				fid.write(write_line)
-				fid.close()
-				
-				
-				if write_img_data and sid>=0:
-					#print(frame_ver_bbox_ls[sid])
-					draw_rect_ver(frame_608p_ls[sid], frame_ver_bbox_ls[sid], None, os.path.join(results_path, output_name))
+				#for face_count, face in enumerate(detFacesLog[::2]):
+				#	#print('saving', face.shape, frame_counts[3])
+				#	cv2.imwrite(os.path.join(aux_path, str(frame_counts[3]).zfill(6)+'_'+str(face_count).zfill(2)+'.png'), face[:,:,::-1])
 			
-			#print('for face vern', time.time()-tfv)	
-		else:
-		    #print('asdf queue is empty')
-			if qempty_start is None:
-				qempty_start = time.time()
-			else:
-				empty_duration = time.time()-qempty_start
-				if empty_duration > 45:
-					print('*************************************************************************************')
-					print('*************************************************************************************')
-					print('CAMERA QUEUE DID NOT LOAD')
-					#print('QUIT THE CODE')
-					print('RESTARTING')
-					print('*************************************************************************************')
-					print('*************************************************************************************')
-					stop_capture = True
-					p1.join()
-					time.sleep(3)
-					break
-		
-	
-		tc_batch_size = len(batch10_faces)
-		if tc_batch_size == 10:
-			tmp = 10
-			print('running the gaze estimation .... ')
-			tg_start = time.time()
 			
-			source_video = torch.FloatTensor(10,21,224,224) 
-			for idx, vid_7fps in enumerate(batch10_faces):
-	 			source_video[idx,...] = vid_7fps
-	 		
-			source_frame = source_video.cuda(non_blocking=True)
+				dist, detFacesLog, det_emb = get_face_embeddings(fmodel, nmodel, detFacesLog, mean)
+				
+				if detFacesLog.shape[0]>0:
+					face_seen_last_time = datetime.now()
 
-			with torch.no_grad():
-				source_frame_var = torch.autograd.Variable(source_frame)
-				# compute output
-				output,ang_error = model(source_frame_var)
-				output2,ang_error2 = modelreg(source_frame_var)
+				thrs = threshold
+				dist_cmp = np.array([])
+				ni = 4
+				if dist.shape[0]>0:
+					dist_res = np.copy(dist) - thrs
+					dist_res[dist_res>0] = 0
+					dist_res = -(dist_res)
+					#print(dist_cmp)
+					dist_cmp = dist_res[:, :ni] + dist_res[:, ni:ni*2] + dist_res[:, ni*2:ni*3] + \
+								dist_res[:, ni*3:ni*4] + dist_res[:, ni*4:ni*5] + dist_res[:, ni*5:ni*6]
+							
+				dist_res = dist
 			
-			print('gaze run time:', time.time()-tg_start)
-			output_varr = output.cpu().data.numpy()
-			ang_error_np = ang_error.cpu().data.numpy()
-			
-			output_varr2 = output2.cpu().data.numpy()
-			ang_error_np2 = ang_error2.cpu().data.numpy()
-			
-			fid = open(log_fname,'a')
-			for i in range(10):
-				print(batch10_frames[i], batch10_ts[i], output_varr[i,:2])
-				tcpos = batch10_tcpos[i][0]
-				Nfaces = batch10_tcpos[i][1]
+				frame_ver_bbox_ls = []
+				tc_bbox_ls = []
+				tc_faces_ls = []
+				angle=None
+				for frm_idx in range(2):
+					#frm_boxes = [bboxFaces[cidx] for cidx, i in enumerate(idxFaces) if i==frm_idx]
+					face2frm_idx = [cidx for cidx, i in enumerate(idxFaces) if i==frm_idx]
+					frm_boxes = [bboxFaces[i] for i in face2frm_idx]
+					frm_distcmp = [dist_cmp[i] for i in face2frm_idx]
+					frm_distcmp = np.array(frm_distcmp)
+
+					idxs = [0,1,2,3]
+					gt_idxs = [-4,-3,-2]
+					for i in range(frm_distcmp.shape[0]):
+						di = frm_distcmp[i]
+						idx = di.argmax()
+						if save_feat:
+							frm_boxes[i]['feat'] = det_emb[face2frm_idx[i],:]
+						else:
+							frm_boxes[i]['feat'] = np.array([])
+						
+						face_i = detFacesLog[face2frm_idx[i]]
+							
+						if (idx in idxs) and frm_distcmp[:,idx].max()<=di[idx] and di[idx]>0: # 
+							frm_boxes[i]['idx'] = idx
+							idxs.remove(idx)
+							
+							if idx==0:
+								#print(face_i.shape, face_i.max())
+								face_tc, [nsW,nsH,offW,offH,sl,st] = get_tc_face(frame_1080p_ls[frm_idx], frm_boxes[i], wsc, hsc)
+								rotated_face_tc, angle = rotate_tc_face(face_tc, frm_boxes[i], wsc, hsc, sl, st, offW, offH,angle)
+								
+								#print(frm_idx, frm_boxes[i])
+								#cv2.imwrite(os.path.join(aux_path, str(frame_counts[3]).zfill(6)+'_'+str(frm_idx).zfill(2)+'_unrot.png'), face_tc[:,:,::-1])
+								#cv2.imwrite(os.path.join(aux_path, str(frame_counts[3]).zfill(6)+'_'+str(frm_idx).zfill(2)+'_rot.png'), rotated_face_tc[:,:,::-1])
+								frm_boxes[i]['angle'] = angle
+								#print(frame_counts[3], frm_idx, angle)
+								
+								#imsave('tmp_tc_'+str(frame_counts[3]).zfill(6)+'.png', rotated_face_tc)
+								tc_faces_ls.append(rotated_face_tc)
+								#tc_faces_ls.append(face_tc)
+								tc_bbox_ls.append(frm_boxes[i])
+								if rotate_tofindtc and frm_idx==1:
+									rotate_count_tc += 1
+									#print('rotated tc detected')
+								
+							if idx<3 and di[idx]>gal_add_thrshld and gal_update[idx]:
+								tmp = 10
+								gt_embedding[gt_idxs[idx],:] = frm_boxes[i]['feat']
+								gal_update[idx] = False
+								gal_updated_time[idx] = datetime.now()
+								print('Updated gallery at idx:', idx, 'at', gal_updated_time[idx].time())
+								#upFace = detFacesLog[face2frm_idx[i]]
+								#fi_name = fis[0][:6]+'_update_'+str(idx)+'.png'
+								#imsave(os.path.join(savePath, fi_name), upFace)
+							#if (idx==0):
+							#continue
+							#imsave(tcPath+fi[:-7]+'.png', detFacesLog[i])
+							#np.save(featPath+fi[:-7]+'.npy', det_emb[i, :embedding_size])
+						else:
+							if len(frm_boxes)>0:
+								frm_boxes[i]['idx'] = 4
+								
+					#print('Frame appends', frm_idx, len(frm_boxes), idxs)
+					frame_ver_bbox_ls.append(frm_boxes)
+					
+					if rotate_tofindtc and frm_idx==1:
+						#if 0 in idxs:
+						if rotate_flip<0:
+							if 0 in idxs:
+								rotate_status = rotate_count%6
+						else:
+							if len(frm_boxes)<1:
+								#rotate_flip = not rotate_flip
+								rotate_status = rotate_count%6
+								#print('changing rot stat', rotate_status, rotate_count)
+
+				if len(tc_faces_ls)>=1:
+					
+					tc_seen_last_time = datetime.now()
+					#frames_ls.append(frames_ls[-1])
+					if len(tc_faces_ls)<=1:
+						for i in range(7-len(tc_faces_ls)):
+							tc_faces_ls.append(tc_faces_ls[-1])
+					else:
+						#print('going for 2', len(tc_faces_ls))
+						tc_faces_ls = [tc_faces_ls[0]]*3 + tc_faces_ls + [tc_faces_ls[-1]]*2
+						#tc_faces_ls = [tc_faces_ls[1]]*7 # + tc_faces_ls + [tc_faces_ls[-1]]*2
+					
+					source_video_7fps = torch.FloatTensor(7,3,224,224) 
+					for idx, img in enumerate(tc_faces_ls):
+						#print('image max', img.min(), img.max())
+						img_ar = 1*img
+						im = Image.fromarray(np.uint8(img_ar))
+						source_video_7fps[idx,...] = image_transform(im)
+						
+					source_video_7fps = source_video_7fps.view(21,224,224)
+					
+					batch10_frames.append(frame_counts[3])
+					batch10_faces.append(source_video_7fps)
+					batch10_imgs.append(frame_608p_ls[0])
+					batch10_tcpos.append([tc_bbox_ls[0], len(frame_ver_bbox_ls[0])])
+					batch10_ts.append(frame_stamps[3])
+				else:
+					output_name = str(frame_counts[3]).zfill(6)+'.png'
+					if len(frame_608p_ls)>=0:
+						#sid = len(frame_608p_ls)-1
+						sid = 0
+					idx = -1
+					print(frame_counts[3], frame_stamps[3], [None, None])
+					
+					if sid>=0:
+						Nfaces = len(frame_ver_bbox_ls[sid])
+					else:
+						Nfaces = 0
+					TC_ident = 0
+					fid = open(log_fname,'a')
+					write_line = ' '.join([str(frame_stamps[3]), str(frame_counts[3]).zfill(6), str(Nfaces), str(TC_ident), str(None), str(None), str(None), str(None), str(None), str(None), str(None), 'Gaze-no-det'])
+					write_line = write_line + '\n'
+					fid.write(write_line)
+					fid.close()
+					
+					fid = open(log_fname[:-4]+'_reg.txt','a')
+					write_line = ' '.join([str(frame_stamps[3]), str(frame_counts[3]).zfill(6), str(Nfaces), str(TC_ident), str(None), str(None), str(None), str(None), str(None), str(None), str(None), 'Gaze-no-det'])
+					write_line = write_line + '\n'
+					fid.write(write_line)
+					fid.close()
+					
+					fid = open(log_fname[:-4]+'_rot.txt','a')
+					write_line = ' '.join([str(frame_stamps[3]), str(frame_counts[3]).zfill(6), str(Nfaces), str(TC_ident), str(None), str(None), str(None), str(None), str(None), str(None), str(None), 'Gaze-no-det'])
+					write_line = write_line + '\n'
+					fid.write(write_line)
+					fid.close()
+					
+					
+					if write_img_data and sid>=0:
+						#print(frame_ver_bbox_ls[sid])
+						draw_rect_ver(frame_608p_ls[sid], frame_ver_bbox_ls[sid], None, os.path.join(results_path, output_name))
 				
-				write_line = ' '.join([str(batch10_ts[i]), str(batch10_frames[i]).zfill(6), str(Nfaces), str(1), str(output_varr[i,0]), str(output_varr[i,1]), str(ang_error_np[i,0]), str(tcpos['angle']), str(tcpos['top']), str(tcpos['left']), str(tcpos['bottom']), str(tcpos['right']), 'Gaze-det'])
-				write_line = write_line + '\n'
-				fid.write(write_line)
-				
-			fid.close()
+				#print('for face vern', time.time()-tfv)	
+			else:
+				#print('asdf queue is empty')
+				if qempty_start is None:
+					qempty_start = time.time()
+				else:
+					empty_duration = time.time()-qempty_start
+					if empty_duration > 45:
+						print('*************************************************************************************')
+						print('*************************************************************************************')
+						print('CAMERA QUEUE DID NOT LOAD')
+						#print('QUIT THE CODE')
+						print('RESTARTING')
+						print('*************************************************************************************')
+						print('*************************************************************************************')
+						stop_capture = True
+						p1.join()
+						time.sleep(3)
+						break
 			
-			fid = open(log_fname[:-4]+'_reg.txt','a')
-			for i in range(10):
-				#print(batch10_frames[i], batch10_ts[i], output_varr[i,:2])
-				tcpos = batch10_tcpos[i][0]
-				Nfaces = batch10_tcpos[i][1]
-				
-				write_line = ' '.join([str(batch10_ts[i]), str(batch10_frames[i]).zfill(6), str(Nfaces), str(1), str(output_varr2[i,0]), str(output_varr2[i,1]), str(ang_error_np2[i,0]), str(tcpos['angle']), str(tcpos['top']), str(tcpos['left']), str(tcpos['bottom']), str(tcpos['right']), 'Gaze-det'])
-				write_line = write_line + '\n'
-				fid.write(write_line)
-				
-			fid.close()
-			
-			fid = open(log_fname[:-4]+'_rot.txt','a')
-			if save_img_data:
+		
+			tc_batch_size = len(batch10_faces)
+			if tc_batch_size == 10:
+				tmp = 10
+				print('running the gaze estimation .... ')
 				tg_start = time.time()
+				
+				source_video = torch.FloatTensor(10,21,224,224) 
+				for idx, vid_7fps in enumerate(batch10_faces):
+		 			source_video[idx,...] = vid_7fps
+		 		
+				source_frame = source_video.cuda(non_blocking=True)
+
+				with torch.no_grad():
+					source_frame_var = torch.autograd.Variable(source_frame)
+					# compute output
+					output,ang_error = model(source_frame_var)
+					output2,ang_error2 = modelreg(source_frame_var)
+				
+				print('gaze run time:', time.time()-tg_start)
+				output_varr = output.cpu().data.numpy()
+				ang_error_np = ang_error.cpu().data.numpy()
+				
+				output_varr2 = output2.cpu().data.numpy()
+				ang_error_np2 = ang_error2.cpu().data.numpy()
+				
+				fid = open(log_fname,'a')
 				for i in range(10):
+					print(batch10_frames[i], batch10_ts[i], output_varr[i,:2])
 					tcpos = batch10_tcpos[i][0]
 					Nfaces = batch10_tcpos[i][1]
 					
-					output_name = str(batch10_frames[i]).zfill(6)+'.png'
-					output_name2 = str(batch10_frames[i]).zfill(6)+'_2.png'
-					
-					s0 = output_varr[i,0]
-					s1 = output_varr[i,1]
-					
-					sx = (tcpos['left'] + tcpos['right'])/2 # 
-					sy = (tcpos['top'] + tcpos['bottom'])/2
-					
-					x = math.cos(s1)*math.sin(s0) # -40*
-					y = math.sin(s1) # -40*
-					z = -math.cos(s1)*math.cos(s0)
-					
-					tangle = -(tcpos['angle']/180)*math.pi
-					xt = math.cos(tangle)*x + math.sin(tangle)*y
-					yt = -math.sin(tangle)*x + math.cos(tangle)*y
-					zt = z
-					
-					vt = np.array([xt,yt,zt])
-					vtnorm = (vt*vt).sum()
-					vt = vt / np.sqrt(vtnorm)
-					ns0 = math.atan2(vt[0],-vt[2])
-					ns1 = math.asin(vt[1])
-					
-					nx = -40*vt[0]
-					ny = -40*vt[1]
-					x = -40*x
-					y = -40*y
-					
-					ws0 = s0
-					ws1 = s1
-					
-					color=2
-					if write_img_data:
-						draw_rect_gz(batch10_imgs[i], batch10_frames[i], (int(sx),int(sy)), (int(sx+x),int(sy+y)), color, os.path.join(results_path, output_name))
-					
-					color=0
-					if abs(tcpos['angle'])>=30:
-						if write_img_data:
-							draw_rect_gz(batch10_imgs[i], batch10_frames[i], (int(sx),int(sy)), (int(sx+nx),int(sy+ny)), color, os.path.join(results_path, output_name2))
-						ws0 = ns0
-						ws1 = ns1
-						
-					write_line = ' '.join([str(batch10_ts[i]), str(batch10_frames[i]).zfill(6), str(Nfaces), str(1), str(ws0), str(ws1), str(ang_error_np[i,0]), str(tcpos['angle']), str(tcpos['top']), str(tcpos['left']), str(tcpos['bottom']), str(tcpos['right']), 'Gaze-det'])
+					write_line = ' '.join([str(batch10_ts[i]), str(batch10_frames[i]).zfill(6), str(Nfaces), str(1), str(output_varr[i,0]), str(output_varr[i,1]), str(ang_error_np[i,0]), str(tcpos['angle']), str(tcpos['top']), str(tcpos['left']), str(tcpos['bottom']), str(tcpos['right']), 'Gaze-det'])
 					write_line = write_line + '\n'
 					fid.write(write_line)
-				
-			fid.close()
 					
-				#print('save run time:', time.time()-tg_start)
-			batch10_frames = []
-			batch10_faces = []
-			batch10_tcpos = []
-			batch10_imgs = []
-			batch10_ts = []
+				fid.close()
+				
+				fid = open(log_fname[:-4]+'_reg.txt','a')
+				for i in range(10):
+					#print(batch10_frames[i], batch10_ts[i], output_varr[i,:2])
+					tcpos = batch10_tcpos[i][0]
+					Nfaces = batch10_tcpos[i][1]
+					
+					write_line = ' '.join([str(batch10_ts[i]), str(batch10_frames[i]).zfill(6), str(Nfaces), str(1), str(output_varr2[i,0]), str(output_varr2[i,1]), str(ang_error_np2[i,0]), str(tcpos['angle']), str(tcpos['top']), str(tcpos['left']), str(tcpos['bottom']), str(tcpos['right']), 'Gaze-det'])
+					write_line = write_line + '\n'
+					fid.write(write_line)
+					
+				fid.close()
+				
+				fid = open(log_fname[:-4]+'_rot.txt','a')
+				if save_img_data:
+					tg_start = time.time()
+					for i in range(10):
+						tcpos = batch10_tcpos[i][0]
+						Nfaces = batch10_tcpos[i][1]
+						
+						output_name = str(batch10_frames[i]).zfill(6)+'.png'
+						output_name2 = str(batch10_frames[i]).zfill(6)+'_2.png'
+						
+						s0 = output_varr[i,0]
+						s1 = output_varr[i,1]
+						
+						sx = (tcpos['left'] + tcpos['right'])/2 # 
+						sy = (tcpos['top'] + tcpos['bottom'])/2
+						
+						x = math.cos(s1)*math.sin(s0) # -40*
+						y = math.sin(s1) # -40*
+						z = -math.cos(s1)*math.cos(s0)
+						
+						tangle = -(tcpos['angle']/180)*math.pi
+						xt = math.cos(tangle)*x + math.sin(tangle)*y
+						yt = -math.sin(tangle)*x + math.cos(tangle)*y
+						zt = z
+						
+						vt = np.array([xt,yt,zt])
+						vtnorm = (vt*vt).sum()
+						vt = vt / np.sqrt(vtnorm)
+						ns0 = math.atan2(vt[0],-vt[2])
+						ns1 = math.asin(vt[1])
+						
+						nx = -40*vt[0]
+						ny = -40*vt[1]
+						x = -40*x
+						y = -40*y
+						
+						ws0 = s0
+						ws1 = s1
+						
+						color=2
+						if write_img_data:
+							draw_rect_gz(batch10_imgs[i], batch10_frames[i], (int(sx),int(sy)), (int(sx+x),int(sy+y)), color, os.path.join(results_path, output_name))
+						
+						color=0
+						if abs(tcpos['angle'])>=30:
+							if write_img_data:
+								draw_rect_gz(batch10_imgs[i], batch10_frames[i], (int(sx),int(sy)), (int(sx+nx),int(sy+ny)), color, os.path.join(results_path, output_name2))
+							ws0 = ns0
+							ws1 = ns1
+							
+						write_line = ' '.join([str(batch10_ts[i]), str(batch10_frames[i]).zfill(6), str(Nfaces), str(1), str(ws0), str(ws1), str(ang_error_np[i,0]), str(tcpos['angle']), str(tcpos['top']), str(tcpos['left']), str(tcpos['bottom']), str(tcpos['right']), 'Gaze-det'])
+						write_line = write_line + '\n'
+						fid.write(write_line)
+					
+				fid.close()
+						
+					#print('save run time:', time.time()-tg_start)
+				batch10_frames = []
+				batch10_faces = []
+				batch10_tcpos = []
+				batch10_imgs = []
+				batch10_ts = []
+	
+	except Exception:
+		traceback.print_exc()
+		log_file[1] = frm_counter
+		stop_capture = True
+		p1.join()
+		del q
+		break
+		#print('id pass', time.time()-t)	
+		#print('iter pass', time.time()-t_iter)	
 		
-	log_file[1] = frm_counter
-	p1.join()
-	del q
-	#print('id pass', time.time()-t)	
-	#print('iter pass', time.time()-t_iter)	
-		
-print('1000 images time', time.time()-t_start)
+#print('1000 images time', time.time()-t_start)
