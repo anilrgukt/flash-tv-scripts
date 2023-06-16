@@ -221,7 +221,8 @@ def cam_id():
 	dev_path = None
 
 	# WEBCAM_NAME = 'HD Pro Webcam C920' # Logitech Webcam C930e
-	WEBCAM_NAME = 'Logitech Webcam C930e'
+	global WEBCAM_NAME
+	WEBCAM_NAME = None#'Logitech Webcam C930e'
 	
 	for i in range(len(dev_paths)):
 		#print(i, dev_paths[i])
@@ -761,6 +762,10 @@ famid = str(sys.argv[1])
 savePath = str(sys.argv[2])
 writeImg = True if sys.argv[3]=='save-image' else False
 
+if sys.argv[5]=='90':
+	WEBCAM_NAME = 'Logitech Webcam C930e'
+else:
+	WEBCAM_NAME = None
 
 tmp_fname = str(datetime.now().strftime("%Y-%m-%d %H-%M-%S"))
 tmp_fname = '_'.join(tmp_fname.split(' '))
