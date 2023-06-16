@@ -1275,6 +1275,7 @@ while True:
 		traceback.print_exc()
 		log_file[1] = frm_counter
 		stop_capture = True
+		time.sleep(5)
 		p1.join()
 		del q
 		break
