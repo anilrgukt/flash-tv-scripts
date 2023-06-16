@@ -900,6 +900,7 @@ while True:
 			
 			if time_diff.total_seconds() >= 1500:
 				stop_capture = True
+				time.sleep(5)
 				break
 			
 			ni=4
