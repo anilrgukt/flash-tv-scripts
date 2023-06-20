@@ -221,12 +221,12 @@ def cam_id():
 	dev_path = None
 
 	# WEBCAM_NAME = 'HD Pro Webcam C920' # Logitech Webcam C930e
-	global WEBCAM_NAME
-	WEBCAM_NAME = None#'Logitech Webcam C930e'
+	WEBCAM_NAME1 = 'Logitech Webcam C930e'
+	WEBCAM_NAME2 = 'USB  Live camera: USB  Live cam'
 	
 	for i in range(len(dev_paths)):
 		#print(i, dev_paths[i])
-		if WEBCAM_NAME in dev_paths[i]:
+		if (WEBCAM_NAME1 in dev_paths[i]) or (WEBCAM_NAME2 in dev_paths[i]):
 		    dev_path = dev_paths[i+1].strip()
 		    #print(dev_path, dev_path[-1])
 
@@ -762,10 +762,6 @@ famid = str(sys.argv[1])
 savePath = str(sys.argv[2])
 writeImg = True if sys.argv[3]=='save-image' else False
 
-if sys.argv[5]=='90':
-	WEBCAM_NAME = 'Logitech Webcam C930e'
-else:
-	WEBCAM_NAME = None
 
 tmp_fname = str(datetime.now().strftime("%Y-%m-%d %H-%M-%S"))
 tmp_fname = '_'.join(tmp_fname.split(' '))

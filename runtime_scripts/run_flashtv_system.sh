@@ -53,7 +53,7 @@ echo "Everything is a success"
 
 while true;
 do
-	python test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId $savePath save-image $usrName 90;
+	python test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId $savePath save-image $usrName;
 	sleep 12;
 done
 	
