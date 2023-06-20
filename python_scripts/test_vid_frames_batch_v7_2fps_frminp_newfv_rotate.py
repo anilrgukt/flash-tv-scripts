@@ -223,10 +223,11 @@ def cam_id():
 	# WEBCAM_NAME = 'HD Pro Webcam C920' # Logitech Webcam C930e
 	WEBCAM_NAME1 = 'Logitech Webcam C930e'
 	WEBCAM_NAME2 = 'USB  Live camera: USB  Live cam'
+	WEBCAM_NAME3 = 'NexiGo HD Webcam: NexiGo HD Web'
 	
 	for i in range(len(dev_paths)):
 		#print(i, dev_paths[i])
-		if (WEBCAM_NAME1 in dev_paths[i]) or (WEBCAM_NAME2 in dev_paths[i]):
+		if (WEBCAM_NAME1 in dev_paths[i]) or (WEBCAM_NAME2 in dev_paths[i]) or (WEBCAM_NAME3 in dev_paths[i]):
 		    dev_path = dev_paths[i+1].strip()
 		    #print(dev_path, dev_path[-1])
 

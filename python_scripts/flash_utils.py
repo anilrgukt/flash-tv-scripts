@@ -322,6 +322,8 @@ class WebcamVideoStream:
 
     def stop(self):
         self.running = False
+        time.sleep(3)
         if self.vid.isOpened():
             self.vid.release()
+            time.sleep(3)
         return
