@@ -349,6 +349,7 @@ def frame_write(q, frm_count):
 	
 	print('The cam for batch processing is stopped.')
 	cap.release()
+	time.sleep(3)
 	cv2.destroyAllWindows()
 
 
@@ -854,7 +855,8 @@ while True:
 	print('GIVE 5 minutes for this step')
 	print('*************************************************************************************')
 	print('*************************************************************************************')
-	tc_presence_duration, log_file = check_tc_presence(fmodel, nmodel, gt_embedding, log_file, det_thrshld=.11, ver_thrshld=0.39)
+	#tc_presence_duration, log_file = check_tc_presence(fmodel, nmodel, gt_embedding, log_file, det_thrshld=.11, ver_thrshld=0.39)
+	tc_presence_duration, log_file = check_face_presence(log_file)
 	frm_counter = log_file[1]
 	log_fname = log_file[0]
 	
