@@ -103,7 +103,6 @@ from PIL import Image
 # import python libs 
 import glob
 from datetime import datetime	
-import time
 import numpy as np
 import pickle
 import argparse
@@ -222,7 +221,8 @@ def cam_id():
 
 	# WEBCAM_NAME = 'HD Pro Webcam C920' # Logitech Webcam C930e
 	WEBCAM_NAME1 = 'Logitech Webcam C930e'
-	WEBCAM_NAME2 = 'USB  Live camera: USB  Live cam'
+	#WEBCAM_NAME2 = 'USB  Live camera: USB  Live cam'
+	WEBCAM_NAME2 = 'Anker PowerConf C300: Anker Pow'
 	WEBCAM_NAME3 = 'NexiGo HD Webcam: NexiGo HD Web'
 	
 	for i in range(len(dev_paths)):
@@ -869,6 +869,7 @@ while True:
 	stop_capture = False
 	p1 = th.Thread(target=frame_write, args=(q, frm_counter,))
 	p1.start()
+	time.sleep(5)
 		
 	frames_list = []
 	time_stamps_list = []
@@ -1159,8 +1160,8 @@ while True:
 						print('*************************************************************************************')
 						print('*************************************************************************************')
 						stop_capture = True
+						time.sleep(5)
 						p1.join()
-						time.sleep(3)
 						break
 			
 		
