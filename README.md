@@ -9,7 +9,7 @@ Please refer to these publications for technical details:
 Please download the files from this Google Drive [link](https://drive.google.com/drive/folders/1hth1P58s5V-CGqdMYpZw2_dalI-RecTm?usp=share_link) and follow the below instructions
 > Prerequisites: Nvidia CUDA enabled GPU (8GB memory), Python3, PyTorch, MXNet
 
- - Place the exactracted zip files from drive into the locations as specified in `setup_scripts/file_setup.sh`
+ - Place the extracted .zip files from the download into the locations as specified in `setup_scripts/file_setup.sh`
  - Run `install_scripts/flash_install.sh` to install all the components necessary for FLASH-TV (insightface, darknet face release)
  - This creates a Python virtual environment at `/home/$usrName/py38` from which we execute FLASH-TV algorithms
 
