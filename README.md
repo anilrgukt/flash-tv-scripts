@@ -6,18 +6,18 @@ Please refer to these publications for technical details:
  - Vadathya et al. An Objective System for Quantitative Assessment of Television Viewing Among Children (Family Level Assessment of Screen Use in the Home-Television): System Development Study, _JMIR Pediatrics and Parenting 5.1 (2022): e33569._
 
 ## Installation Instructions 
-Please download the files from this google drive [link](https://drive.google.com/drive/folders/1hth1P58s5V-CGqdMYpZw2_dalI-RecTm?usp=share_link) and follow the below instructions
+Please download the files from this Google Drive [link](https://drive.google.com/drive/folders/1hth1P58s5V-CGqdMYpZw2_dalI-RecTm?usp=share_link) and follow the below instructions
 > Prerequisites: Nvidia CUDA enabled GPU (8GB memory), Python3, PyTorch, MXNet
 
- - Place the exactracted zip files from drive in to the locations as specified in `setup_scripts/file_setup.sh`
+ - Place the exactracted zip files from drive into the locations as specified in `setup_scripts/file_setup.sh`
  - Run `install_scripts/flash_install.sh` to install all the components necessary for FLASH-TV (insightface, darknet face release)
- - This creates a python virtual environmen at `/home/$usrName/py38` from which we execute FLASH-TV algorithms
+ - This creates a Python virtual environment at `/home/$usrName/py38` from which we execute FLASH-TV algorithms
 
 ## FLASH-TV demo 
- - After the above installation steps are executed without any errors
+ - After the above installation steps are executed without any errors:
  - Create a sample gallery of faces that you want to recognize. Take a look at the example gallery in `examples/gallery_faces`
  - Please read the below instructions completely before executing FLASH-TV
- - Run FLASH-TV v3.0 as indicated in the `runtime_scripts/run_flashtv_system.sh`
+ - Run FLASH-TV v3.0 as indicated in `runtime_scripts/run_flashtv_system.sh`
   
   > Sample execution code
   For example, create a folder for saving data at `/home/user/123_data`. Create a sample gallery similar to the [example](examples/gallery_faces) and name it as `123_faces` and put in the `123_data` folder.
