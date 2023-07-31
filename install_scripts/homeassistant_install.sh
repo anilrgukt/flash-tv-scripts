@@ -26,3 +26,4 @@ source bin/activate
 pip install --upgrade pip
 pip3 install wheel
 pip3 install homeassistant==2023.6.3
+pip3 install git+https://github.com/boto/botocore
