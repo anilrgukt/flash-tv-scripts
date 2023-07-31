@@ -2,5 +2,11 @@
 
 cd /etc/sudoers.d
 sudo apt install nano
+
+# Type this while replacing XXX with the device's ID
 sudo EDITOR=nano visudo -f flashsysXXX
+
+# Then in the editor paste:
 Defaults        timestamp_timeout=360
+# Press Ctrl+O then Enter
+# Press Ctrl+X then Enter
