@@ -28,6 +28,10 @@ sed -i "s/XXX/$deviceID/g" ~/flash-tv-scripts/services/flash-run-on-boot.service
 sed -i "s/123/$familyID/g" ~/flash-tv-scripts/services/flash-run-on-boot.service
 sed -i "s/XXX/$deviceID/g" ~/flash-tv-scripts/services/flash_run_on_boot.sh
 sed -i "s/123/$familyID/g" ~/flash-tv-scripts/services/flash_run_on_boot.sh
+sed -i "s/XXX/$deviceID/g" ~/flash-tv-scripts/services/system-daily-reboot-test.service
+sed -i "s/123/$familyID/g" ~/flash-tv-scripts/services/system-daily-reboot-test.service
+sed -i "s/XXX/$deviceID/g" ~/flash-tv-scripts/services/system_daily_reboot_test.sh
+sed -i "s/123/$familyID/g" ~/flash-tv-scripts/services/system_daily_reboot_test.sh
 sed -i "s/XXX/$deviceID/g" ~/flash-tv-scripts/services/homeassistant-run-on-boot.service
 sed -i "s/123/$familyID/g" ~/flash-tv-scripts/services/homeassistant-run-on-boot.service
 sed -i "s/XXX/$deviceID/g" ~/flash-tv-scripts/runtime_scripts/data_details.sh
