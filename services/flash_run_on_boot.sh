@@ -16,7 +16,7 @@ source /home/$usrName/py38/bin/activate
 
 tegrastats --interval 1000 --logfile /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
 
-# runs a while loop for the flash-tv algorithm
+# runs a while loop for the FLASH-TV algorithm only if it doesn't already exist
 while true;
 do	
 if ! [ "`pgrep -af test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py`" ]
