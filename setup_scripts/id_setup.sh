@@ -12,7 +12,7 @@ user_resp=$?
 
 if [ $user_resp -eq 1 ]; then
 	zenity --warning --text="Exiting the code since data details are not correct. Please modify them and restart the script."
-	exit 
+	exit 1
 fi
 
 # Create data directory
