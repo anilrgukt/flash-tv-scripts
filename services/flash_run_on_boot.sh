@@ -19,8 +19,13 @@ tegrastats --interval 1000 --logfile /home/$usrName/data/${famId}_data/${famId}_
 # runs a while loop for the flash-tv algorithm
 while true;
 do	
+if ! [ "`pgrep -af test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py`" ]
+then
 	python /home/$usrName/flash-tv-scripts/python_scripts/test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId /home/$usrName/data/${famId}_data no-save-image $usrName;
 	sleep 30;
+else
+	sleep 30;
+fi
 done
 
 
