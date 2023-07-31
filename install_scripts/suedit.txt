@@ -1,0 +1,6 @@
+#You must enter these steps MANUALLY into the terminal before running full_initial_configuration.sh if you want sudo to not time out
+
+cd /etc/sudoers.d
+sudo apt install nano
+sudo EDITOR=nano visudo -f flashsysXXX
+Defaults        timestamp_timeout=360
