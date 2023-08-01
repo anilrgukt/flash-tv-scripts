@@ -236,7 +236,7 @@ def cam_id():
 	else:
 		cam_idx = -1
 		
-	print('CAMER identified at: ', cam_idx)
+	print('CAMERA identified at: ', cam_idx)
 	return cam_idx
 
 embedding_size = 512
@@ -341,7 +341,7 @@ def frame_write(q, frm_count):
 		
 		if (count+1)%1000 == 0:
 			tmp = 10
-			print('time for captuing 1000 images:::: ', time.time()-t_st)
+			print('time for capturing 1000 images:::: ', time.time()-t_st)
 			t_st = time.time()
 			#break
 		
