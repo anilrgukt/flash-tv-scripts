@@ -3,7 +3,7 @@ Description=FLASH system daily reboot test script
 StartLimitIntervalSec=0
 
 [Service]
-ExecStart=/bin/bash /home/flashsysXXX/flash-tv-scripts/services/system_daily_reboot_test.sh
+ExecStart=/bin/bash /home/flashsysXXX/flash-tv-scripts/services/daily_reboot.sh
 StandardOutput=append:/home/flashsysXXX/data/123XXX_data/123XXX_system_logstdout.log
 StandardError=append:/home/flashsysXXX/data/123XXX_data/123XXX_system_logstderr.log
 Restart=always
