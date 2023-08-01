@@ -11,6 +11,6 @@ bash -x ~/flash-tv-scripts/services/stop_services.sh
 sudo cp ~/flash-tv-scripts/services/flash-run-on-boot.service /etc/systemd/system
 sudo cp ~/flash-tv-scripts/services/flash-periodic-restart.service /etc/systemd/system
 sudo cp ~/flash-tv-scripts/services/homeassistant-run-on-boot.service /etc/systemd/system
-sudo cp ~/flash-tv-scripts/services/system-daily-reboot-test.service /etc/systemd/system
+sudo cp ~/flash-tv-scripts/services/daily-reboot.service /etc/systemd/system
 
 sudo systemctl daemon-reload
