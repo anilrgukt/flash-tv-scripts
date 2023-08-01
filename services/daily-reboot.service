@@ -4,8 +4,8 @@ StartLimitIntervalSec=0
 
 [Service]
 ExecStart=/bin/bash /home/flashsysXXX/flash-tv-scripts/services/daily_reboot.sh
-StandardOutput=append:/home/flashsysXXX/data/123XXX_data/123XXX_system_logstdout.log
-StandardError=append:/home/flashsysXXX/data/123XXX_data/123XXX_system_logstderr.log
+StandardOutput=append:/home/flashsysXXX/data/123XXX_data/123XXX_reboot_logstdout.log
+StandardError=append:/home/flashsysXXX/data/123XXX_data/123XXX_reboot_logstderr.log
 Restart=always
 RestartSec=5
 
