@@ -4,12 +4,12 @@
 sudo systemctl stop flash-periodic-restart.service
 sudo systemctl stop flash-run-on-boot.service
 sudo systemctl stop homeassistant-run-on-boot.service
-sudo systemctl stop system-daily-reboot-test.service
+sudo systemctl stop daily-reboot.service
 
 # Disable all services
 sudo systemctl disable flash-periodic-restart.service
 sudo systemctl disable flash-run-on-boot.service
 sudo systemctl disable homeassistant-run-on-boot.service
-sudo systemctl disable system-daily-reboot-test.service
+sudo systemctl disable daily-reboot.service
 
 
