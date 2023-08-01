@@ -1,5 +1,13 @@
 #!/bin/bash
 
+export famId=123XXX
+export usrName=flashsysXXX
+
+export LD_LIBRARY_PATH=/home/$usrName/mxnet/lib:$LD_LIBRARY_PATH
+export PATH=/usr/local/cuda-11/bin:$PATH
+export MXNET_HOME=/home/$usrName/mxnet
+export PYTHONPATH=$MXNET_HOME/python:$PYTHONPATH
+
 while true;
 do
 	sleep 3600;
@@ -17,5 +25,5 @@ do
 	cp /home/$usrName/data/${famId}_data/${famId}_flash_logstdoutp.log /home/$usrName/data/${famId}_data/${famId}_flash_logstderrp.log "${logFile}/varlogs_${dt}"
 
 	sleep 20;
-  shutdown -r --verbose
+  shutdown -r
 done
