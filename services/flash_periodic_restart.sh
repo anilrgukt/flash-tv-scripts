@@ -32,7 +32,7 @@ do
 	
 	sleep 20;
  
-	if (($i%4==0))
+	if (($i%2==0))
 	then
  		shutdown -r
   	else
