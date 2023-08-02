@@ -423,6 +423,7 @@ def cam_id():
             print(dev_name[which_webcam], device['path'])
             usb_path = device['path']
             reset_usb_device(device['path'])
+            time.sleep(3)
     
     if usb_path is None:   
         print('Failed to find the the usb path for the camera!', dev_name[which_webcam])

@@ -343,11 +343,8 @@ def check_face_presence(log_file):
     face_np_time_delay = 0.5 # num secs
     
     idx = cam_id()
-    print('got the camera id back', idx)
     video_reader = WebcamVideoStream()
-    print('cmaer startt1')
     video_reader.start(idx, width=608, height=342)
-    print('cmaer startt2')
 
     '''
     cap_yolo = cv2.VideoCapture(idx)
