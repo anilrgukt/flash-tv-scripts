@@ -7,6 +7,7 @@ export usrName=flashsysXXX
 logFile=/home/$usrName/data/${famId}_data/logs
 mkdir -p $logFile
 
+i=1
 while true;
 do
 	sleep 21600;
@@ -28,5 +29,12 @@ do
 	#cp /var/log/"${famId}_flash_logstdoutp.log" /var/log/"${famId}_flash_logstderrp.log" "${logFile}/varlogs_${dt}"
 	
 	sleep 20;
-	systemctl start flash-run-on-boot.service
+ 
+	if (($i%4==0))
+	then
+ 		shutdown -r
+  	else
+		systemctl start flash-run-on-boot.service
+  		((i=i+1))
+ 	fi
 done
