@@ -3,10 +3,8 @@
 export famId=123XXX
 export usrName=flashsysXXX
 
-export LD_LIBRARY_PATH=/home/$usrName/mxnet/lib:$LD_LIBRARY_PATH
-export PATH=/usr/local/cuda-11/bin:$PATH
-export MXNET_HOME=/home/$usrName/mxnet
-export PYTHONPATH=$MXNET_HOME/python:$PYTHONPATH
+logFile=/home/$usrName/data/${famId}_data/logs
+mkdir -p $logFile
 
 while true;
 do
