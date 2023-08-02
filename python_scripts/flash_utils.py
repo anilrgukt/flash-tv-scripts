@@ -380,3 +380,52 @@ def reset_usb_device(dev_path):
         print('Failed to reset device! Error: %s' % ex)
         sys.exit(-1)
 
+def cam_id():
+    dev_list = subprocess.Popen('v4l2-ctl --list-devices'.split(), shell=False, stdout=subprocess.PIPE)
+    out, err = dev_list.communicate()
+    out = out.decode()
+    dev_paths = out.split('\n')
+    dev_path = None
+
+    # WEBCAM_NAME = 'HD Pro Webcam C920' # Logitech Webcam C930e
+    WEBCAM_NAME1 = 'Logitech Webcam C930e'
+    #WEBCAM_NAME2 = 'USB  Live camera: USB  Live cam'
+    WEBCAM_NAME2 = 'Anker PowerConf C300: Anker Pow'
+    
+    dev_name = {WEBCAM_NAME1:'C930e', WEBCAM_NAME2: 'C300'}
+    
+    which_webcam = None
+    for i in range(len(dev_paths)):
+        #print(i, dev_paths[i])
+        if (WEBCAM_NAME1 in dev_paths[i]):  
+            dev_path = dev_paths[i+1].strip()
+            which_webcam = WEBCAM_NAME1
+            break
+            #print(dev_path, dev_path[-1])
+        elif (WEBCAM_NAME2 in dev_paths[i]):
+            dev_path = dev_paths[i+1].strip()
+            which_webcam = WEBCAM_NAME2
+            break
+
+    if dev_path is not None:
+        cam_idx = int(dev_path[-1])    
+    else:
+        cam_idx = -1
+        
+    print('CAMER identified at: ', cam_idx)
+    
+    usb_list = create_usb_list()
+    usb_path = None
+    for device in usb_list:
+        text = '%s %s %s' % (device['description'], device['manufacturer'], device['device'])
+        #print(text)
+        if dev_name[which_webcam] in text:
+            print(dev_name[which_webcam], device['path'])
+            usb_path = device['path']
+            reset_usb_device(device['path'])
+    
+    if usb_path is None:   
+        print('Failed to find the the usb path for the camera!', dev_name[which_webcam])
+    
+    return cam_idx
+
