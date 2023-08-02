@@ -14,8 +14,6 @@ hwclock -s
 
 source /home/$usrName/py38/bin/activate
 
-tegrastats --interval 1000 --logfile /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
-
 # runs a while loop for the FLASH-TV algorithm only if it doesn't already exist
 while true;
 do	
