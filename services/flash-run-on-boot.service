@@ -7,8 +7,8 @@ StartLimitIntervalSec=0
 ExecStart=/bin/bash /home/flashsysXXX/flash-tv-scripts/services/flash_run_on_boot.sh
 StandardOutput=append:/home/flashsysXXX/data/123XXX_data/123XXX_flash_logstdout.log
 StandardError=append:/home/flashsysXXX/data/123XXX_data/123XXX_flash_logstderr.log
-Restart=always
-RestartSec=5
+Restart=on-failure
+RestartSec=60
 
 
 [Install]
