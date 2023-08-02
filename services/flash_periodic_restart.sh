@@ -7,6 +7,8 @@ export usrName=flashsysXXX
 logFile=/home/$usrName/data/${famId}_data/logs
 mkdir -p $logFile
 
+tegrastats --interval 1000 --logfile /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
+
 i=1
 while true;
 do
