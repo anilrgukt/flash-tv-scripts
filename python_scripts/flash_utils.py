@@ -366,7 +366,7 @@ def create_usb_list():
             device_list.append(device_dict)
     except Exception as ex:
         print('Failed to list usb devices! Error: %s' % ex)
-        sys.exit(-1)
+        #sys.exit(-1)
     return device_list
 
 def reset_usb_device(dev_path):
@@ -375,10 +375,10 @@ def reset_usb_device(dev_path):
         f = open(dev_path, 'w', os.O_WRONLY)
         fcntl.ioctl(f, USBDEVFS_RESET, 0)
         print('Successfully reset %s' % dev_path)
-        sys.exit(0)
+        #sys.exit(0)
     except Exception as ex:
         print('Failed to reset device! Error: %s' % ex)
-        sys.exit(-1)
+        #sys.exit(-1)
 
 def cam_id():
     dev_list = subprocess.Popen('v4l2-ctl --list-devices'.split(), shell=False, stdout=subprocess.PIPE)
