@@ -29,6 +29,8 @@ read_errlog(path+famid+ext)
 path_logs = path + 'logs/'
 
 log_dir_ls = next(os.walk(path_logs))[1]
+log_dir_ls.sort()
+
 for dir in log_dir_ls:
    print('checking the log file, ', dir)
    log_path = os.path.join(path_logs, dir, famid+ext)
