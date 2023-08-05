@@ -15,9 +15,11 @@ def read_errlog(log_path):
            error_lines.append(l)
 
    if len(error_lines) > 8:
-       print('Check the error log: ', log_path)
+       print('Check the error log for potential errors:\n', log_path)
+       print('ERROR LOG lines to potentially check')
+       #for e in error_lines:
+       #    print(e.strip('\n'))
        #print(error_lines)
-
 
 famid = str(sys.argv[1]) #'123009'
 path = '/home/'+os.getlogin()+'/data/'+famid+'_data/'
