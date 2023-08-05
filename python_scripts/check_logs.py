@@ -16,7 +16,7 @@ def read_errlog(log_path):
 
    if len(error_lines) > 8:
        print('Check the error log for potential errors:\n', log_path)
-       print('ERROR LOG lines to potentially check')
+       #print('ERROR LOG lines to potentially check')
        #for e in error_lines:
        #    print(e.strip('\n'))
        #print(error_lines)
