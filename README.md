@@ -34,7 +34,7 @@ Please download the files from this Google Drive [link](https://drive.google.com
   - `usrName` indicates the user name of the user account
 
 # Details for data collection - FLASH-TV Installation on NVIDIA Jetson AGX Orin Devkits
-Please read the [setup instructions](./Setup_Instructions%2008-09-2023.pdf) and [Home Assistant usage](./Home_Assistant_Usage%2008-09-2023.pdf) files above for details
+Please read the [setup instructions](./Device_Setup_Instructions%2008-09-2023.pdf) and [Home Assistant usage](./Home_Assistant_Usage%2008-09-2023.pdf) files above for details
 > Make sure you have downloaded or copied the necessary software (insight_face, darknet_face_release etc.) and placed it in the right locations(\*placement only, when specific external hard disk is connected)
 
  - full_initial_configuration.sh
