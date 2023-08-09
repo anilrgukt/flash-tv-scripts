@@ -34,7 +34,7 @@ Please download the files from this Google Drive [link](https://drive.google.com
   - `usrName` indicates the user name of the user account
 
 # Details for data collection - FLASH-TV Installation on NVIDIA Jetson AGX Orin Devkits
-Please read the [setup instructions](./Device_Setup_Instructions%2008-09-2023.pdf) and [Home Assistant usage](./Home_Assistant_Usage%2008-09-2023.pdf) files above for details
+Please read the [setup instructions](<./Device_Setup_Instructions 08-09-2023.pdf>) and [Home Assistant usage](<./Home_Assistant_Usage 08-09-2023.pdf>) files above for details
 > Make sure you have downloaded or copied the necessary software (insight_face, darknet_face_release etc.) and placed it in the right locations(\*placement only, when specific external hard disk is connected)
 
  - full_initial_configuration.sh
@@ -44,7 +44,7 @@ Please read the [setup instructions](./Device_Setup_Instructions%2008-09-2023.pd
    > Bash scripts for installing ML libaries and packages necessary for running FLASH-TV and Home Assistant on the Jetsons\*
 
 # FLASH-TV In-Home Data Collection
-Please see the [procedure](https://docs.google.com/document/d/1YsyBKnJgQ7WB-XFTUHe-cB27ZMZT5CRpLUyl3zfOLHs/) and [slides](https://bcmedu-my.sharepoint.com/:f:/g/personal/207282_bcm_edu/EqhtrTeGWm9DqhoshCBtBtUB0J5otZWmKRoay09M_0a9Hw?e=gyoOaa) for detailed instructions. The procedure is also hosted as a [pdf](./FLASH-TV_In-Home_Installation_Checklist%2008-09-2023.pdf) in this repository and updated periodically.
+Please see the [procedure](https://docs.google.com/document/d/1YsyBKnJgQ7WB-XFTUHe-cB27ZMZT5CRpLUyl3zfOLHs/) and [slides](https://bcmedu-my.sharepoint.com/:f:/g/personal/207282_bcm_edu/EqhtrTeGWm9DqhoshCBtBtUB0J5otZWmKRoay09M_0a9Hw?e=gyoOaa) for detailed instructions. The procedure is also hosted as a [pdf](<./FLASH-TV_In-Home_Installation_Checklist 08-09-2023.pdf>) in this repository and updated periodically.
   > Bash scripts for running initial FLASH-TV protocols for setup, including building the gallery, creating faces, and running TV gaze estimation with images saved
 - setup_scripts
   > Bash scripts for the initial setup of the Jetsons in order to be able to run the other scripts and services and properly save data\*
