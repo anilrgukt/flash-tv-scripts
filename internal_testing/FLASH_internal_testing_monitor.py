@@ -18,6 +18,7 @@ Edit device IDs and IPs in the __name__ == "__main__" condition
 When prompted for the password, enter the password that is used to log in to the devices
 Mouse over device square in the GUI to display the online/offline/warning/error tooltip
 If a device is offline and not out on data collection, connect the device to the monitor and wireless keyboard/mouse and attempt to login
+Updates every 5 minutes
 """
 
 def rsync_devices(devices: dict, password):
@@ -227,7 +228,7 @@ class InternalTestingMonitor(tk.Tk):
             canvas.itemconfig(last_updated, text=f"Last updated: {dt.now()}")
 
             # Call this function again after a delay (in milliseconds) to keep updating the colors
-            self.after(5*60*1000, update_device_status)
+            self.after(5*60*1000, update_device_status(password))
 
         def update_canvas_size():
 
