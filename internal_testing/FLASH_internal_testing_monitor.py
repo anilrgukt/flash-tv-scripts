@@ -228,7 +228,7 @@ class InternalTestingMonitor(tk.Tk):
             canvas.itemconfig(last_updated, text=f"Last updated: {dt.now()}")
 
             # Call this function again after a delay (in milliseconds) to keep updating the colors
-            self.after(5*60*1000, update_device_status(password))
+            self.after(5*60*1000, lambda: update_device_status(password))
 
         def update_canvas_size():
 
