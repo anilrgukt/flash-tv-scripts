@@ -8,6 +8,7 @@ logFile=/home/$usrName/data/${famId}_data/logs
 mkdir -p $logFile
 
 tegrastats --interval 30000 --logfile /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
+bash /home/$usrName/flash-tv-scripts/services/flash_check_camera_warnings.sh &
 
 i=1
 while true;
