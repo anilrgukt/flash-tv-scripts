@@ -2,8 +2,8 @@
 Has some non-standard dependencies, install with pip
 Must have at least ~1 GB of free space in home folder to download all logs
 Edit normal and warning strings in the __name__ == "__main__" condition, anything else will be counted as an error
-Edit device IDs and IPs in the __name__ == "__main__" condition
-When prompted for the password, enter the password that is used to log_path in to the devices
+Edit device IDs and IPs in the created json file or in the __name__ == "__main__" condition
+When prompted for the password, enter the password that is used to log in to the devices
 Mouse over device square in the GUI to display the online/offline/warning/error tooltip
 If a device is offline and not out on data collection, connect the device to the monitor and wireless keyboard/mouse and attempt to login
 """
