@@ -398,7 +398,7 @@ def check_face_presence(log_file):
         frm_counter += 1
         
         imgr = cv2.resize(img_cap, (608,342))
-        detimg = draw_rect_det(imgr[:,:,::-1], dboxes, 'tmp_det.png')
+        #detimg = draw_rect_det(imgr[:,:,::-1], dboxes, 'tmp_det.png')
     
     #cap_yolo.release()
     video_reader.stop()
