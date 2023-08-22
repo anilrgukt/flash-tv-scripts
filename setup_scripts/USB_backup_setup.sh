@@ -2,7 +2,7 @@
 
 usb_backup_password=$(zenity --entry --hide-text --width 500 --height 100 --text="Enter USB Backup Password:")
 
-checked_password=`python3 ~/flash-tv-scripts/setup_scripts/password_check.py $usb_backup_password`
+encoded_password=`python3 ~/flash-tv-scripts/setup_scripts/check_and_encode_password.py $usb_backup_password`
 exit_code=$?
 
 if [ $exit_code -eq 1 ]; then
@@ -10,16 +10,16 @@ if [ $exit_code -eq 1 ]; then
 	exit 1
 fi
 
-export BORG_PASSPHRASE="$checked_password"
+export BORG_PASSPHRASE="$encoded_password"
 
-echo "$checked_password" > ~/flash-tv-scripts/setup_scripts/borg_passphrase.txt
+echo "$encoded_password" > ~/flash-tv-scripts/setup_scripts/borg-passphrase-flashsysXXX.txt
 
 usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
 
-export BORG_REPO=$usb_path/flashsysXXX_Data_Backups
+export BORG_REPO=$usb_path/Data_Backups_flashsysXXX
 
 borg init -v --encryption=repokey
 
-borg key export --paper :: > $usb_path/flashsysXXX-borg-encrypted-key-backup.txt
-borg key export --paper :: > ~/flashsysXXX-borg-encrypted-key-backup.txt
-borg key export --paper :: > ~/flash-tv-scripts/setup_scripts/flashsysXXX-borg-encrypted-key-backup.txt
+borg key export --paper :: > $usb_path/borg-encrypted-key-backup-flashsysXXX.txt
+borg key export --paper :: > ~/borg-encrypted-key-backup-flashsysXXX.txt
+borg key export --paper :: > ~/flash-tv-scripts/setup_scripts/borg-encrypted-key-backup-flashsysXXX.txt
