@@ -2,7 +2,7 @@
 
 read -p 'Enter USB Backup Password: ' usb_backup_password
 
-checked_password=`python3 password_check.py $usb_backup_password`
+checked_password=`python3 ~/flash-tv-scripts/setup_scripts/password_check.py $usb_backup_password`
 exit_code=$?
 
 if [ $exit_code -eq 1 ]; then
@@ -22,3 +22,4 @@ borg init -v --encryption=repokey
 
 borg key export --paper :: > $usb_path/flashsysXXX-borg-encrypted-key-backup.txt
 borg key export --paper :: > ~/flashsysXXX-borg-encrypted-key-backup.txt
+borg key export --paper :: > ~/flash-tv-scripts/setup_scripts/flashsysXXX-borg-encrypted-key-backup.txt
