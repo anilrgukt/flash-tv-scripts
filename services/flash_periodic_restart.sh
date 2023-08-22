@@ -7,7 +7,7 @@ export usrName=flashsysXXX
 logFile=/home/$usrName/data/${famId}_data/logs
 mkdir -p $logFile
 
-BORG_PASSPHRASE=$(head -n 1 ~/flash-tv-scripts/setup_scripts/borg_passphrase.txt)
+BORG_PASSPHRASE=$(head -n 1 ~/flash-tv-scripts/setup_scripts/borg-passphrase-${usrName}.txt)
 
 tegrastats --interval 30000 --logfile /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
 bash /home/$usrName/flash-tv-scripts/services/flash_check_camera_warnings.sh $famId $usrName &
