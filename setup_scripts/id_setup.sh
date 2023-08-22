@@ -4,16 +4,15 @@
 rm -r ~/flash-tv-scripts/video_capture_scripts
 rm -r ~/flash-tv-scripts/internal_testing
 
-# Take input
-read -p 'Enter FLASH device ID (3 digits):' deviceID
-read -p 'Enter family ID (3 digits probably):' familyID
+deviceID=$(zenity --entry --width 500 --height 100 --text="Enter FLASH device ID (3 digits):")
+
+familyID=$(zenity --entry --width 500 --height 100 --text="Enter family ID (3 digits for Study 4, P1-1[3 digits] for TECH):")
 
 zenity --question --title="Verify Device and Family ID" --width 500 --height 100 --text="Please verify the following details:\n\nFamily ID: $familyID\n\nDevice ID: $deviceID"
-
 user_resp=$?
 
 if [ $user_resp -eq 1 ]; then
-	zenity --warning --text="Exiting the code since the data details are not correct.\n\nPlease modify them and restart the script." -width 500 --height 100
+	zenity --warning --text="Exiting the code since the data details are not correct.\n\nPlease modify them and restart the script." --width 500 --height 100
 	exit 1
 fi
 
