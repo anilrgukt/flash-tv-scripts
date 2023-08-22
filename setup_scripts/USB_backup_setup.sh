@@ -1,6 +1,6 @@
 #!/bin/bash
 
-read -p 'Enter USB Backup Password: ' usb_backup_password
+usb_backup_password=$(zenity --entry --hide-text --width 500 --height 100 --text="Enter USB Backup Password:")
 
 checked_password=`python3 ~/flash-tv-scripts/setup_scripts/password_check.py $usb_backup_password`
 exit_code=$?
