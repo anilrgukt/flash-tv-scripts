@@ -35,7 +35,7 @@ do
 	
 	sleep 10;
 
-	borg create ::{user}-${famID}-FLASH-HA-Data-Backup-{now} ~/data ~/.homeassistant
+	borg create ::${usrName}-${famID}-FLASH-HA-Data-Backup-{now} ~/data ~/.homeassistant
 
   	sleep 10;
  
