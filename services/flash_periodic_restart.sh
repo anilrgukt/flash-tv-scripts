@@ -7,6 +7,8 @@ export usrName=flashsysXXX
 logFile=/home/$usrName/data/${famId}_data/logs
 mkdir -p $logFile
 
+BORG_PASSPHRASE=$(head -n 1 ~/flash-tv-scripts/setup_scripts/borg_passphrase.txt)
+
 tegrastats --interval 30000 --logfile /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
 bash /home/$usrName/flash-tv-scripts/services/flash_check_camera_warnings.sh $famId $usrName &
 
@@ -31,11 +33,15 @@ do
 	#mv /var/log/"${famId}_flash_logstdout.log" /var/log/"${famId}_flash_logstderr.log" "${logFile}/varlogs_${dt}"
 	#cp /var/log/"${famId}_flash_logstdoutp.log" /var/log/"${famId}_flash_logstderrp.log" "${logFile}/varlogs_${dt}"
 	
-	sleep 20;
+	sleep 10;
+
+	borg create ::{user}-${famID}-FLASH-HA-Data-Backup-{now} ~/data ~/.homeassistant
+
+  	sleep 10;
  
 	if (($i%2==0))
 	then
- 		shutdown -r
+ 		reboot
   	else
 		systemctl start flash-run-on-boot.service
   		((i=i+1))
