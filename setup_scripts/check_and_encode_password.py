@@ -7,8 +7,10 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
 try:
 	salt = b'\xb4\x1f\xa4\xc1^\x02Y\xf6\xee\x1e\x1e\xe7=7\xe5\xf9'
-
-	input_password = sys.argv[1].encode()
+	
+	with open(sys.argv[1]) as temp_password_file:
+	
+		input_password = temp_password_file.read().strip().encode()
 
 	kdf = PBKDF2HMAC(
 	    algorithm=hashes.SHA256(),

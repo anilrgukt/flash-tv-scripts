@@ -1,13 +1,19 @@
 #!/bin/bash
 
-if lsusb | grep "SanDisk Corp. Ultra Fit"
+if lsusb | grep "SanDisk Corp. Ultra Fit" &>/dev/null
 then
-
-	usb_backup_password=$(zenity --entry --hide-text --width 500 --height 100 --text="Enter USB Backup Password:")
-
-	encoded_password=`python3 ~/flash-tv-scripts/setup_scripts/check_and_encode_password.py $usb_backup_password`
+	temp_file=$(mktemp)
+	stty -echo
+	
+	zenity --entry --hide-text --width 500 --height 100 --text="Enter USB Backup Password:" > "$temp_file"
+	
+	encoded_password=`python3 ~/flash-tv-scripts/setup_scripts/check_and_encode_password.py "$temp_file"`
 	exit_code=$?
+	
+	shred -z -u "$temp_file"
 
+	stty echo
+	
 	if [ $exit_code -eq 1 ]; then
 		zenity --warning --width 500 --height 100 --text="Exiting the code since the password was incorrect.\nPlease restart the script and try again."
 		exit 1
@@ -19,7 +25,7 @@ then
 
 	usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
 
-	export BORG_REPO=$usb_path/Data_Backups_flashsys002
+	export BORG_REPO=$usb_path/USB_Backup_Data_flashsys002
 
 	borg init -v --encryption=repokey
 
