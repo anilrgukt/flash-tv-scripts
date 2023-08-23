@@ -7,7 +7,24 @@ export usrName=flashsysXXX
 logFile=/home/$usrName/data/${famId}_data/logs
 mkdir -p $logFile
 
-BORG_PASSPHRASE=$(head -n 1 /home/$usrName/flash-tv-scripts/setup_scripts/borg-passphrase-${usrName}.txt)
+export BORG_PASSPHRASE=$(head -n 1 /home/$usrName/flash-tv-scripts/setup_scripts/borg-passphrase-${usrName}.txt)
+
+if lsusb | grep "SanDisk Corp. Ultra Fit"
+
+then
+
+	usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
+
+	export BORG_REPO=$usb_path/USB_Backup_Data_flashsysXXX
+	
+	usb_found=1
+
+else
+
+	echo "*****BACKUP USB NOT FOUND*****"
+	usb_found=0
+
+fi
 
 tegrastats --interval 30000 --logfile /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
 bash /home/$usrName/flash-tv-scripts/services/flash_check_camera_warnings.sh $famId $usrName &
@@ -34,10 +51,31 @@ do
 	#cp /var/log/"${famId}_flash_logstdoutp.log" /var/log/"${famId}_flash_logstderrp.log" "${logFile}/varlogs_${dt}"
 	
 	sleep 10;
-
-	borg create ::${usrName}-${famID}-FLASH-HA-Data-Backup-{now} ~/data ~/.homeassistant
-
-  	sleep 10;
+	
+	if [ $usb_found -eq 1 ]
+	then
+	
+		# Check if TECH participant (longer family ID) and ignore face folders in backup
+		if [ ${#famId} -ge 6]; then
+		
+			borg create ::${usrName}-${famId}-FLASH-HA-Data-Backup-{now} \
+			/home/$usrName/data                                          \	
+			/home/$usrName/.homeassistant                                \
+			--exclude '/home/$usrName/data/*face*'
+			
+			echo "Backup without face folders created at time $dt"
+		else
+		
+			borg create ::${usrName}-${famId}-FLASH-HA-Data-Backup-{now} \
+			/home/$usrName/data                                          \	
+			/home/$usrName/.homeassistant                                
+			
+			echo "Backup created at time $dt"
+		fi
+		
+		sleep 10;
+		
+	fi
  
 	if (($i%2==0))
 	then
