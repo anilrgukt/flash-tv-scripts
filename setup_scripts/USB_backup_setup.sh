@@ -26,6 +26,10 @@ then
 	usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
 
 	export BORG_REPO=$usb_path/USB_Backup_Data_flashsysXXX
+	
+	BORG_REPO_ENV_VAR="export BORG_REPO=\$usb_path/USB_Backup_Data_flashsysXXX"
+	FILE="~/.bashrc"
+	grep -xqF -- "USB_Backup_Data_flashsys" "$FILE" || echo "$BORG_REPO_ENV_VAR" >> "$FILE"
 
 	borg init -v --encryption=repokey
 
