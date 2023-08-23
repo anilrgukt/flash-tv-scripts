@@ -30,7 +30,7 @@ then
 	BORG_PASSPHRASE_EXPORT="export BORG_PASSPHRASE="${encoded_password}""
 
 	grep -q '.*BORG_PASSPHRASE.*' "${FILE}" || echo "${BORG_PASSPHRASE_EXPORT}" >> "${FILE}"
-	sed -i "s@.*BORG_PASSPHRASE.*@${BORG_PASSPHRASE_EXPORT}@" "{$FILE}"
+	sed -i "s@.*BORG_PASSPHRASE.*@${BORG_PASSPHRASE_EXPORT}@" "${FILE}"
 
 	# Get backup USB path
 	backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
