@@ -1,6 +1,11 @@
 #!/bin/bash
 # MUST DELETE AND RECLONE the flash-tv-scripts folder BEFORE RUNNING THIS OR IT WILL NOT WORK PROPERLY
 
+if [ ! -d ~/.homeassistant ]; then
+	zenity --warning --text="Exiting the code since Home Assistant has not been set up.\n\nPlease set up Home Assistant before running this script." --width 500 --height 100
+	exit 1
+fi
+
 # Setting up plug ID for Home Assistant config file
 plugID=$(zenity --entry --width 500 --height 100 --text="Enter plug ID (4 characters lowercase) or YYYY (uppercase) if the plug is not ready:")
 
@@ -22,10 +27,13 @@ sed -i "s/YYYY/$plugID/g" ~/flash-tv-scripts/install_scripts/configuration.yaml
 
 bash -x ~/flash-tv-scripts/setup_scripts/id_setup.sh
 sleep 1;
+
 bash -x ~/flash-tv-scripts/setup_scripts/USB_backup_setup.sh
 sleep 1;
+
 bash -x ~/flash-tv-scripts/setup_scripts/service_setup.sh
 sleep 1;
 
-# Copying the config file to the Home Assistant directory
 cp ~/flash-tv-scripts/install_scripts/configuration.yaml ~/.homeassistant
+
+
