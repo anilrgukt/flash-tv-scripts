@@ -33,7 +33,7 @@ then
 
 	borg init -v --encryption=repokey
 
-	borg key export --paper :: > $usb_path/borg-encrypted-key-backup-flashsysXXX.txt
+	borg key export --paper :: > $backup_usb_path/borg-encrypted-key-backup-flashsysXXX.txt
 	borg key export --paper :: > ~/borg-encrypted-key-backup-flashsysXXX.txt
 	borg key export --paper :: > ~/flash-tv-scripts/setup_scripts/borg-encrypted-key-backup-flashsysXXX.txt
 
