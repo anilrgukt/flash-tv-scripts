@@ -10,7 +10,7 @@ try:
 	
 	with open(sys.argv[1]) as temp_password_file:
 	
-		input_password = temp_password_file.read().strip().encode()
+		input_password = temp_password_file.read().strip()
 
 	kdf = PBKDF2HMAC(
 	    algorithm=hashes.SHA256(),
@@ -19,7 +19,7 @@ try:
 	    iterations=480000,
 	)
 
-	key = base64.urlsafe_b64encode(kdf.derive(input_password))
+	key = base64.urlsafe_b64encode(kdf.derive(input_password.encode()))
 
 	f = Fernet(key)
 
