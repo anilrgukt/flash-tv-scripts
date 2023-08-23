@@ -13,7 +13,7 @@ bash /home/${usrName}/flash-tv-scripts/services/flash_check_camera_warnings.sh $
 i=1
 while true;
 do
-	sleep 60;
+	sleep 21600;
 	#DOW=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
 	#dt=`date`;
 	dt=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
