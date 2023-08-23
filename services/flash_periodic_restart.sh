@@ -45,13 +45,13 @@ do
 		# Check if TECH participant (longer family ID) and ignore face folders in backup
 		if [ ${#famId} -gt 6 ]; then
 
-			borg create --exclude "/home/$usrName/data/*.zip" --exclude "/home/$usrName/data/*/*face*" ::${famId}-FLASH-HA-Data-Backup-${dt} ${BACKUP_DIRS}
+			borg create --exclude "/home/${usrName}/data/*.zip" --exclude "/home/${usrName}/data/*/*face*" ::${famId}-FLASH-HA-Data-Backup-${dt} ${BACKUP_DIRS}
 			
 			echo "USB Backup without Face Folders Created at Time: ${dt}"
 			
 		else
 		
-			borg create --exclude "/home/$usrName/data/*.zip" ::${famId}-FLASH-HA-Data-Backup-${dt} ${BACKUP_DIRS}
+			borg create --exclude "/home/${usrName}/data/*.zip" ::${famId}-FLASH-HA-Data-Backup-${dt} ${BACKUP_DIRS}
 						
 			echo "USB Backup Created at Time: ${dt}"
 			
