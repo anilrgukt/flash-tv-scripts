@@ -23,11 +23,11 @@ then
 
 	echo "$encoded_password" > ~/flash-tv-scripts/setup_scripts/borg-passphrase-flashsysXXX.txt
 
-	usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
+	backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
 
-	export BORG_REPO=$usb_path/USB_Backup_Data_flashsysXXX
+	export BORG_REPO=$backup_usb_path/USB_Backup_Data_flashsysXXX
 	
-	BORG_REPO_ENV_VAR="export BORG_REPO=\$usb_path/USB_Backup_Data_flashsysXXX"
+	BORG_REPO_ENV_VAR="export BORG_REPO=\$backup_usb_path/USB_Backup_Data_flashsysXXX"
 	FILE="~/.bashrc"
 	grep -xqF -- "USB_Backup_Data_flashsys" "$FILE" || echo "$BORG_REPO_ENV_VAR" >> "$FILE"
 
