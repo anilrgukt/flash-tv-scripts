@@ -33,7 +33,7 @@ do
 	
 	sleep 10;
 	
-	if lsusb | grep -q "SanDisk Corp. Ultra Fit"
+	if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ] && [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'` ]
 	then
 
 		backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
