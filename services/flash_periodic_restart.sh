@@ -9,20 +9,20 @@ mkdir -p $logFile
 
 export BORG_PASSPHRASE=$(head -n 1 /home/$usrName/flash-tv-scripts/setup_scripts/borg-passphrase-${usrName}.txt)
 
-if lsusb | grep "SanDisk Corp. Ultra Fit"
+if lsusb | grep "SanDisk Corp. Ultra Fit" &>/dev/null
 
 then
 
-	usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
+	backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
 
-	export BORG_REPO=$usb_path/USB_Backup_Data_flashsysXXX
+	export BORG_REPO=$backup_usb_path/USB_Backup_Data_flashsysXXX
 	
-	usb_found=1
+	backup_usb_found=1
 
 else
 
 	echo "*****BACKUP USB NOT FOUND*****"
-	usb_found=0
+	backup_usb_found=0
 
 fi
 
@@ -52,7 +52,7 @@ do
 	
 	sleep 10;
 	
-	if [ $usb_found -eq 1 ]
+	if [ $backup_usb_found -eq 1 ]
 	then
 	
 		# Check if TECH participant (longer family ID) and ignore face folders in backup
@@ -63,14 +63,14 @@ do
 			/home/$usrName/.homeassistant                                \
 			--exclude '/home/$usrName/data/*face*'
 			
-			echo "Backup without face folders created at time $dt"
+			echo "USB Backup without Face Folders Created at Time $dt"
 		else
 		
 			borg create ::${usrName}-${famId}-FLASH-HA-Data-Backup-{now} \
 			/home/$usrName/data                                          \	
 			/home/$usrName/.homeassistant                                
 			
-			echo "Backup created at time $dt"
+			echo "USB Backup Created at Time $dt"
 		fi
 		
 		sleep 10;
