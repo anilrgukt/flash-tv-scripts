@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if lsusb | grep -q "SanDisk Corp. Ultra Fit"
+if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ] && [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'` ]
 then
 	
 	# Create temp file to store plaintext password without echoing it in terminal
