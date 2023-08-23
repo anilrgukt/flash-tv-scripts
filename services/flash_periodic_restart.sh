@@ -65,8 +65,8 @@ do
 
 	if (($i%2==0))
 	then
-		#reboot
-		echo "reboot"
+		reboot
+		#echo "reboot"
   	else
 		systemctl start flash-run-on-boot.service
   		((i=i+1))
