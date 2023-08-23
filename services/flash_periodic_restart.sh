@@ -36,8 +36,6 @@ do
 	if lsusb | grep -q "SanDisk Corp. Ultra Fit"
 	then
 
-		backup_usb_found=1
-		
 		backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
 
 		export BORG_REPO=${backup_usb_path}/USB_Backup_Data_flashsysXXX
@@ -60,11 +58,7 @@ do
 		fi
 		
 	else
-
-		backup_usb_found=0
-
 		echo "*****BACKUP USB NOT FOUND*****"
-		
 	fi
 
 	sleep 10;
