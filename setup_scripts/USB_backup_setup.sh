@@ -9,7 +9,7 @@ then
 	zenity --entry --hide-text --width 500 --height 100 --text="Enter USB Backup Password:" > "$temp_file"
 	
 	# Send password to be checked and encoded using cryptography modules in Python
-	encoded_password=`python3 /home/flashsys002/flash-tv-scripts/setup_scripts/check_and_encode_password.py "$temp_file"`
+	encoded_password=`python3 /home/flashsysXXX/flash-tv-scripts/setup_scripts/check_and_encode_password.py "$temp_file"`
 	exit_code=$?
 	
 	# Overwrite and destroy temp file
@@ -20,12 +20,12 @@ then
 		exit 1
 	fi
 	
-	FILE=/home/flashsys002/.bashrc
+	FILE=/home/flashsysXXX/.bashrc
 
 	# Export and save encoded password as borg passphrase
 	export BORG_PASSPHRASE="$encoded_password"
 	
-	echo "$encoded_password" > /home/flashsys002/flash-tv-scripts/setup_scripts/borg-passphrase-flashsys002.txt
+	echo "$encoded_password" > /home/flashsysXXX/flash-tv-scripts/setup_scripts/borg-passphrase-flashsysXXX.txt
 	
 	BORG_PASSPHRASE_EXPORT="export BORG_PASSPHRASE="$encoded_password""
 
@@ -36,9 +36,9 @@ then
 	backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
 
 	# Export and save borg repo path
-	export BORG_REPO=$backup_usb_path/USB_Backup_Data_flashsys002
+	export BORG_REPO=$backup_usb_path/USB_Backup_Data_flashsysXXX
 	
-	BORG_REPO_EXPORT="export BORG_REPO=$backup_usb_path/USB_Backup_Data_flashsys002"
+	BORG_REPO_EXPORT="export BORG_REPO=$backup_usb_path/USB_Backup_Data_flashsysXXX"
 	
 	grep -q '.*BORG_REPO.*' "$FILE" || echo "$BORG_REPO_EXPORT" >> "$FILE"
 	sed -i "s@.*BORG_REPO.*@$BORG_REPO_EXPORT@" "$FILE"
@@ -47,9 +47,9 @@ then
 	borg init -v --encryption=repokey
 
 	# Export borg encryption keys to multiple places for backup
-	borg key export --paper :: > $backup_usb_path/borg-encrypted-key-backup-flashsys002.txt
-	borg key export --paper :: > /home/flashsys002/borg-encrypted-key-backup-flashsys002.txt
-	borg key export --paper :: > /home/flashsys002/flash-tv-scripts/setup_scripts/borg-encrypted-key-backup-flashsys002.txt
+	borg key export --paper :: > $backup_usb_path/borg-encrypted-key-backup-flashsysXXX.txt
+	borg key export --paper :: > /home/flashsysXXX/borg-encrypted-key-backup-flashsysXXX.txt
+	borg key export --paper :: > /home/flashsysXXX/flash-tv-scripts/setup_scripts/borg-encrypted-key-backup-flashsysXXX.txt
 
 else
 	zenity --warning --width 500 --height 100 --text="Exiting the code since the backup USB is not connected.\nPlease connect the backup USB and try again."
