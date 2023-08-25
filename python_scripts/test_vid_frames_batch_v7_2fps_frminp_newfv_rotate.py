@@ -315,7 +315,7 @@ def frame_write(q, frm_count):
         
         if (count+1)%1000 == 0:
             tmp = 10
-            print('time for captuing 1000 images:::: ', time.time()-t_st)
+            print('time for capturing 1000 images:::: ', time.time()-t_st)
             t_st = time.time()
             #break
         
