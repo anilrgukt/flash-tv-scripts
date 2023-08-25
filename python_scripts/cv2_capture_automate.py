@@ -86,26 +86,38 @@ def get_face(detface):
 	return [x1,x2,y1,y2]
 
 def cam_id():
+	
 	dev_list = subprocess.Popen('v4l2-ctl --list-devices'.split(), shell=False, stdout=subprocess.PIPE)
 	out, err = dev_list.communicate()
 	out = out.decode()
 	dev_paths = out.split('\n')
 	dev_path = None
-
-	#WEBCAM_NAME = 'HD Pro Webcam C920'
-	WEBCAM_NAME = 'Logitech Webcam C930e'
 	
+	# WEBCAM_NAME = 'HD Pro Webcam C920' # Logitech Webcam C930e
+	WEBCAM_NAME1 = 'Logitech Webcam C930e'
+	#WEBCAM_NAME2 = 'USB  Live camera: USB  Live cam'
+	WEBCAM_NAME2 = 'Anker PowerConf C300: Anker Pow'
+	
+	dev_name = {WEBCAM_NAME1:'C930e', WEBCAM_NAME2: 'C300'}
+	
+	which_webcam = None
 	for i in range(len(dev_paths)):
-		#print(i, dev_paths[i])
-		if WEBCAM_NAME in dev_paths[i]:
-		    dev_path = dev_paths[i+1].strip()
-		    #print(dev_path, dev_path[-1])
-
+	#print(i, dev_paths[i])
+	if (WEBCAM_NAME1 in dev_paths[i]):  
+	    dev_path = dev_paths[i+1].strip()
+	    which_webcam = WEBCAM_NAME1
+	    break
+	    #print(dev_path, dev_path[-1])
+	elif (WEBCAM_NAME2 in dev_paths[i]):
+	    dev_path = dev_paths[i+1].strip()
+	    which_webcam = WEBCAM_NAME2
+	    break
+	
 	if dev_path is not None:
-		cam_idx = int(dev_path[-1])	
+	cam_idx = int(dev_path[-1])    
 	else:
-		cam_idx = -1
-		
+	cam_idx = -1
+	
 	print('CAMERA identified at: ', cam_idx)
 	return cam_idx
 
