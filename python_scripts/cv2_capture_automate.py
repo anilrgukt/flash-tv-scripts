@@ -85,9 +85,6 @@ def get_face(detface):
 	#face = skimage.transform.resize(face, [160, 160])
 	return [x1,x2,y1,y2]
 
-
-
-
 def cam_id():
 	dev_list = subprocess.Popen('v4l2-ctl --list-devices'.split(), shell=False, stdout=subprocess.PIPE)
 	out, err = dev_list.communicate()
@@ -109,7 +106,7 @@ def cam_id():
 	else:
 		cam_idx = -1
 		
-	print('CAMER identified at: ', cam_idx)
+	print('CAMERA identified at: ', cam_idx)
 	return cam_idx
 
 def frame_write(q, frm_count, yolo):
@@ -163,7 +160,7 @@ def frame_write(q, frm_count, yolo):
 		
 		if (count+1)%100 == 0:
 			tmp = 10
-			print('time for captuing 100 images:::: ', time.time()-t_st)
+			print('time for capturing 100 images:::: ', time.time()-t_st)
 			t_st = time.time()
 			#break
 		
