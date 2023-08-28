@@ -58,7 +58,17 @@ do
 		fi
 		
 	else
-		echo "Backup USB not Found at Time: ${dt}"
+		if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
+		
+			echo "Backup USB not Found in lsusb at Time: ${dt}"
+			
+		elif [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'` ]; then
+		
+			echo "Backup USB not Found in lsblk at Time: ${dt}"
+		
+		else 
+		
+			echo "Backup USB not Found in lsblk or lsusb at Time: ${dt}"
 	fi
 
 	sleep 10;
