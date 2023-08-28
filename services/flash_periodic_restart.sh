@@ -58,7 +58,7 @@ do
 		fi
 		
 	else
-		echo "*****BACKUP USB NOT FOUND*****"
+		echo "Backup USB not Found at Time: ${dt}"
 	fi
 
 	sleep 10;
