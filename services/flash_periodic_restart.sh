@@ -69,6 +69,8 @@ do
 		else 
 		
 			echo "Backup USB not Found in lsblk or lsusb at Time: ${dt}"
+		
+  		fi
 	fi
 
 	sleep 10;
