@@ -414,6 +414,10 @@ def cam_id():
         
     print('CAMERA identified at: ', cam_idx)
     
+    if dev_name[which_webcam] == 'C300':
+        print('Do not reset the Anker 120 degree FoV camera.')
+        return cam_idx
+    
     usb_list = create_usb_list()
     usb_path = None
     for device in usb_list:
