@@ -12,7 +12,7 @@ export PYTHONPATH=$MXNET_HOME/python:$PYTHONPATH
 if [[ $(sudo hwclock -s 1>/dev/null) ]]; then
 	echo "Error occurred when trying to update system time from internal RTC, switching to update from external RTC"
 	timedatectl set-ntp 0
-	python3 /home/$usrName/flash-tv-scripts/python-scripts/update_hwclock_from_ext_ds3231.py
+	python3 /home/$usrName/flash-tv-scripts/python-scripts/update_timedatectl_from_ext_ds3231.py
 fi
 
 source /home/$usrName/py38/bin/activate
