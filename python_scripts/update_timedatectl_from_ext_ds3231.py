@@ -21,7 +21,8 @@ command1 = ["sudo", "timedatectl", "set-ntp", "0"]
 command2 = ["sudo", "timedatectl", "set-time", dt_for_timedatectl()]
 subprocess.run(command1, check=True)
 subprocess.run(command2, check=True)
-bus.close()
-
 #print(print(f"Time for hwclock was be set to: {dt_for_hwclock()}"))
 print(f"Time for timedatectl was set to: {dt_for_timedatectl()}")
+bus.close()
+
+
