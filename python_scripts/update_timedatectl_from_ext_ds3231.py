@@ -37,8 +37,8 @@ dec_rtc_data = lambda: [int(x.replace("0x", "")) for x in hex_rtc_data()]
 #print(f"RTC Dec: {dec_rtc_data()}")
 #dt_for_hwclock = f"{dec_rtc_data()[5]:02}/{dec_rtc_data()[4]:02}/20{dec_rtc_data()[6]:02} {dec_rtc_data()[2]:02}:{dec_rtc_data()[1]:02}:{dec_rtc_data()[0]:02}"
 dt_for_timedatectl = f"20{dec_rtc_data()[6]:02}-{dec_rtc_data()[5]:02}-{dec_rtc_data()[4]:02} {dec_rtc_data()[2]:02}:{dec_rtc_data()[1]:02}:{dec_rtc_data()[0]:02}"
-#print(dt_for_hwclock)
-print(dt_for_timedatectl)
+#print(print(f"Time for hwclock will be set to: {dt_for_hwclock}"))
+print(f"Time for timedatectl will be set to: {dt_for_timedatectl}")
 #command = ["sudo", "hwclock", "--set", "--date", dt_for_hwclock]
 command1 = ["sudo", "timedatectl", "set-ntp", "0"]
 command2 = ["sudo", "timedatectl", "set-time", dt_for_timedatectl]
