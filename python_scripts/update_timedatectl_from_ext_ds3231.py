@@ -5,8 +5,8 @@ import subprocess
 bus = SMBus(1)
 
 rtc_data = lambda: bus.read_i2c_block_data(104, 0, 8)
-#hex_rtc_data = lambda: [hex(x) for x in rtc_data()]
-int_rtc_data = lambda: [int(x) for x in rtc_data()]
+hex_rtc_data = lambda: [hex(x) for x in rtc_data()]
+#int_rtc_data = lambda: [int(x) for x in rtc_data()]
 #print(f"RTC Hex: {hex_rtc_data()}")
 #print(f"RTC Int: {int_rtc_data()}")
 
