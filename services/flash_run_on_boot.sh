@@ -15,10 +15,10 @@ export PYTHONPATH=$MXNET_HOME/python:$PYTHONPATH
 # 	python3 /home/$usrName/flash-tv-scripts/python-scripts/update_timedatectl_from_ext_ds3231.py
 # fi
 
+source /home/$usrName/py38/bin/activate
+
 timedatectl set-ntp 0
 python3 /home/$usrName/flash-tv-scripts/python_scripts/update_timedatectl_from_ext_ds3231.py
-
-source /home/$usrName/py38/bin/activate
 
 # runs a while loop for the FLASH-TV algorithm only if it doesn't already exist
 while true;
