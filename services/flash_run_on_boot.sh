@@ -16,7 +16,7 @@ export PYTHONPATH=$MXNET_HOME/python:$PYTHONPATH
 # fi
 
 timedatectl set-ntp 0
-python3 /home/$usrName/flash-tv-scripts/python-scripts/update_timedatectl_from_ext_ds3231.py
+python3 /home/$usrName/flash-tv-scripts/python_scripts/update_timedatectl_from_ext_ds3231.py
 
 source /home/$usrName/py38/bin/activate
 
