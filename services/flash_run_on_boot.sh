@@ -8,9 +8,12 @@ export PATH=/usr/local/cuda-11/bin:$PATH
 export MXNET_HOME=/home/$usrName/mxnet
 export PYTHONPATH=$MXNET_HOME/python:$PYTHONPATH
 
-python3 /home/$usrName/flash-tv-scripts/python-scripts/update_hwclock_from_ext_ds3231.py
 # run time-synchronization commands 
-hwclock -s
+if [[ $(sudo hwclock -s 1>/dev/null) ]]; then
+	echo "Error occurred when trying to update system time from internal RTC, switching to update from external RTC"
+	timedatectl set-ntp 0
+	python3 /home/$usrName/flash-tv-scripts/python-scripts/update_hwclock_from_ext_ds3231.py
+fi
 
 source /home/$usrName/py38/bin/activate
 
