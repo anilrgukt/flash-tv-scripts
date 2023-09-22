@@ -5,6 +5,7 @@ sudo sed -i 's/ATTR{hctosys}=="1"/ATTR{hctosys}=="0"/g' /lib/udev/rules.d/50-ude
 sudo systemctl restart systemd-timesyncd.service
 sleep 5;
 sudo hwclock -w
+python3 ~/flash-tv-scripts/python-scripts/update_ext_ds3231_from_dt_now.py
 
 # Disable and stop currently running services
 bash -x ~/flash-tv-scripts/services/stop_services.sh
