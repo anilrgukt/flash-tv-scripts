@@ -8,7 +8,7 @@ export PATH=/usr/local/cuda-11/bin:$PATH
 export MXNET_HOME=/home/$usrName/mxnet
 export PYTHONPATH=$MXNET_HOME/python:$PYTHONPATH
 
-python3 /home/$usrName/flash-tv-scripts/services/update_hwclock_from_ext_ds3231.py
+python3 /home/$usrName/flash-tv-scripts/python-scripts/update_hwclock_from_ext_ds3231.py
 # run time-synchronization commands 
 hwclock -s
 
