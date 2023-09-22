@@ -25,5 +25,8 @@ hex_bcd_dt_now = lambda: [hex(x) for x in int_bcd_dt_now()]
 #print(f"dt.now() BCD Int: {int_bcd_dt_now()}")
 #print(f"dt.now() BCD Hex: {hex_bcd_dt_now()}")
 
+print(f"Time for external RTC will be set to: {hex_bcd_dt_now()}")
+
 bus = SMBus(1)
 bus.write_i2c_block_data(104, 0, int_bcd_dt_now())
+bus.close()
