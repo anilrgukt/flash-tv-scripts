@@ -40,6 +40,8 @@ dt_for_timedatectl = f"20{dec_rtc_data()[6]:02}-{dec_rtc_data()[5]:02}-{dec_rtc_
 #print(dt_for_hwclock)
 print(dt_for_timedatectl)
 #command = ["sudo", "hwclock", "--set", "--date", dt_for_hwclock]
-command = ["sudo", "timedatectl", "set-time", dt_for_timedatectl]
-subprocess.run(command, check=True)
+command1 = ["sudo", "timedatectl", "set-ntp", "0"]
+command2 = ["sudo", "timedatectl", "set-time", dt_for_timedatectl]
+subprocess.run(command1, check=True)
+subprocess.run(command2, check=True)
 bus.close()
