@@ -1,6 +1,7 @@
 from datetime import datetime as dt
 from smbus2 import SMBus
 import subprocess
+import traceback
 
 bus = SMBus(1)
 
