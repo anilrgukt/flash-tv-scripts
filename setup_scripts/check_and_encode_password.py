@@ -4,6 +4,7 @@ import sys
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import traceback
 
 try:
 	salt = b'\xb4\x1f\xa4\xc1^\x02Y\xf6\xee\x1e\x1e\xe7=7\xe5\xf9'
@@ -28,8 +29,8 @@ try:
 	if f.decrypt(check_token).decode() == "Correct":
 		print(key.decode())
 
-except Exception as e:
-	print(e)
+except Exception:
+	print(traceback.format_exc())
 	sys.exit(1)
 
 
