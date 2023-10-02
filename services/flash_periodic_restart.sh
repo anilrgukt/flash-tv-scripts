@@ -31,11 +31,11 @@ do
 	#mv /var/log/"${famId}_flash_logstdout.log" /var/log/"${famId}_flash_logstderr.log" "${logFile}/varlogs_${dt}"
 	#cp /var/log/"${famId}_flash_logstdoutp.log" /var/log/"${famId}_flash_logstderrp.log" "${logFile}/varlogs_${dt}"
 	
-	sleep 20;
+	sleep 5;
  
 	if (($i%2==0))
 	then
- 		shutdown -r
+ 		reboot
   	else
 		systemctl start flash-run-on-boot.service
   		((i=i+1))
