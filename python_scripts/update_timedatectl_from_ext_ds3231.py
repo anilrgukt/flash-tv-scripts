@@ -20,6 +20,7 @@ dt_for_timedatectl = lambda: f"20{dec_rtc_data()[6]:02}-{dec_rtc_data()[5]:02}-{
 command1 = ["sudo", "timedatectl", "set-ntp", "0"]
 command2 = ["sudo", "timedatectl", "set-time", dt_for_timedatectl()]
 subprocess.run(command1, check=True)
+sleep(5)
 subprocess.run(command2, check=True)
 #print(print(f"Time for hwclock was be set to: {dt_for_hwclock()}"))
 print(f"Time for timedatectl was set to: {dt_for_timedatectl()}")
