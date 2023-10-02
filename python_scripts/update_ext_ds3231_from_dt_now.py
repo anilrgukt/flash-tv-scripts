@@ -1,6 +1,7 @@
 from datetime import datetime as dt
 from smbus2 import SMBus
 import subprocess
+import traceback
 
 def int_to_bcd(input_integer):
     # Step 2: Initialize variables
@@ -26,8 +27,15 @@ hex_bcd_dt_now = lambda: [hex(x) for x in int_bcd_dt_now()]
 #print(f"dt.now() BCD Hex: {hex_bcd_dt_now()}")
 
 bus = SMBus(1)
-bus.write_i2c_block_data(104, 0, int_bcd_dt_now())
-bus.close()
+try:
+    bus.write_i2c_block_data(104, 0, int_bcd_dt_now())
+    bus.close()
+    print(f"Time for external RTC was set to: {hex_bcd_dt_now()}")
+    
+except Exception:
+    print(traceback.format_exc())
+    print("Failed to properly set time for external RTC, you must retry before continuing")
+    bus.close()
+    sys.exit(1)
 
-print(f"Time for external RTC was set to: {hex_bcd_dt_now()}")
 
