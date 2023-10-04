@@ -3,11 +3,11 @@
 export famId=123XXX
 export usrName=flashsysXXX
 
-#logFilePath=/home/$usrName/data/${famId}_data
-logFile=/home/$usrName/data/${famId}_data/logs
-mkdir -p $logFile
+#logFolderPath=/home/$usrName/data/${famId}_data
+logFolder=/home/$usrName/data/${famId}_data/logs
+mkdir -p $logFolder
 
-tegrastats --interval 30000 --logfile /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
+tegrastats --interval 30000 --logFolder /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
 bash /home/$usrName/flash-tv-scripts/services/flash_check_camera_warnings.sh $famId $usrName &
 
 source /home/$usrName/py38/bin/activate
@@ -19,19 +19,20 @@ do
 	#DOW=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
 	#dt=`date`;
 	dt=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
-	systemctl status flash-run-on-boot.service > "${logFile}/log_${dt}.txt"
+ 	mkdir -p "${logFolder}/varlogs_${dt}"
+	systemctl status flash-run-on-boot.service > "${logFolder}/varlogs_${dt}/log_${dt}.txt"
 	systemctl stop flash-run-on-boot.service
-	systemctl status flash-run-on-boot.service > "${logFile}/logend_${dt}.txt"
-	python3 /home/$usrName/flash-tv-scripts/python_scripts/check_all_times.py > "${logFile}/timedate_${dt}.txt"
-	v4l2-ctl --list-devices > "${logFile}/camera_${dt}.txt"
+	systemctl status flash-run-on-boot.service > "${logFolder}/varlogs_${dt}/logend_${dt}.txt"
+	python3 /home/$usrName/flash-tv-scripts/python_scripts/check_all_times.py > "${logFolder}/varlogs_${dt}/timedate_${dt}.txt"
+	v4l2-ctl --list-devices > "${logFolder}/varlogs_${dt}/camera_${dt}.txt"
 	
 	pkill -9 -f test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py
 	
-	mkdir -p "${logFile}/varlogs_${dt}"
-	mv /home/$usrName/data/${famId}_data/${famId}_flash_logstdout.log /home/$usrName/data/${famId}_data/${famId}_flash_logstderr.log "${logFile}/varlogs_${dt}"
-	cp /home/$usrName/data/${famId}_data/${famId}_flash_logstdoutp.log /home/$usrName/data/${famId}_data/${famId}_flash_logstderrp.log "${logFile}/varlogs_${dt}"
-	#mv /var/log/"${famId}_flash_logstdout.log" /var/log/"${famId}_flash_logstderr.log" "${logFile}/varlogs_${dt}"
-	#cp /var/log/"${famId}_flash_logstdoutp.log" /var/log/"${famId}_flash_logstderrp.log" "${logFile}/varlogs_${dt}"
+	
+	mv /home/$usrName/data/${famId}_data/${famId}_flash_logstdout.log /home/$usrName/data/${famId}_data/${famId}_flash_logstderr.log "${logFolder}/varlogs_${dt}"
+	cp /home/$usrName/data/${famId}_data/${famId}_flash_logstdoutp.log /home/$usrName/data/${famId}_data/${famId}_flash_logstderrp.log "${logFolder}/varlogs_${dt}"
+	#mv /var/log/"${famId}_flash_logstdout.log" /var/log/"${famId}_flash_logstderr.log" "${logFolder}/varlogs_${dt}"
+	#cp /var/log/"${famId}_flash_logstdoutp.log" /var/log/"${famId}_flash_logstderrp.log" "${logFolder}/varlogs_${dt}"
 	
 	sleep 5;
  
