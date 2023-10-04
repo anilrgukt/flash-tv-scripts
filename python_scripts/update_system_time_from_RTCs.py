@@ -92,7 +92,7 @@ def set_time():
                 print("Warning: Unable to obtain time from external RTC for validation, proceeding anyway since time was successfully set from internal RTC")
                 pass
             try:
-                print(f"Internal RTC time is: {subprocess.check_output(['sudo', 'hwclock', '-r'])).decode('utf-8')}")
+                print(f"Internal RTC time is: {subprocess.check_output(['sudo', 'hwclock', '-r']).decode('utf-8')}")
                 #INTERNAL_RTC_READ_SUCCESSFUL = True
             except:
                 print(traceback.format_exc())
