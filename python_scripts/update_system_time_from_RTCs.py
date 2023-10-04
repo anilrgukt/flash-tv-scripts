@@ -113,6 +113,7 @@ def set_time():
                 if attempt < MAX_RETRIES:
                     time.sleep(1)
                     print(f"Failed to set time from external RTC, retrying again starting from internal RTC (attempt {attempt}/{MAX_RETRIES})")
+                    continue
                 else:
                     print("Maximum amount of time setting attempts reached, attempting to reboot system")
                     if bus:
