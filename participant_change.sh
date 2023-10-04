@@ -20,7 +20,7 @@ sed -i "s/YYYY/$plugID/g" ~/flash-tv-scripts/install_scripts/configuration.yaml
 
 bash -x ~/flash-tv-scripts/setup_scripts/id_setup.sh
 bash -x ~/flash-tv-scripts/setup_scripts/service_setup.sh
-
+bash -x ~/flash-tv-scripts/setup_scripts/RTC_setup.sh
 
 # Copying the config file to the Home Assistant directory
 cp ~/flash-tv-scripts/install_scripts/configuration.yaml ~/.homeassistant
