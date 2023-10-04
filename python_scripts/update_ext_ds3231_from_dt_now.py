@@ -1,41 +1,39 @@
 from datetime import datetime as dt
-from smbus2 import SMBus
-import subprocess
+import smbus2
 import traceback
+import sys
 
-def int_to_bcd(input_integer):
-    # Step 2: Initialize variables
-    result = 0
-    multiplier = 1
+# Constants
+RTC_ADDRESS = 104  # Replace with the actual RTC address if different
+I2C_BUS_NUMBER = 1  # Replace with the actual bus number if different
 
-    # Step 3: Loop through each decimal digit in reverse order
-    while input_integer > 0:
-        digit = input_integer % 10  # Get the last digit
-        result += digit * multiplier  # Add the digit to the result
-        multiplier *= 16  # Multiply the multiplier by 16 (shift left by 4 bits)
-        input_integer //= 10  # Remove the last digit
+def get_bcd(value):
+    # Converts an integer to BCD format
+    return (value // 10) << 4 | (value % 10)
 
-    # The 'result' variable now contains the BCD representation
-    return (result)  # Convert to hexadecimal for BCD representation
+def get_current_time_bcd():
+    now = dt.now()
+    return [
+        get_bcd(now.second),
+        get_bcd(now.minute),
+        get_bcd(now.hour),
+        get_bcd(now.weekday() + 1),  # Adjust weekday to RTC format (1-7)
+        get_bcd(now.day),
+        get_bcd(now.month),
+        get_bcd(now.year % 100)  # Get last two digits of the year
+    ]
 
-trimmed_dt_now = lambda: list(dt.now().timetuple()[:-2])
-modulus_dt_now = lambda: [trimmed_dt_now()[5]%60, trimmed_dt_now()[4]%60, trimmed_dt_now()[3]%24, trimmed_dt_now()[6], trimmed_dt_now()[2], trimmed_dt_now()[1], trimmed_dt_now()[0]%100, 0]
-int_bcd_dt_now = lambda: [int_to_bcd(x) for x in modulus_dt_now()]
-hex_bcd_dt_now = lambda: [hex(x) for x in int_bcd_dt_now()]
+def set_external_rtc_time():
+    try:
+        bus = smbus2.SMBus(I2C_BUS_NUMBER)
+        rtc_data = get_current_time_bcd()
+        bus.write_i2c_block_data(RTC_ADDRESS, 0, rtc_data)
+        bus.close()
+        print(f"Time for external RTC was set to: {rtc_data}")
+    except Exception:
+        print(traceback.format_exc())
+        print("Failed to properly set time for external RTC. Please retry before continuing.")
+        sys.exit(1)
 
-#print(f"dt.now() BCD Int: {int_bcd_dt_now()}")
-#print(f"dt.now() BCD Hex: {hex_bcd_dt_now()}")
-
-bus = SMBus(1)
-try:
-    bus.write_i2c_block_data(104, 0, int_bcd_dt_now())
-    bus.close()
-    print(f"Time for external RTC was set to: {hex_bcd_dt_now()}")
-    
-except Exception:
-    print(traceback.format_exc())
-    print("Failed to properly set time for external RTC, you must retry before continuing")
-    bus.close()
-    sys.exit(1)
-
-
+if __name__ == "__main__":
+    set_external_rtc_time()
