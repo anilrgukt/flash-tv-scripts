@@ -81,7 +81,7 @@ def check_times(bus):
         pass
         #TIMEDATECTL_SUCCESSFUL = False
     try:
-        print(f"Time from internal RTC rtc0 (PSEQ_RTC, being used) is: {subprocess.check_output(['sudo', 'hwclock', '-r']).decode('utf-8')}")
+        print(f"Time from internal RTC rtc0 (PSEQ_RTC, being used) is: {subprocess.check_output(['sudo', 'hwclock', '-r']).strip().decode('utf-8')}")
         #INTERNAL_RTC0_READ_SUCCESSFUL = True
     except:
         print(traceback.format_exc())
@@ -103,7 +103,8 @@ def check_times(bus):
         print("Info: Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)")
         pass
         #INTERNAL_RTC1_READ_SUCCESSFUL = False
-
+    if bus:
+        bus.close()
     return
 
 def set_time():
@@ -115,6 +116,8 @@ def set_time():
             subprocess.run(["sudo", "hwclock", "-s"], check=True)
             print(f"Time for timedatectl was set to: {dt.now()} from internal RTC")
             check_times(bus)
+            if bus:
+            	bus.close()
             return
         except:
             print(traceback.format_exc())
@@ -122,9 +125,9 @@ def set_time():
             try:
                 subprocess.run(["sudo", "timedatectl", "set-time", convert_rtc_format_to_timedatectl_format(bus)], check=True)
                 print(f"Time for timedatectl was set to: {convert_rtc_format_to_timedatectl_format(bus)} from external RTC")
+                check_times(bus)
                 if bus:
                     bus.close()
-                check_times(bus)
                 return
             except:
                 if attempt < MAX_RETRIES:
