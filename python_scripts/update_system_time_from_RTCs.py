@@ -96,7 +96,7 @@ def set_time():
                 #INTERNAL_RTC_READ_SUCCESSFUL = True
             except:
                 print(traceback.format_exc())
-                print("Warning: Unable to read from internal RTC after attempting to set time from it")
+                print("Warning: Unable to read from internal RTC after setting time from it")
                 pass
                 #INTERNAL_RTC_READ_SUCCESSFUL = False
             return
