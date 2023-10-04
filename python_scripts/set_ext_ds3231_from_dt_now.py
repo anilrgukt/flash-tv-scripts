@@ -1,5 +1,5 @@
 from datetime import datetime as dt
-import smbus2
+from smbus2 import SMBus
 import traceback
 import sys
 
@@ -25,7 +25,7 @@ def get_current_time_bcd():
 
 def set_external_rtc_time():
     try:
-        bus = smbus2.SMBus(I2C_BUS_NUMBER)
+        bus = SMBus(I2C_BUS_NUMBER)
         bus.write_i2c_block_data(RTC_ADDRESS, 0, get_current_time_bcd())
         bus.close()
         print(f"Time for external RTC was set to: {get_current_time_bcd()}")
