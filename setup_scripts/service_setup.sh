@@ -8,6 +8,8 @@ sleep 5;
 sudo systemctl restart systemd-timesyncd.service
 sleep 5;
 sudo hwclock -w
+sleep 1;
+sudo hwclock --rtc /dev/rtc1 -w
 
 source ~/py38/bin/activate
 python3 ~/flash-tv-scripts/python_scripts/update_ext_ds3231_from_dt_now.py
