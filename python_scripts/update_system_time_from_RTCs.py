@@ -67,38 +67,45 @@ def reboot_1s():
                 print("Maximum amount of 1 second interval reboot attempts reached, now attempting to reboot every 1 minute")
                 reboot_1m()
 
+def check_times():
+    
+    try:
+        timedatectl = subprocess.check_output(["timedatectl"])
+        for line in timedatectl.splitlines():
+            print(line.strip().decode('utf-8'))
+        #TIMEDATECTL_SUCCESSFUL = True
+    except:
+        print(traceback.format_exc())
+        print("Warning: unable to run timedatectl for system time info")
+        pass
+        #TIMEDATECTL_SUCCESSFUL = False
+    try:
+        print(f"External RTC time is: {convert_rtc_format_to_timedatectl_format(bus)}")
+        bus.close()
+    except:
+        print(traceback.format_exc())
+        print("Warning: Unable to obtain time from external RTC for validation, proceeding anyway since time was successfully set from internal RTC")
+        pass
+    try:
+        print(f"Internal RTC time is: {subprocess.check_output(['sudo', 'hwclock', '-r']).decode('utf-8')}")
+        #INTERNAL_RTC_READ_SUCCESSFUL = True
+    except:
+        print(traceback.format_exc())
+        print("Warning: Unable to obtain time from internal RTC for validation")
+        pass
+        #INTERNAL_RTC_READ_SUCCESSFUL = False
+
+    return
+
 def set_time():
+    
     bus = SMBus(I2C_BUS_NUMBER)
+    
     for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            timedatectl = subprocess.check_output(["timedatectl"])
-            for line in timedatectl.splitlines():
-            	print(line.strip().decode('utf-8'))
-            #TIMEDATECTL_SUCCESSFUL = True
-        except:
-            print(traceback.format_exc())
-            print("Warning: unable to run timedatectl for system time info")
-            pass
-            #TIMEDATECTL_SUCCESSFUL = False
         try:
             subprocess.run(["sudo", "hwclock", "-s"], check=True)
             print(f"Time for timedatectl was set to: {dt.now()} from internal RTC")
-            try:
-                print(f"External RTC time is: {convert_rtc_format_to_timedatectl_format(bus)}")
-                bus.close()
-                return
-            except:
-                print(traceback.format_exc())
-                print("Warning: Unable to obtain time from external RTC for validation, proceeding anyway since time was successfully set from internal RTC")
-                pass
-            try:
-                print(f"Internal RTC time is: {subprocess.check_output(['sudo', 'hwclock', '-r']).decode('utf-8')}")
-                #INTERNAL_RTC_READ_SUCCESSFUL = True
-            except:
-                print(traceback.format_exc())
-                print("Warning: Unable to read from internal RTC after setting time from it")
-                pass
-                #INTERNAL_RTC_READ_SUCCESSFUL = False
+            check_times()
             return
         except:
             print(traceback.format_exc())
@@ -108,6 +115,7 @@ def set_time():
                 print(f"Time for timedatectl was set to: {convert_rtc_format_to_timedatectl_format(bus)} from external RTC")
                 if bus:
                     bus.close()
+                check_times()
                 return
             except:
                 if attempt < MAX_RETRIES:
