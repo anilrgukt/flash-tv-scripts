@@ -3,7 +3,6 @@ from smbus2 import SMBus
 import subprocess
 import traceback
 import time
-from subprocess import check_output
 
 # Constants
 MAX_RETRIES = 60
@@ -71,11 +70,12 @@ def reboot_1s():
 def set_time():
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            check_output(["timedatectl", check=True)
+            subprocess.check_output(["timedatectl")
             #TIMEDATECTL_SUCCESSFUL = True
         except subprocess.CalledProcessError:
             print(traceback.format_exc())
             print("Warning: unable to run timedatectl for system time info")
+            pass
             #TIMEDATECTL_SUCCESSFUL = False
         try:
             subprocess.run(["sudo", "hwclock", "-s"], check=True)
@@ -87,12 +87,14 @@ def set_time():
             except subprocess.CalledProcessError:
                 print(traceback.format_exc())
                 print("Warning: Unable to obtain time from external RTC for validation, proceeding anyway since time was successfully set from internal RTC")
+                pass
             try:
-                subprocess.run(["sudo", "hwclock", "-r"], check=True)
+                subprocess.check_output(["sudo", "hwclock", "-r"])
                 #INTERNAL_RTC_READ_SUCCESSFUL = True
             except subprocess.CalledProcessError:
                 print(traceback.format_exc())
                 print("Warning: Unable to read from internal RTC after attempting to set time from it")
+                pass
                 #INTERNAL_RTC_READ_SUCCESSFUL = False
             return
         except subprocess.CalledProcessError:
