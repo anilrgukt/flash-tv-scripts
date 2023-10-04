@@ -7,22 +7,22 @@ import time
 # Constants
 MAX_RETRIES = 60
 RTC_ADDRESS = 104
+I2C_BUS_NUMBER = 1  # Replace with the actual bus number if different
 # TIMEDATECTL_SUCCESSFUL = None
 # INTERNAL_RTC_READ_SUCCESSFUL = None
 # EXTERNAL_RTC_READ_SUCCESSFUL = None
 
-
 def read_rtc_data(bus):
     return bus.read_i2c_block_data(RTC_ADDRESS, 0, 8)
 
-def hex_rtc_data():
+def hex_rtc_data(bus):
     return [hex(x) for x in read_rtc_data(bus)]
 
 def dec_rtc_data(hex_data):
     return [int(x.replace("0x", "")) for x in hex_data]
 
-def convert_rtc_format_to_timedatectl_format():
-    rtc_data = dec_rtc_data(hex_rtc_data())
+def convert_rtc_format_to_timedatectl_format(bus):
+    rtc_data = dec_rtc_data(hex_rtc_data(bus))
     return f"20{rtc_data[6]:02}-{rtc_data[5]:02}-{rtc_data[4]:02} {rtc_data[2]:02}:{rtc_data[1]:02}:{rtc_data[0]:02}"
 
 def reboot_5m():
@@ -68,9 +68,10 @@ def reboot_1s():
                 reboot_1m()
 
 def set_time():
+    bus = SMBus(I2C_BUS_NUMBER)
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            subprocess.check_output(["timedatectl")
+            subprocess.check_output(["timedatectl"])
             #TIMEDATECTL_SUCCESSFUL = True
         except subprocess.CalledProcessError:
             print(traceback.format_exc())
@@ -81,7 +82,7 @@ def set_time():
             subprocess.run(["sudo", "hwclock", "-s"], check=True)
             print(f"Time for timedatectl was set to: {dt.now()} from internal RTC")
             try:
-                print(f"External RTC time is: {convert_rtc_format_to_timedatectl_format()}")
+                print(f"External RTC time is: {convert_rtc_format_to_timedatectl_format(bus)}")
                 bus.close()
                 return
             except subprocess.CalledProcessError:
@@ -101,8 +102,8 @@ def set_time():
             print(traceback.format_exc())
             print("Failed to set time from internal RTC, attempting to set time from external RTC")
             try:
-                subprocess.run(["sudo", "timedatectl", "set-time", convert_rtc_format_to_timedatectl_format()], check=True)
-                print(f"Time for timedatectl was set to: {convert_rtc_format_to_timedatectl_format()} from external RTC")
+                subprocess.run(["sudo", "timedatectl", "set-time", convert_rtc_format_to_timedatectl_format(bus)], check=True)
+                print(f"Time for timedatectl was set to: {convert_rtc_format_to_timedatectl_format(bus)} from external RTC")
                 if bus:
                     bus.close()
                 return
