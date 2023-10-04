@@ -2,53 +2,75 @@ from datetime import datetime as dt
 from smbus2 import SMBus
 import subprocess
 import traceback
+import logging
+import time
 
-bus = SMBus(1)
+# Constants
+MAX_RETRIES = 60
+RTC_ADDRESS = 104
 
-rtc_data = lambda: bus.read_i2c_block_data(104, 0, 8)
-hex_rtc_data = lambda: [hex(x) for x in rtc_data()]
-#int_rtc_data = lambda: [int(x) for x in rtc_data()]
-#print(f"RTC Hex: {hex_rtc_data()}")
-#print(f"RTC Int: {int_rtc_data()}")
+def read_rtc_data(bus):
+    return bus.read_i2c_block_data(RTC_ADDRESS, 0, 8)
 
-dec_rtc_data = lambda: [int(x.replace("0x", "")) for x in hex_rtc_data()]
-#print(f"RTC Dec: {dec_rtc_data()}")
+def hex_rtc_data():
+    return [hex(x) for x in read_rtc_data(bus)]
 
-#dt_for_hwclock = lambda: f"{dec_rtc_data()[5]:02}/{dec_rtc_data()[4]:02}/20{dec_rtc_data()[6]:02} {dec_rtc_data()[2]:02}:{dec_rtc_data()[1]:02}:{dec_rtc_data()[0]:02}"
-dt_for_timedatectl = lambda: f"20{dec_rtc_data()[6]:02}-{dec_rtc_data()[5]:02}-{dec_rtc_data()[4]:02} {dec_rtc_data()[2]:02}:{dec_rtc_data()[1]:02}:{dec_rtc_data()[0]:02}"
+def dec_rtc_data(hex_data):
+    return [int(x.replace("0x", "")) for x in hex_data]
 
-def reboot(attempt=1):
-  try:
-    subprocess.run(["sudo", "reboot"], check=True)
-  except Exception:
-    print(traceback.format_exc())
-    if attempt <=60:
-      sleep(1)
-      reboot(attempt=attempt+1)
-    else:
-      print(f"60th attempt to reboot failed! Since the system was unable to set the time from the external RTC properly and also unable to reboot, expect incorrect data from this time onwards: {dt.now()}")
+def format_timedatectl_time():
+    rtc_data = dec_rtc_data(hex_rtc_data())
+    return f"20{rtc_data[6]:02}-{rtc_data[5]:02}-{rtc_data[4]:02} {rtc_data[2]:02}:{rtc_data[1]:02}:{rtc_data[0]:02}"
 
-def set_time(attempt=1):
+def reboot_1m():
+  for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            subprocess.run(["sudo", "reboot"], check=True)
+        except subprocess.CalledProcessError:
+            logging.error(traceback.format_exc())
+            if attempt < MAX_RETRIES:
+                time.sleep(60)
+                logging.warning(f"Retrying reboot (attempt {attempt}/{MAX_RETRIES})")
+            else:
+                logging.error(f"Maximum amount of 1 minute interval reboot attempts reached, since the system was unable to set the time from either of the RTCs and also unable to reboot, expect incorrect data from this time onwards: {dt.now()}")
+                break  
 
-  #command = ["sudo", "hwclock", "--set", "--date", dt_for_hwclock()]
-  #command1 = ["sudo", "timedatectl", "set-ntp", "0"]  
-  #subprocess.run(command1, check=True)
-  
-  print(f"Trying to set time for timedatectl from external RTC, attempt: {attempt}")
-  try:
-    subprocess.run(["sudo", "timedatectl", "set-time", dt_for_timedatectl()], check=True)
-  except Exception:
-    print(traceback.format_exc())
-    if attempt <=60:
-      sleep(1)
-      set_time(attempt=attempt+1)
-    else:
-      print("60th attempt to set time for timedatectl from external RTC failed, rebooting system")
-      reboot()
-      
-  #print(print(f"Time for hwclock was be set to: {dt_for_hwclock()}"))
-  print(f"Time for timedatectl was set to: {dt_for_timedatectl()}")
-  bus.close()
+def reboot_1s():
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            subprocess.run(["sudo", "reboot"], check=True)
+        except subprocess.CalledProcessError:
+            logging.error(traceback.format_exc())
+            if attempt < MAX_RETRIES:
+                time.sleep(1)
+                logging.warning(f"Reboot attempt failed, retrying... (attempt {attempt}/{MAX_RETRIES})")
+            else:
+                logging.error("Maximum amount of 1 second interval reboot attempts reached, now attempting to reboot every 1 minute")
+                reboot_1m()
 
-set_time()
+def set_time():
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            subprocess.run(["sudo", "hwclock", "-s"], check=True)
+            return
+        except subprocess.CalledProcessError:
+            logging.error(traceback.format_exc())
+            logging.error("Setting time from internal RTC failed, attempting to set time from external RTC...")
+            try:
+                formatted_time = format_timedatectl_time()
+                subprocess.run(["sudo", "timedatectl", "set-time", formatted_time], check=True)
+                logging.info(f"Time for timedatectl was set to: {formatted_time}")
+                bus.close()
+                return
+            except subprocess.CalledProcessError:
+                if attempt < MAX_RETRIES:
+                    time.sleep(1)
+                    logging.warning(f"Setting time from external RTC also failed, retrying starting from internal RTC... (attempt {attempt}/{MAX_RETRIES})")
+                else:
+                    logging.error("Maximum amount of time setting attempts reached, rebooting system.")
+                    bus.close()
+                    reboot_1s()
 
+if __name__ == "__main__":
+    logging.basicConfig(filename='update_timedatectl_from_ext_ds3231.log', level=logging.INFO)
+    set_time()
