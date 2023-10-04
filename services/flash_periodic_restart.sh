@@ -10,6 +10,8 @@ mkdir -p $logFile
 tegrastats --interval 30000 --logfile /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
 bash /home/$usrName/flash-tv-scripts/services/flash_check_camera_warnings.sh $famId $usrName &
 
+source /home/$usrName/py38/bin/activate
+
 i=1
 while true;
 do
@@ -20,7 +22,7 @@ do
 	systemctl status flash-run-on-boot.service > "${logFile}/log_${dt}.txt"
 	systemctl stop flash-run-on-boot.service
 	systemctl status flash-run-on-boot.service > "${logFile}/logend_${dt}.txt"
-	timedatectl status > "${logFile}/timedate_${dt}.txt"
+	python3 /home/$usrName/flash-tv-scripts/python_scripts/check_all_times.py > "${logFile}/timedate_${dt}.txt"
 	v4l2-ctl --list-devices > "${logFile}/camera_${dt}.txt"
 	
 	pkill -9 -f test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py
