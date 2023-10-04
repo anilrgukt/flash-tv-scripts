@@ -30,7 +30,7 @@ def reboot_5m():
         try:
             subprocess.run(["sudo", "reboot"], check=True)
             return
-        except subprocess.CalledProcessError:
+        except:
             print(traceback.format_exc())
             if attempt < MAX_RETRIES:
                 time.sleep(300)
@@ -44,7 +44,7 @@ def reboot_1m():
         try:
             subprocess.run(["sudo", "reboot"], check=True)
             return
-        except subprocess.CalledProcessError:
+        except:
             print(traceback.format_exc())
             if attempt < MAX_RETRIES:
                 time.sleep(60)
@@ -58,7 +58,7 @@ def reboot_1s():
         try:
             subprocess.run(["sudo", "reboot"], check=True)
             return
-        except subprocess.CalledProcessError:
+        except:
             print(traceback.format_exc())
             if attempt < MAX_RETRIES:
                 time.sleep(1)
@@ -75,7 +75,7 @@ def set_time():
             for line in timedatectl.splitlines():
             	print(line.strip().decode('utf-8'))
             #TIMEDATECTL_SUCCESSFUL = True
-        except subprocess.CalledProcessError:
+        except:
             print(traceback.format_exc())
             print("Warning: unable to run timedatectl for system time info")
             pass
@@ -87,20 +87,20 @@ def set_time():
                 print(f"External RTC time is: {convert_rtc_format_to_timedatectl_format(bus)}")
                 bus.close()
                 return
-            except subprocess.CalledProcessError:
+            except:
                 print(traceback.format_exc())
                 print("Warning: Unable to obtain time from external RTC for validation, proceeding anyway since time was successfully set from internal RTC")
                 pass
             try:
                 print(subprocess.check_output(["sudo", "hwclock", "-r"]))
                 #INTERNAL_RTC_READ_SUCCESSFUL = True
-            except subprocess.CalledProcessError:
+            except:
                 print(traceback.format_exc())
                 print("Warning: Unable to read from internal RTC after attempting to set time from it")
                 pass
                 #INTERNAL_RTC_READ_SUCCESSFUL = False
             return
-        except subprocess.CalledProcessError:
+        except:
             print(traceback.format_exc())
             print("Failed to set time from internal RTC, attempting to set time from external RTC")
             try:
@@ -109,7 +109,7 @@ def set_time():
                 if bus:
                     bus.close()
                 return
-            except subprocess.CalledProcessError:
+            except:
                 if attempt < MAX_RETRIES:
                     time.sleep(1)
                     print(f"Failed to set time from external RTC, retrying again starting from internal RTC (attempt {attempt}/{MAX_RETRIES})")
