@@ -12,7 +12,7 @@ sleep 1;
 sudo hwclock --rtc /dev/rtc1 -w
 
 source ~/py38/bin/activate
-python3 ~/flash-tv-scripts/python_scripts/update_ext_ds3231_from_dt_now.py
+python3 ~/flash-tv-scripts/python_scripts/set_ext_ds3231_from_dt_now.py
 
 # Disable and stop currently running services
 bash -x ~/flash-tv-scripts/services/stop_services.sh
