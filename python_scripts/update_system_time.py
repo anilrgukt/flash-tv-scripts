@@ -71,7 +71,9 @@ def set_time():
     bus = SMBus(I2C_BUS_NUMBER)
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            print(subprocess.check_output(["timedatectl"]))
+            timedatectl = subprocess.check_output(["timedatectl"])
+            for line in timedatectl.splitlines():
+            	print(line.strip().decode('utf-8'))
             #TIMEDATECTL_SUCCESSFUL = True
         except subprocess.CalledProcessError:
             print(traceback.format_exc())
