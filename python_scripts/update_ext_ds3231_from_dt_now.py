@@ -26,10 +26,9 @@ def get_current_time_bcd():
 def set_external_rtc_time():
     try:
         bus = smbus2.SMBus(I2C_BUS_NUMBER)
-        rtc_data = get_current_time_bcd()
-        bus.write_i2c_block_data(RTC_ADDRESS, 0, rtc_data)
+        bus.write_i2c_block_data(RTC_ADDRESS, 0, get_current_time_bcd())
         bus.close()
-        print(f"Time for external RTC was set to: {rtc_data}")
+        print(f"Time for external RTC was set to: {get_current_time_bcd()}")
     except Exception:
         print(traceback.format_exc())
         print("Failed to properly set time for external RTC. Please retry before continuing.")
