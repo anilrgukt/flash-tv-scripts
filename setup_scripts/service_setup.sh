@@ -11,9 +11,15 @@ sudo systemctl restart systemd-timesyncd.service
 sleep 5;
 sudo hwclock -w
 sleep 1;
-python3 ~/flash-tv-scripts/python_scripts/set_ext_ds3231_from_dt_now.py
-sleep 1;
 sudo hwclock --rtc /dev/rtc1 -w
+sleep 1;
+python3 ~/flash-tv-scripts/python_scripts/set_ext_ds3231_from_dt_now.py
+set_correctly=$?
+
+if [ $set_correctly -eq 1 ]; then
+	zenity --warning --text="Exiting the code since the external RTC time was unable to be set. Please check it and restart the script."
+	exit 1
+fi
 
 # Disable and stop currently running services
 bash -x ~/flash-tv-scripts/services/stop_services.sh
