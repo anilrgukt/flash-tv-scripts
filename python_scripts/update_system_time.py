@@ -71,7 +71,7 @@ def set_time():
     bus = SMBus(I2C_BUS_NUMBER)
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            subprocess.check_output(["timedatectl"])
+            print(subprocess.check_output(["timedatectl"]))
             #TIMEDATECTL_SUCCESSFUL = True
         except subprocess.CalledProcessError:
             print(traceback.format_exc())
@@ -90,7 +90,7 @@ def set_time():
                 print("Warning: Unable to obtain time from external RTC for validation, proceeding anyway since time was successfully set from internal RTC")
                 pass
             try:
-                subprocess.check_output(["sudo", "hwclock", "-r"])
+                print(subprocess.check_output(["sudo", "hwclock", "-r"]))
                 #INTERNAL_RTC_READ_SUCCESSFUL = True
             except subprocess.CalledProcessError:
                 print(traceback.format_exc())
