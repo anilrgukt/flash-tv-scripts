@@ -1,6 +1,7 @@
 [Unit]
 Description=FLASH periodic restart script
 StartLimitIntervalSec=0
+After=flash-run-on-boot.service
 
 [Service]
 ExecStart=/bin/bash /home/flashsysXXX/flash-tv-scripts/services/flash_periodic_restart.sh
