@@ -11,6 +11,7 @@ export PYTHONPATH=$MXNET_HOME/python:$PYTHONPATH
 index_path="/home/$usrName/data/${famId}_data/${famId}_index.txt"
 
 source /home/$usrName/py38/bin/activate
+python /home/${usrName}/flash-tv-scripts/python_scripts/check_file_events.py $famId /home/${usrName}/data/${famId}_data /home/${usrName}/data/${famId}_flashlog_filesequence.csv &
 
 timedatectl set-ntp 0;
 sleep 5;
