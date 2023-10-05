@@ -12,6 +12,7 @@ export PYTHONPATH=$MXNET_HOME/python:${PYTHONPATH}
 hwclock -s
 
 source /home/${usrName}/py38/bin/activate
+python /home/${usrName}/flash-tv-scripts/python_scripts/check_file_events.py $famId /home/${usrName}/data/${famId}_data /home/${usrName}/data/${famId}_flashlog_filesequence.csv &
 
 # runs a while loop for the FLASH-TV algorithm only if it doesn't already exist
 while true;

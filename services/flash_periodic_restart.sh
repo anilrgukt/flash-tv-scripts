@@ -10,6 +10,9 @@ mkdir -p ${logFolder}
 tegrastats --interval 30000 --logfile /home/${usrName}/data/${famId}_data/${famId}_tegrastats.log &
 bash /home/${usrName}/flash-tv-scripts/services/flash_check_camera_warnings.sh ${famId} ${usrName} &
 
+source /home/${usrName}/py38/bin/activate
+python /home/${usrName}/flash-tv-scripts/python_scripts/check_file_events.py $famId $logFolder /home/${usrName}/data/${famId}_varlog_filesequence.csv &
+
 i=1
 while true;
 do
