@@ -5,7 +5,7 @@ sudo sed -i 's/ATTR{hctosys}=="1"/ATTR{hctosys}=="0"/g' /lib/udev/rules.d/50-ude
 
 source ~/py38/bin/activate
 
-timedatectl set-ntp 1
+sudo timedatectl set-ntp 1
 sleep 5;
 
 sudo systemctl restart systemd-timesyncd.service
