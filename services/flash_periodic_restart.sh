@@ -14,10 +14,6 @@ bash /home/$usrName/flash-tv-scripts/services/flash_check_camera_warnings.sh $fa
 
 source /home/$usrName/py38/bin/activate
 
-timedatectl set-ntp 0;
-sleep 5;
-python3 /home/$usrName/flash-tv-scripts/python_scripts/update_system_time_from_RTCs.py
-
 i=1
 while true;
 do
