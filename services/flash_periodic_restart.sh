@@ -27,21 +27,19 @@ do
 	
 	if [ -e "$index_path" ]; then
 	    last_number=$(tail -n 1 "$index_path")
-	    new_number=$((last_number + 1))
 	else
-	    new_number=1
+	    last_number=1
+	    echo "$last_number" >> "$index_path"
 	fi
-	
-	echo "$new_number" >> "$index_path"
  
 	dt=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
  	mkdir -p "${logFolder}/varlogs_${dt}"
-  	echo "Index: ${new_number}" >> "${logFolder}/varlogs_${dt}/log_${dt}.txt"
+  	echo "Index: ${last_number}" >> "${logFolder}/varlogs_${dt}/log_${dt}.txt"
 	systemctl status flash-run-on-boot.service >> "${logFolder}/varlogs_${dt}/log_${dt}.txt"
 	systemctl stop flash-run-on-boot.service
- 	echo "Index: ${new_number}" >> "${logFolder}/varlogs_${dt}/logend_${dt}.txt"
+ 	echo "Index: ${last_number}" >> "${logFolder}/varlogs_${dt}/logend_${dt}.txt"
 	systemctl status flash-run-on-boot.service >> "${logFolder}/varlogs_${dt}/logend_${dt}.txt"
- 	echo "Index: ${new_number}" >> "${logFolder}/varlogs_${dt}/timedate_${dt}.txt"
+ 	echo "Index: ${last_number}" >> "${logFolder}/varlogs_${dt}/timedate_${dt}.txt"
 	python3 /home/$usrName/flash-tv-scripts/python_scripts/check_all_times.py >> "${logFolder}/varlogs_${dt}/timedate_${dt}.txt"
 	v4l2-ctl --list-devices > "${logFolder}/varlogs_${dt}/camera_${dt}.txt"
 	
