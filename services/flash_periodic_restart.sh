@@ -7,6 +7,8 @@ export usrName=flashsysXXX
 logFolder=/home/$usrName/data/${famId}_data/logs
 mkdir -p $logFolder
 
+index_path="/home/$usrName/data/${famId}_data/${famId}_index.txt"
+
 tegrastats --interval 30000 --logfile /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
 bash /home/$usrName/flash-tv-scripts/services/flash_check_camera_warnings.sh $famId $usrName &
 
@@ -22,7 +24,6 @@ do
 	sleep 21600;
 	#DOW=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
 	#dt=`date`;
-	index_path="/home/$usrName/data/${famId}_data/${famId}_index.txt"
 	
 	if [ -e "$index_path" ]; then
 	    last_number=$(tail -n 1 "$index_path")
@@ -32,6 +33,7 @@ do
 	fi
 	
 	echo "$new_number" >> "$index_path"
+ 
 	dt=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
  	mkdir -p "${logFolder}/varlogs_${dt}"
   	echo "Index: ${new_number}" >> "${logFolder}/varlogs_${dt}/log_${dt}.txt"
