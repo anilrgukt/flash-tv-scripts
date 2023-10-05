@@ -34,7 +34,7 @@ export TORCH_INSTALL=https://developer.download.nvidia.cn/compute/redist/jp/v51/
 python3 -m pip install --upgrade pip; python3 -m pip install aiohttp numpy=='1.21.4' scipy=='1.9.1'; export "LD_LIBRARY_PATH=/usr/lib/llvm-8/lib:$LD_LIBRARY_PATH"; python3 -m pip install --upgrade protobuf; python3 -m pip install --no-cache $TORCH_INSTALL; pip install torchvision==0.14.1
 
 ### RTC Dependencies
-pip install smbus2
+pip install smbus2 watchdog
 
 #### MXNET dependencies
 # check instructions at https://mxnet.apache.org/versions/1.9.1/get_started/jetson_setup
