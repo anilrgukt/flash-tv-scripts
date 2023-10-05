@@ -8,6 +8,8 @@ export PATH=/usr/local/cuda-11/bin:$PATH
 export MXNET_HOME=/home/$usrName/mxnet
 export PYTHONPATH=$MXNET_HOME/python:$PYTHONPATH
 
+index_path="/home/$usrName/data/${famId}_data/${famId}_index.txt"
+
 source /home/$usrName/py38/bin/activate
 
 # runs a while loop for the FLASH-TV algorithm only if it doesn't already exist
@@ -18,6 +20,15 @@ then
 	free -m && sync && echo 1 > /proc/sys/vm/drop_caches && free -m;
  	sleep 10;
 	python /home/$usrName/flash-tv-scripts/python_scripts/test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId /home/$usrName/data/${famId}_data no-save-image $usrName;
+ 
+ 	if [ -e "$index_path" ]; then
+	    last_number=$(tail -n 1 "$index_path")
+	    new_number=$((last_number + 1))
+	else
+	    new_number=1
+	fi
+ 
+ 	echo "$new_number" >> "$index_path"
 	sleep 30;
 else
 	sleep 30;
