@@ -8,6 +8,8 @@ export PATH=/usr/local/cuda-11/bin:$PATH
 export MXNET_HOME=/home/$usrName/mxnet
 export PYTHONPATH=$MXNET_HOME/python:$PYTHONPATH
 
+source /home/$usrName/py38/bin/activate
+
 # runs a while loop for the FLASH-TV algorithm only if it doesn't already exist
 while true;
 do	
