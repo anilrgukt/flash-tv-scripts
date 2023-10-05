@@ -12,6 +12,10 @@ index_path="/home/$usrName/data/${famId}_data/${famId}_index.txt"
 
 source /home/$usrName/py38/bin/activate
 
+timedatectl set-ntp 0;
+sleep 5;
+python3 /home/$usrName/flash-tv-scripts/python_scripts/update_system_time_from_RTCs.py
+
 # runs a while loop for the FLASH-TV algorithm only if it doesn't already exist
 while true;
 do	
