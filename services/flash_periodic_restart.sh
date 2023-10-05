@@ -15,22 +15,22 @@ bash /home/$usrName/flash-tv-scripts/services/flash_check_camera_warnings.sh $fa
 source /home/$usrName/py38/bin/activate
 python /home/${usrName}/flash-tv-scripts/python_scripts/check_file_events.py $famId $logFolder /home/${usrName}/data/${famId}_varlog_filesequence.csv &
 
+if [ -e "$reboot_index_path" ]; then
+    last_number=$(tail -n 1 "$reboot_index_path")
+    new_number=$((last_number + 1))
+else
+    new_number=1
+fi
+
+echo "$new_number" >> "$reboot_index_path"
+
 i=1
 while true;
 do
 	sleep 21600;
 	#DOW=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
 	#dt=`date`;
-	
-	if [ -e "$reboot_index_path" ]; then
-	    last_number=$(tail -n 1 "$reboot_index_path")
-     	    new_number=$((last_number + 1))
-	else
-	    new_number=1
-	fi
- 
- 	echo "$new_number" >> "$reboot_index_path"
- 
+	 
 	dt=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
  	mkdir -p "${logFolder}/varlogs_${dt}"
   	echo "Reboot Index: ${new_number}" >> "${logFolder}/varlogs_${dt}/log_${dt}.txt"
