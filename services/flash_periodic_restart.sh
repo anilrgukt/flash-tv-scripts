@@ -13,7 +13,7 @@ tegrastats --interval 30000 --logfile /home/$usrName/data/${famId}_data/${famId}
 bash /home/$usrName/flash-tv-scripts/services/flash_check_camera_warnings.sh $famId $usrName &
 
 source /home/$usrName/py38/bin/activate
-python /home/${usrName}/flash-tv-scripts/python_scripts/check_file_events.py $famId $logFolder /home/${usrName}/data/${famId}_varlog_filesequence.csv &
+python /home/${usrName}/flash-tv-scripts/python_scripts/check_file_events.py $famId $logFolder /home/${usrName}/data/${famId}_data/${famId}_varlog_filesequence.csv &
 
 if [ -e "$reboot_index_path" ]; then
     last_number=$(tail -n 1 "$reboot_index_path")
