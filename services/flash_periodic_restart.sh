@@ -7,7 +7,7 @@ export usrName=flashsysXXX
 logFolder=/home/$usrName/data/${famId}_data/logs
 mkdir -p $logFolder
 
-tegrastats --interval 30000 --logFolder /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
+tegrastats --interval 30000 --logfile /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
 bash /home/$usrName/flash-tv-scripts/services/flash_check_camera_warnings.sh $famId $usrName &
 
 source /home/$usrName/py38/bin/activate
