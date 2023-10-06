@@ -23,8 +23,9 @@ if [ -e "$reboot_index_path" ]; then
 else
     new_number=1
 fi
+dt_for_index=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
 
-echo "$new_number" >> "$reboot_index_path"
+echo "flash_periodic_restart.sh was just restarted around ${dt_for_index}, implying that the current reboot index is: ${new_number}" >> "$reboot_index_path"
 
 i=1
 while true;
