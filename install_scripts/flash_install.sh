@@ -3,7 +3,10 @@
 #### General dependencies
 sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0 nano
 
-#### Backup dependencies
+### RTC Dependencies
+pip install smbus2 watchdog
+
+#### USB backup dependencies
 sudo apt-get install borgbackup
 
 #### PYTORCH dependencies

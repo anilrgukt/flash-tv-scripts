@@ -15,7 +15,8 @@ user_resp=$?
 
 if [ $user_resp -eq 1 ]; then
 
-	zenity --warning --text="Exiting the code since the data details are not correct.\n\nPlease modify them and restart the script." --width 500 --height 100
+	zenity --warning --text="Exiting the code since the plug ID was not entered correctly according to the user.\n\nPlease restart the script to try again." --width 500 --height 100
+
 	exit 1
 
 fi
@@ -32,6 +33,9 @@ bash -x ~/flash-tv-scripts/setup_scripts/USB_backup_setup.sh
 sleep 1;
 
 bash -x ~/flash-tv-scripts/setup_scripts/service_setup.sh
+sleep 1;
+
+bash -x ~/flash-tv-scripts/setup_scripts/RTC_setup.sh
 sleep 1;
 
 cp ~/flash-tv-scripts/install_scripts/configuration.yaml ~/.homeassistant
