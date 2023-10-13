@@ -18,6 +18,15 @@ if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
   	fi
      		
 	# Enable automounting of the USB on boot (disabled by default)
+ 	FSTAB=/etc/fstab
+
+	backup_usb_uuid=`sudo blkid -t TYPE=vfat -sUUID | grep sda1 | cut -d '"' -f2`
+
+ 	backup_usb_mount_line="UUID=${backup_usb_uuid} /media auto nosuid,nodev,nofail 0 0"
+
+ 	grep -q '.*UUID=.* /media auto nosuid,nodev,nofail 0 0.*' "${FSTAB}" || echo "${backup_usb_mount_line}" | sudo tee -a "${FSTAB}"
+  	sudo sed -i "s@.*UUID=.* /media auto nosuid,nodev,nofail 0 0.*@${backup_usb_mount_line}@" "${FSTAB}"
+ 
  	sudo sed -i /etc/fstab -e 's/noauto//' -e 's/ ,,/ /' -e 's/ ,/ /' -e 's/,,/,/' -e 's/, / /'
  
 	# Create temp file to store plaintext password without echoing it in terminal
@@ -37,7 +46,7 @@ if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 		exit 1
 	fi
 	
-	FILE=/home/flashsysXXX/.bashrc
+	BASHRC=/home/flashsysXXX/.bashrc
 
 	# Export and save encoded password as borg passphrase
 	export BORG_PASSPHRASE="${encoded_password}"
@@ -46,16 +55,16 @@ if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 	
 	BORG_PASSPHRASE_EXPORT="export BORG_PASSPHRASE="${encoded_password}""
 
-	grep -q '.*BORG_PASSPHRASE.*' "${FILE}" || echo "${BORG_PASSPHRASE_EXPORT}" >> "${FILE}"
-	sed -i "s@.*BORG_PASSPHRASE.*@${BORG_PASSPHRASE_EXPORT}@" "${FILE}"
+	grep -q '.*BORG_PASSPHRASE.*' "${BASHRC}" || echo "${BORG_PASSPHRASE_EXPORT}" >> "${BASHRC}"
+	sed -i "s@.*BORG_PASSPHRASE.*@${BORG_PASSPHRASE_EXPORT}@" "${BASHRC}"
 
 	# Export and save borg repo path
 	export BORG_REPO=${backup_usb_path}/USB_Backup_Data_flashsysXXX
 	
 	BORG_REPO_EXPORT="export BORG_REPO=${backup_usb_path}/USB_Backup_Data_flashsysXXX"
 	
-	grep -q '.*BORG_REPO.*' "${FILE}" || echo "${BORG_REPO_EXPORT}" >> "${FILE}"
-	sed -i "s@.*BORG_REPO.*@${BORG_REPO_EXPORT}@" "${FILE}"
+	grep -q '.*BORG_REPO.*' "${BASHRC}" || echo "${BORG_REPO_EXPORT}" >> "${BASHRC}"
+	sed -i "s@.*BORG_REPO.*@${BORG_REPO_EXPORT}@" "${BASHRC}"
 
 	# Initialize borg repo
 	borg init -v --encryption=repokey
