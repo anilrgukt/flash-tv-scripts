@@ -3,9 +3,6 @@
 #### General dependencies
 sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0 nano
 
-### RTC Dependencies
-pip install smbus2 watchdog
-
 #### USB backup dependencies
 sudo apt-get install borgbackup
 
@@ -31,6 +28,9 @@ fi
 
 # Activate the virtual env
 source ~/py38/bin/activate
+
+### RTC Dependencies
+pip install smbus2 watchdog
 
 # numpy=='1.21.2'???
 # scipy=='1.9.1'???
