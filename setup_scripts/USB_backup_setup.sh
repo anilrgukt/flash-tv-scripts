@@ -22,10 +22,10 @@ if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 
 	backup_usb_uuid=`sudo blkid -t TYPE=vfat -sUUID | grep sda1 | cut -d '"' -f2`
 
- 	backup_usb_mount_line="UUID=${backup_usb_uuid} /media/${backup_usb_uuid} auto nosuid,nodev,nofail 0 0"
+ 	backup_usb_mount_line="UUID=${backup_usb_uuid} /home/flashsysXXX/Backup_USB_mount auto nosuid,nodev,nofail 0 0"
 
- 	grep -q '.*UUID=.* /media.* auto nosuid,nodev,nofail 0 0.*' "${FSTAB}" || echo "${backup_usb_mount_line}" | sudo tee -a "${FSTAB}"
-  	sudo sed -i "s@.*UUID=.* /media.* auto nosuid,nodev,nofail 0 0.*@${backup_usb_mount_line}@" "${FSTAB}"
+ 	grep -q '.*UUID=.* /home/flashsysXXX/Backup_USB_Mount auto nosuid,nodev,nofail 0 0.*' "${FSTAB}" || echo "${backup_usb_mount_line}" | sudo tee -a "${FSTAB}"
+  	sudo sed -i "s@.*UUID=.* /home/flashsysXXX/Backup_USB_Mount auto nosuid,nodev,nofail 0 0.*@${backup_usb_mount_line}@" "${FSTAB}"
  
  	sudo sed -i /etc/fstab -e 's/noauto//' -e 's/ ,,/ /' -e 's/ ,/ /' -e 's/,,/,/' -e 's/, / /'
  
