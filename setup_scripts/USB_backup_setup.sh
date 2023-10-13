@@ -2,7 +2,9 @@
 
 if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ] && [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'` ]
 then
-	
+	# Enable automounting of the USB on boot (disabled by default)
+ 	sudo sed -i /etc/fstab -e 's/noauto//' -e 's/ ,,/ /' -e 's/ ,/ /' -e 's/,,/,/' -e 's/, / /'
+ 
 	# Create temp file to store plaintext password without echoing it in terminal
 	temp_file=$(mktemp)
 	
