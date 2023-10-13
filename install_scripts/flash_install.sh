@@ -3,6 +3,12 @@
 #### General dependencies
 sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0 nano
 
+### RTC Dependencies
+pip install smbus2 watchdog
+
+#### USB backup dependencies
+sudo apt-get install borgbackup
+
 #### PYTORCH dependencies
 # visit https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html
 sudo apt-get install -y \
@@ -32,9 +38,6 @@ source ~/py38/bin/activate
 export TORCH_INSTALL=https://developer.download.nvidia.cn/compute/redist/jp/v51/pytorch/torch-1.14.0a0+44dac51c.nv23.01-cp38-cp38-linux_aarch64.whl
 
 python3 -m pip install --upgrade pip; python3 -m pip install aiohttp numpy=='1.21.4' scipy=='1.9.1'; export "LD_LIBRARY_PATH=/usr/lib/llvm-8/lib:$LD_LIBRARY_PATH"; python3 -m pip install --upgrade protobuf; python3 -m pip install --no-cache $TORCH_INSTALL; pip install torchvision==0.14.1
-
-### RTC Dependencies
-pip install smbus2 watchdog
 
 #### MXNET dependencies
 # check instructions at https://mxnet.apache.org/versions/1.9.1/get_started/jetson_setup

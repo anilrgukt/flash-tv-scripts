@@ -2,6 +2,7 @@
 
 export famId=123XXX
 export usrName=flashsysXXX
+export BACKUP_DIRS="/home/${usrName}/data /home/${usrName}/.homeassistant"
 
 #logFolderPath=/home/$usrName/data/${famId}_data
 logFolder=/home/$usrName/data/${famId}_data/logs
@@ -9,8 +10,8 @@ mkdir -p $logFolder
 
 reboot_index_path="/home/$usrName/data/${famId}_data/${famId}_reboot_index.txt"
 
-tegrastats --interval 30000 --logfile /home/$usrName/data/${famId}_data/${famId}_tegrastats.log &
-bash /home/$usrName/flash-tv-scripts/services/flash_check_camera_warnings.sh $famId $usrName &
+tegrastats --interval 30000 --logfile /home/${usrName}/data/${famId}_data/${famId}_tegrastats.log &
+bash /home/${usrName}/flash-tv-scripts/services/flash_check_camera_warnings.sh ${famId} ${usrName} &
 
 source /home/$usrName/py38/bin/activate
 python /home/${usrName}/flash-tv-scripts/python_scripts/check_file_events.py $famId $logFolder /home/${usrName}/data/${famId}_data/${famId}_varlog_filesequence.csv &
@@ -35,6 +36,7 @@ do
 	#dt=`date`;
 	 
 	dt=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
+
  	mkdir -p "${logFolder}/varlogs_${dt}"
   	echo "Reboot Index: ${new_number}" >> "${logFolder}/varlogs_${dt}/log_${dt}.txt"
 	systemctl status flash-run-on-boot.service >> "${logFolder}/varlogs_${dt}/log_${dt}.txt"
@@ -51,14 +53,55 @@ do
 	cp /home/$usrName/data/${famId}_data/${famId}_flash_logstdoutp.log /home/$usrName/data/${famId}_data/${famId}_flash_logstderrp.log "${logFolder}/varlogs_${dt}"
 	#mv /var/log/"${famId}_flash_logstdout.log" /var/log/"${famId}_flash_logstderr.log" "${logFolder}/varlogs_${dt}"
 	#cp /var/log/"${famId}_flash_logstdoutp.log" /var/log/"${famId}_flash_logstderrp.log" "${logFolder}/varlogs_${dt}"
+  
+  if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ] && [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'` ]
+	then
+
+		backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
+
+		export BORG_REPO=${backup_usb_path}/USB_Backup_Data_flashsysXXX
+		
+		export BORG_PASSPHRASE=$(head -n 1 /home/${usrName}/flash-tv-scripts/setup_scripts/borg-passphrase-${usrName}.txt)
+		
+		# Check if TECH participant (longer family ID) and ignore face folders in backup
+		if [ ${#famId} -gt 6 ]; then
+
+			borg create --exclude "/home/${usrName}/data/*.zip" --exclude "/home/${usrName}/data/*/*face*" ::${famId}-FLASH-HA-Data-Backup-${dt} ${BACKUP_DIRS}
+			
+			echo "USB Backup without Face Folders Created at Time: ${dt}"
+			
+		else
+		
+			borg create --exclude "/home/${usrName}/data/*.zip" ::${famId}-FLASH-HA-Data-Backup-${dt} ${BACKUP_DIRS}
+						
+			echo "USB Backup Created at Time: ${dt}"
+			
+		fi
+		
+	else
+		if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
+		
+			echo "Backup USB not Found in lsusb at Time: ${dt}"
+			
+		elif [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'` ]; then
+		
+			echo "Backup USB not Found in lsblk at Time: ${dt}"
+		
+		else 
+		
+			echo "Backup USB not Found in lsblk or lsusb at Time: ${dt}"
+		
+  		fi
+	fi
 	
 	sleep 5;
  
 	if (($i%2==0))
 	then
  		reboot
-  	else
+  else
 		systemctl start flash-run-on-boot.service
   		((i=i+1))
  	fi
+ 	
 done

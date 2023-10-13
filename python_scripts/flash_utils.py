@@ -273,7 +273,7 @@ class WebcamVideoStream:
         
         if not self.vid.isOpened():
             # camera failed
-            print('THE camera could not be opened', datetime.now())
+            print('The camera could not be opened', datetime.now())
             raise IOError(("Couldn't open video file or webcam at", str(datetime.now())))
         
         if set_codec:
@@ -412,7 +412,8 @@ def cam_id():
     else:
         cam_idx = -1
         
-    print('CAMER identified at: ', cam_idx)
+    print('CAMERA identified at: ', cam_idx)
+    
     if dev_name[which_webcam] == 'C300':
         print('Do not reset the Anker 120 degree FoV camera.')
         return cam_idx

@@ -16,6 +16,7 @@ user_resp=$?
 if [ $user_resp -eq 1 ]; then
 
 	zenity --warning --text="Exiting the code since the plug ID was not entered correctly according to the user.\n\nPlease restart the script to try again." --width 500 --height 100
+
 	exit 1
 
 fi
@@ -28,11 +29,15 @@ sed -i "s/YYYY/$plugID/g" ~/flash-tv-scripts/install_scripts/configuration.yaml
 bash -x ~/flash-tv-scripts/setup_scripts/id_setup.sh
 sleep 1;
 
+bash -x ~/flash-tv-scripts/setup_scripts/USB_backup_setup.sh
+sleep 1;
+
 bash -x ~/flash-tv-scripts/setup_scripts/service_setup.sh
 sleep 1;
 
 bash -x ~/flash-tv-scripts/setup_scripts/RTC_setup.sh
 sleep 1;
 
-# Copying the config file to the Home Assistant directory
 cp ~/flash-tv-scripts/install_scripts/configuration.yaml ~/.homeassistant
+
+

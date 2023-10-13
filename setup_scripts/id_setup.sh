@@ -37,4 +37,6 @@ sed -i "s/XXX/${deviceID}/g" ~/flash-tv-scripts/runtime_scripts/face_id_transfer
 sed -i "s/123/${familyID}/g" ~/flash-tv-scripts/runtime_scripts/face_id_transfer.sh
 sed -i "s/XXX/${deviceID}/g" ~/flash-tv-scripts/install_scripts/configuration.yaml
 sed -i "s/123/${familyID}/g" ~/flash-tv-scripts/install_scripts/configuration.yaml
+sed -i "s/XXX/${deviceID}/g" ~/flash-tv-scripts/setup_scripts/USB_backup_setup.sh
+sed -i "s/123/${familyID}/g" ~/flash-tv-scripts/setup_scripts/USB_backup_setup.sh
 

@@ -21,9 +21,9 @@ do
 if ! [ "`pgrep -af test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py`" ]
 then
 	free -m && sync && echo 1 > /proc/sys/vm/drop_caches && free -m;
+
  	sleep 1;
 	python /home/$usrName/flash-tv-scripts/python_scripts/test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId /home/$usrName/data/${famId}_data no-save-image $usrName;
- 
 	sleep 30;
 else
 	sleep 30;
