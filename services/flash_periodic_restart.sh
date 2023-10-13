@@ -54,9 +54,9 @@ do
 	#mv /var/log/"${famId}_flash_logstdout.log" /var/log/"${famId}_flash_logstderr.log" "${logFolder}/varlogs_${dt}"
 	#cp /var/log/"${famId}_flash_logstdoutp.log" /var/log/"${famId}_flash_logstderrp.log" "${logFolder}/varlogs_${dt}"
  
- 	if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ] && [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'` ]; then
+ 	if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ] && [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep /mnt/usb | awk '{print $2}'` ]; then
 	
-		backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
+		backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep /mnt/usb | awk '{print $2}'`
 	
 		export BORG_REPO=${backup_usb_path}/USB_Backup_Data_flashsysXXX
 		
@@ -84,7 +84,7 @@ do
 			echo "Backup USB not Found in lsusb at Time: ${dt}"
 		fi	
   
-		if [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'` ]; then
+		if [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep /mnt/usb | awk '{print $2}'` ]; then
 		
 			echo "Backup USB not Found in lsblk at Time: ${dt}"
 		fi
