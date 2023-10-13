@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ] && ( || ); then
+if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 
 	if [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'` ]; then
  
