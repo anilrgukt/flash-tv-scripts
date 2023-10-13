@@ -1,7 +1,22 @@
 #!/bin/bash
 
-if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ] && [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep /mnt/usb | awk '{print $2}'` ]
-then
+if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ] && ( || ); then
+
+	if [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'` ]; then
+ 
+ 		backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
+
+	elif [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep /mnt/usb | awk '{print $2}'` ]; then
+ 
+ 		backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep /mnt/usb | awk '{print $2}'`
+   
+    	else
+     
+     		zenity --warning --width 500 --height 100 --text="Exiting the code since the backup USB is not mounted.\nPlease mount the backup USB and try again."
+		exit 1
+
+  	fi
+     		
 	# Enable automounting of the USB on boot (disabled by default)
  	sudo sed -i /etc/fstab -e 's/noauto//' -e 's/ ,,/ /' -e 's/ ,/ /' -e 's/,,/,/' -e 's/, / /'
  
@@ -33,9 +48,6 @@ then
 
 	grep -q '.*BORG_PASSPHRASE.*' "${FILE}" || echo "${BORG_PASSPHRASE_EXPORT}" >> "${FILE}"
 	sed -i "s@.*BORG_PASSPHRASE.*@${BORG_PASSPHRASE_EXPORT}@" "${FILE}"
-
-	# Get backup USB path
-	backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep /mnt/usb | awk '{print $2}'`
 
 	# Export and save borg repo path
 	export BORG_REPO=${backup_usb_path}/USB_Backup_Data_flashsysXXX
