@@ -9,7 +9,7 @@ if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 	    exit 1
 	fi
 
- 	backup_usb_uuid=$(sudo blkid -t TYPE=vfat -sUUID | grep ${backup_usb_block_id} | cut -d '"' -f2`)
+ 	backup_usb_uuid=$(sudo blkid -t TYPE=vfat -sUUID | grep ${backup_usb_block_id} | cut -d '"' -f2)
 	
 	if [ -z "$backup_usb_uuid" ]; then
 	    zenity --warning --width 500 --height 100 --text="Exiting the code since the backup USB is not detected in blkid.\nPlease reconnect the backup USB and try again."
