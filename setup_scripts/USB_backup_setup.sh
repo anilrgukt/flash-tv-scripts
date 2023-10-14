@@ -2,27 +2,24 @@
 
 if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 
-	if [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'` ]; then
- 
- 		backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
+	backup_usb_block_id=$(lsblk -o NAME,MODEL | grep -A 1 SanDisk | awk '/SanDisk/{getline; gsub("└─", ""); print}')
+	
+	if [ -z "$backup_usb_block_id" ]; then
+	    zenity --warning --width 500 --height 100 --text="Exiting the code since the backup USB is not detected in lsblk.\nPlease reconnect the backup USB and try again."
+	    exit 1
+	fi
 
-	elif [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep /mnt/usb | awk '{print $2}'` ]; then
- 
- 		backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep /mnt/usb | awk '{print $2}'`
-   
-    	else
-     
-     		zenity --warning --width 500 --height 100 --text="Exiting the code since the backup USB is not mounted.\nPlease mount the backup USB and try again."
-		exit 1
-
-  	fi
+ 	backup_usb_uuid=$(sudo blkid -t TYPE=vfat -sUUID | grep ${backup_usb_block_id} | cut -d '"' -f2`)
+	
+	if [ -z "$backup_usb_uuid" ]; then
+	    zenity --warning --width 500 --height 100 --text="Exiting the code since the backup USB is not detected in blkid.\nPlease reconnect the backup USB and try again."
+	    exit 1
+	fi
      		
 	# Enable automounting of the USB on boot (disabled by default)
  	FSTAB=/etc/fstab
 
-	backup_usb_uuid=`sudo blkid -t TYPE=vfat -sUUID | grep sda1 | cut -d '"' -f2`
-
- 	backup_usb_mount_line="UUID=${backup_usb_uuid} /home/flashsysXXX/Backup_USB_mount auto nosuid,nodev,nofail 0 0"
+ 	backup_usb_mount_line="UUID=${backup_usb_uuid} /home/flashsysXXX/Backup_USB_Mount auto nosuid,nodev,nofail 0 0"
 
  	grep -q '.*UUID=.* /home/flashsysXXX/Backup_USB_Mount auto nosuid,nodev,nofail 0 0.*' "${FSTAB}" || echo "${backup_usb_mount_line}" | sudo tee -a "${FSTAB}"
   	sudo sed -i "s@.*UUID=.* /home/flashsysXXX/Backup_USB_Mount auto nosuid,nodev,nofail 0 0.*@${backup_usb_mount_line}@" "${FSTAB}"
@@ -75,6 +72,6 @@ if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 	borg key export --paper :: > /home/flashsysXXX/flash-tv-scripts/setup_scripts/borg-encrypted-key-backup-flashsysXXX.txt
 
 else
-	zenity --warning --width 500 --height 100 --text="Exiting the code since the backup USB is not connected.\nPlease connect the backup USB and try again."
+	zenity --warning --width 500 --height 100 --text="Exiting the code since the backup USB was not detected in lsusb.\nPlease reconnect the backup USB and try again."
 	exit 1
 fi
