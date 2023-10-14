@@ -15,14 +15,14 @@ if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 	    zenity --warning --width 500 --height 100 --text="Exiting the code since the backup USB is not detected in blkid.\nPlease reconnect the backup USB and try again."
 	    exit 1
 	fi
-     		
+      
 	# Enable automounting of the USB on boot (disabled by default)
  	FSTAB=/etc/fstab
 
- 	backup_usb_mount_line="UUID=${backup_usb_uuid} /home/flashsysXXX/Backup_USB_Mount auto nosuid,nodev,nofail 0 0"
+ 	backup_usb_mount_line="UUID=${backup_usb_uuid} /home/media/${backup_usb_uuid} auto uid=${UID},gid=${UID} 0 0"
 
- 	grep -q '.*UUID=.* /home/flashsysXXX/Backup_USB_Mount auto nosuid,nodev,nofail 0 0.*' "${FSTAB}" || echo "${backup_usb_mount_line}" | sudo tee -a "${FSTAB}"
-  	sudo sed -i "s@.*UUID=.* /home/flashsysXXX/Backup_USB_Mount auto nosuid,nodev,nofail 0 0.*@${backup_usb_mount_line}@" "${FSTAB}"
+ 	grep -q '.*UUID=.* /home/media/.* auto uid=.*,gid=.* 0 0.*' "${FSTAB}" || echo "${backup_usb_mount_line}" | sudo tee -a "${FSTAB}"
+  	sudo sed -i "s@.*UUID=.* /home/media/.* auto uid=.*,gid=.* 0 0.*@${backup_usb_mount_line}@" "${FSTAB}"
  
  	sudo sed -i /etc/fstab -e 's/noauto//' -e 's/ ,,/ /' -e 's/ ,/ /' -e 's/,,/,/' -e 's/, / /'
  
