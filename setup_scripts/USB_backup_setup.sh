@@ -19,10 +19,10 @@ if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 	# Enable automounting of the USB on boot (disabled by default)
  	FSTAB=/etc/fstab
 
- 	backup_usb_mount_line="UUID=${backup_usb_uuid} /home/media/${backup_usb_uuid} auto uid=${UID},gid=${UID} 0 0"
+ 	backup_usb_mount_line="UUID=${backup_usb_uuid} /media/flashsysXXX/${backup_usb_uuid} auto uid=${UID},gid=${UID} 0 0"
 
- 	grep -q '.*UUID=.* /home/media/.* auto uid=.*,gid=.* 0 0.*' "${FSTAB}" || echo "${backup_usb_mount_line}" | sudo tee -a "${FSTAB}"
-  	sudo sed -i "s@.*UUID=.* /home/media/.* auto uid=.*,gid=.* 0 0.*@${backup_usb_mount_line}@" "${FSTAB}"
+ 	grep -q '.*UUID=.* /media/flashsysXXX.* auto uid=.*,gid=.* 0 0.*' "${FSTAB}" || echo "${backup_usb_mount_line}" | sudo tee -a "${FSTAB}"
+  	sudo sed -i "s@.*UUID=.* /media/flashsysXXX.* auto uid=.*,gid=.* 0 0.*@${backup_usb_mount_line}@" "${FSTAB}"
  
  	sudo sed -i /etc/fstab -e 's/noauto//' -e 's/ ,,/ /' -e 's/ ,/ /' -e 's/,,/,/' -e 's/, / /'
  
