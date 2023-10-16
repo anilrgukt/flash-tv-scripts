@@ -7,6 +7,9 @@ import sys
 RTC_ADDRESS = 104  # Replace with the actual RTC address if different
 I2C_BUS_NUMBER = 1  # Replace with the actual bus number if different
 
+def stderr_print(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+
 def get_bcd(value):
     # Converts an integer to BCD format
     return (value // 10) << 4 | (value % 10)
@@ -30,8 +33,8 @@ def set_external_rtc_time():
         bus.close()
         print(f"Time for external RTC was set to: {get_current_time_bcd()}")
     except:
-        print(traceback.format_exc())
-        print("Failed to properly set time for external RTC. Please retry before continuing.")
+        stderr_print(traceback.format_exc())
+        stderr_print("Failed to properly set time for external RTC. Please retry before continuing.")
         sys.exit(1)
 
 if __name__ == "__main__":
