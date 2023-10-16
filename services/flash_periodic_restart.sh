@@ -20,14 +20,14 @@ sleep 10;
 
 if [ -e "$reboot_index_path" ]; then
     last_line=$(tail -n 1 "$reboot_index_path")
-    last_number=${last_line: -1}
-    new_number=$((last_number + 1))
+    last_index=${last_line: -1}
+    new_index=$((last_index + 1))
 else
-    new_number=1
+    new_index=1
 fi
 dt_for_index=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
 
-echo "flash_periodic_restart.sh was just restarted around ${dt_for_index}, implying that the current reboot index is: ${new_number}" >> "$reboot_index_path"
+echo "flash_periodic_restart.sh was just restarted around ${dt_for_index}, implying that the current reboot index is: ${new_index}" >> "$reboot_index_path"
 
 i=1
 while true;
