@@ -8,7 +8,7 @@ import sys
 RTC_ADDRESS = 104
 I2C_BUS_NUMBER = 1  # Replace with the actual bus number if different
 
-def stderrprint(input):
+def stderr_print(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
     
 def read_rtc_data(bus):
@@ -34,8 +34,8 @@ def check_times():
             print(line.strip().decode('utf-8'))
         #TIMEDATECTL_SUCCESSFUL = True
     except:
-        stderrprint(traceback.format_exc())
-        stderrprint("Warning: unable to run timedatectl for system time info")
+        stderr_print(traceback.format_exc())
+        stderr_print("Warning: unable to run timedatectl for system time info")
         pass
         #TIMEDATECTL_SUCCESSFUL = False
     
@@ -43,8 +43,8 @@ def check_times():
         print(f"Time from internal RTC rtc0 (PSEQ_RTC, being used) is: {subprocess.check_output(['sudo', 'hwclock', '-r']).strip().decode('utf-8')}")
         #INTERNAL_RTC0_READ_SUCCESSFUL = True
     except:
-        stderrprint(traceback.format_exc())
-        stderrprint("Warning: Unable to obtain time from internal RTC rtc0 (PSEQ_RTC, being used) for validation")
+        stderr_print(traceback.format_exc())
+        stderr_print("Warning: Unable to obtain time from internal RTC rtc0 (PSEQ_RTC, being used) for validation")
         pass
         #INTERNAL_RTC0_READ_SUCCESSFUL = False
     
@@ -52,16 +52,16 @@ def check_times():
         print(f"Time from external RTC (DS3231) is: {convert_rtc_format_to_timedatectl_format(bus)}")
         bus.close()
     except:
-        stderrprint(traceback.format_exc())
-        stderrprint("Warning: Unable to obtain time from external RTC for validation, proceeding anyway since time was successfully set from internal RTC")
+        stderr_print(traceback.format_exc())
+        stderr_print("Warning: Unable to obtain time from external RTC for validation, proceeding anyway since time was successfully set from internal RTC")
         pass
         
     try:
         print(f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {subprocess.check_output(['sudo', 'hwclock', '--rtc', '/dev/rtc1']).decode('utf-8')}")
         #INTERNAL_RTC1_READ_SUCCESSFUL = True
     except:
-        stderrprint(traceback.format_exc())
-        stderrprint("Info: Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)")
+        stderr_print(traceback.format_exc())
+        stderr_print("Info: Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)")
         pass
         #INTERNAL_RTC1_READ_SUCCESSFUL = False
     
