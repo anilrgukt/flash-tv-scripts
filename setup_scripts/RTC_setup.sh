@@ -11,10 +11,10 @@ sleep 5;
 sudo systemctl restart systemd-timesyncd.service
 sleep 5;
 
-sudo hwclock -w && echo 'Internal RTC rtc0 (PSEQ_RTC, being used) set' || (zenity --warning --text="Exiting the code since the internal RTC rtc0 (PSEQ_RTC, being used) time was unable to be set. Please check it and restart the script." --width 500 --height 100)
+sudo hwclock -w && echo 'Internal RTC rtc0 (PSEQ_RTC, being used) was set' || (zenity --warning --text="Exiting the code since the internal RTC rtc0 (PSEQ_RTC, being used) time was unable to be set. Please check it and restart the script." --width 500 --height 100)
 sleep 1;
 
-sudo hwclock --rtc /dev/rtc1 -w && echo "Internal RTC rtc1 (tegra-RTC, not being used)" || "Internal RTC rtc1 (tegra-RTC, not being used) was unable to be set"
+sudo hwclock --rtc /dev/rtc1 -w && echo "Internal RTC rtc1 (tegra-RTC, not being used) was set" || "Internal RTC rtc1 (tegra-RTC, not being used) was unable to be set"
 sleep 1;
 
 python3 ~/flash-tv-scripts/python_scripts/set_ext_ds3231_from_dt_now.py
