@@ -1,5 +1,7 @@
 #!/bin/bash
 
+source ~/py38/bin/activate
+
 if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 
 	backup_usb_block_id=$(lsblk -o NAME,MODEL | grep -A 1 SanDisk | awk '/SanDisk/{getline; gsub("└─", ""); print}')
