@@ -19,7 +19,8 @@ python /home/${usrName}/flash-tv-scripts/python_scripts/check_file_events.py $fa
 sleep 10;
 
 if [ -e "$reboot_index_path" ]; then
-    last_number=$(tail -n 1 "$reboot_index_path")
+    last_line=$(tail -n 1 "$reboot_index_path")
+    last_number=${last_line: -1}
     new_number=$((last_number + 1))
 else
     new_number=1
