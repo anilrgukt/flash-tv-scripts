@@ -1,13 +1,16 @@
 #!/bin/bash
 
 #### General dependencies
+
 sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0 nano
 
 #### USB backup dependencies
+
 sudo apt-get install borgbackup
 
 #### PYTORCH dependencies
 # visit https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html
+
 sudo apt-get install -y \
 	build-essential \
 	git \
@@ -21,16 +24,23 @@ sudo apt-get install -y \
 cd /home/$USER
 
 # Create a venv if it doesn't already exist
+
 if ! ls | grep -q "py38"
 then 
 	python3 -m venv ~/py38
 fi
 
 # Activate the virtual env
+
 source ~/py38/bin/activate
 
-### RTC Dependencies
+### RTC Python Dependencies
+
 pip install smbus2 watchdog
+
+### USB Backup Python Dependencies
+
+pip install cryptography --upgrade
 
 # numpy=='1.21.2'???
 # scipy=='1.9.1'???
