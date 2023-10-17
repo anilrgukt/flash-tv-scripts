@@ -53,7 +53,7 @@ def check_times():
         bus.close()
     except:
         stderr_print(traceback.format_exc())
-        stderr_print("Warning: Unable to obtain time from external RTC for validation, proceeding anyway since time was successfully set from internal RTC")
+        stderr_print("Warning: Unable to obtain time from external RTC for validation")
         pass
         
     try:
