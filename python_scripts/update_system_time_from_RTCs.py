@@ -121,21 +121,21 @@ def set_time():
     
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            subprocess.run(["sudo", "hwclock", "-s"], check=True)
-            print(f"Time for timedatectl was set to: {dt.now()} from internal RTC")
+            subprocess.run(["sudo", "timedatectl", "set-time", convert_rtc_format_to_timedatectl_format(bus)], check=True)
+            print(f"Time for timedatectl was set to: {convert_rtc_format_to_timedatectl_format(bus)} from external RTC")
             check_times(bus)
             if bus:
-            	bus.close()
+                bus.close()
             return
         except:
-            stderr_print(traceback.format_exc())
-            stderr_print("Failed to set time from internal RTC, attempting to set time from external RTC")
             try:
-                subprocess.run(["sudo", "timedatectl", "set-time", convert_rtc_format_to_timedatectl_format(bus)], check=True)
-                print(f"Time for timedatectl was set to: {convert_rtc_format_to_timedatectl_format(bus)} from external RTC")
+                stderr_print(traceback.format_exc())
+                stderr_print("Failed to set time from external RTC, attempting to set time from internal RTC")
+                subprocess.run(["sudo", "hwclock", "-s"], check=True)
+                print(f"Time for timedatectl was set to: {dt.now()} from internal RTC")
                 check_times(bus)
                 if bus:
-                    bus.close()
+                	bus.close()
                 return
             except:
                 if attempt < MAX_RETRIES:
