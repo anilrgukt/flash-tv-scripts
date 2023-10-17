@@ -6,7 +6,7 @@ sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-ve
 
 #### USB backup dependencies
 
-sudo apt-get install borgbackup
+sudo apt-get install -y borgbackup
 
 #### PYTORCH dependencies
 # visit https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html
@@ -40,7 +40,7 @@ pip install smbus2 watchdog
 
 ### USB Backup Python Dependencies
 
-pip install cryptography --upgrade
+pip install cryptography
 
 # numpy=='1.21.2'???
 # scipy=='1.9.1'???
