@@ -3,6 +3,7 @@ from smbus2 import SMBus
 import subprocess
 import traceback
 import time
+import sys
 
 # Constants
 MAX_RETRIES = 60
