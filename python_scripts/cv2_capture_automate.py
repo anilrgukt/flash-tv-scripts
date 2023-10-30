@@ -102,21 +102,21 @@ def cam_id():
 	
 	which_webcam = None
 	for i in range(len(dev_paths)):
-	#print(i, dev_paths[i])
-	if (WEBCAM_NAME1 in dev_paths[i]):  
-	    dev_path = dev_paths[i+1].strip()
-	    which_webcam = WEBCAM_NAME1
-	    break
-	    #print(dev_path, dev_path[-1])
-	elif (WEBCAM_NAME2 in dev_paths[i]):
-	    dev_path = dev_paths[i+1].strip()
-	    which_webcam = WEBCAM_NAME2
-	    break
+		#print(i, dev_paths[i])
+		if (WEBCAM_NAME1 in dev_paths[i]):  
+	    		dev_path = dev_paths[i+1].strip()
+	    		which_webcam = WEBCAM_NAME1
+	    		break
+	    		#print(dev_path, dev_path[-1])
+		elif (WEBCAM_NAME2 in dev_paths[i]):
+			dev_path = dev_paths[i+1].strip()
+			which_webcam = WEBCAM_NAME2
+			break
 	
 	if dev_path is not None:
-	cam_idx = int(dev_path[-1])    
+		cam_idx = int(dev_path[-1])    
 	else:
-	cam_idx = -1
+		cam_idx = -1
 	
 	print('CAMERA identified at: ', cam_idx)
 	return cam_idx
