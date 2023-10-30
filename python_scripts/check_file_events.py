@@ -3,7 +3,7 @@ import time
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-famid = int(sys.argv[1])
+famid = sys.argv[1]
 read_path = sys.argv[2]
 save_path = sys.argv[3]
 
