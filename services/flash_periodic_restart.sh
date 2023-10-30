@@ -73,21 +73,10 @@ do
 		export BORG_REPO=${backup_usb_path}/USB_Backup_Data_flashsysXXX
 		
 		export BORG_PASSPHRASE=$(head -n 1 /home/${usrName}/flash-tv-scripts/setup_scripts/borg-passphrase-${usrName}.txt)
-		
-		# Check if TECH participant (longer family ID) and ignore face folders in backup
-		if [ ${#famId} -gt 6 ]; then
 	
-			borg create --exclude "/home/${usrName}/data/*.zip" --exclude "/home/${usrName}/data/*/*face*" ::${famId}-FLASH-HA-Data-Backup-${dt} ${BACKUP_DIRS}
-			
-			echo "USB Backup without Face Folders Created at Time: ${dt}"
-			
-		else
+		borg create --exclude "/home/${usrName}/data/*.zip" --exclude "/home/${usrName}/data/*/*face*" ::${famId}-FLASH-HA-Data-Backup-${dt} ${BACKUP_DIRS}
 		
-			borg create --exclude "/home/${usrName}/data/*.zip" ::${famId}-FLASH-HA-Data-Backup-${dt} ${BACKUP_DIRS}
-						
-			echo "USB Backup Created at Time: ${dt}"
-			
-		fi
+		echo "USB Backup without Face Folders Created at Time: ${dt}"
 			
 	else
  
