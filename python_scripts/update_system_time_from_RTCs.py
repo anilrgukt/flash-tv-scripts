@@ -19,7 +19,7 @@ def retry_operation(operation, max_retries, sleep_interval, error_message):
             operation()
             return True
         except Exception as e:
-            err_print(f"{error_message} (attempt {attempt}/{max_retries}): {str(e}")
+            err_print(f"{error_message} (attempt {attempt}/{max_retries}): {str(e)}")
             if attempt < max_retries:
                 time.sleep(sleep_interval)
             else:
