@@ -84,11 +84,11 @@ def set_time_both(bus):
         set_time_external(bus)
     else:
         set_time_internal()
+    set_time_both.attempt += 1
 
 # Inside set_time function
 def set_time():
     bus = SMBus(I2C_BUS_NUMBER)
-    set_time_both.attempt = 0
     set_time_both(bus)
 
     if retry_operation(set_time_both, MAX_RETRIES, 1, "Failed to set time from both RTC sources"):
