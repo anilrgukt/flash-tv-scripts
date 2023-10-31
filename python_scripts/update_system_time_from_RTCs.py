@@ -85,9 +85,9 @@ def set_time_internal():
 
 def set_time_both(bus):
     try:
-    	set_time_internal()
+    	set_time_external(bus)
     except Exception:
-        set_time_external(bus)
+    	set_time_internal()
     return
 
 # Inside set_time function
