@@ -49,7 +49,7 @@ def dec_rtc_data(hex_data):
 def convert_rtc_format_to_timedatectl_format(bus):
 	try:
 		rtc_data = dec_rtc_data(hex_rtc_data(bus))
-		if 20{rtc_data[6]:02} - 2023 > 5:
+		if int(f"20{rtc_data[6]:02}") - 2023 < 5:
 			return f"20{rtc_data[6]:02}-{rtc_data[5]:02}-{rtc_data[4]:02} {rtc_data[2]:02}:{rtc_data[1]:02}:{rtc_data[0]:02}"
 		else:
 			return "The year from the external RTC, {20{rtc_data[6]:02}}, was too far from the expected year"
