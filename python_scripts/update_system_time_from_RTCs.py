@@ -22,8 +22,10 @@ def retry_operation(operation, max_retries, sleep_interval, error_message):
             err_print(f"{error_message} (attempt {attempt}/{max_retries}): {str(e)}")
             if attempt < max_retries:
                 time.sleep(sleep_interval)
+                continue
             else:
                 err_print("Maximum retries reached. Proceeding with the next step.")
+                return False
 
 def reboot(interval, max_retries):
     def reboot_operation():
@@ -89,7 +91,6 @@ def set_time_both(bus):
 # Inside set_time function
 def set_time():
     bus = SMBus(I2C_BUS_NUMBER)
-    set_time_both(bus)
 
     if retry_operation(set_time_both, MAX_RETRIES, 1, "Failed to set time from both RTC sources"):
         return
