@@ -78,6 +78,8 @@ def set_time_internal():
     run_command(command, "Failed to set time from internal RTC", success_message)
 
 def set_time_both(bus):
+    if not hasattr(set_time_both, 'attempt'):
+    set_time_both.attempt = 0
     if set_time_both.attempt % 2 == 0:
         set_time_external(bus)
     else:
@@ -86,8 +88,8 @@ def set_time_both(bus):
 # Inside set_time function
 def set_time():
     bus = SMBus(I2C_BUS_NUMBER)
-    set_time_both(bus)
     set_time_both.attempt = 0
+    set_time_both(bus)
 
     if retry_operation(set_time_both, MAX_RETRIES, 1, "Failed to set time from both RTC sources"):
         return
