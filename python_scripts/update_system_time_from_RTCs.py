@@ -79,7 +79,7 @@ def set_time_internal():
 
 def set_time_both(bus):
     if not hasattr(set_time_both, 'attempt'):
-    set_time_both.attempt = 0
+        set_time_both.attempt = 0
     if set_time_both.attempt % 2 == 0:
         set_time_external(bus)
     else:
