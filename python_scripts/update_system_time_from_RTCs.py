@@ -9,13 +9,31 @@ import sys
 MAX_RETRIES = 60
 RTC_ADDRESS = 104
 I2C_BUS_NUMBER = 1  # Replace with the actual bus number if different
-# TIMEDATECTL_SUCCESSFUL = None
-# INTERNAL_RTC0_READ_SUCCESSFUL = None
-# INTERNAL_RTC1_READ_SUCCESSFUL = None
-# EXTERNAL_RTC_READ_SUCCESSFUL = None
 
-def stderr_print(*args, **kwargs):
+def err_print(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
+
+def retry_operation(operation, max_retries, sleep_interval, error_message):
+    for attempt in range(1, max_retries + 1):
+        try:
+            operation()
+            return True
+        except Exception as e:
+            err_print(f"{error_message} (attempt {attempt}/{max_retries}): {str(e}")
+            if attempt < max_retries:
+                time.sleep(sleep_interval)
+            else:
+                err_print("Maximum retries reached. Proceeding with the next step.")
+
+def reboot(interval, max_retries):
+    def reboot_operation():
+        subprocess.run(["sudo", "reboot"], check=True)
+
+    retry_operation(reboot_operation, max_retries, interval, f"{interval} interval reboot attempt failed")
+
+def reboot_sequence(max_retries, intervals):
+    for interval in intervals:
+        reboot(interval, max_retries)
 
 def read_rtc_data(bus):
     return bus.read_i2c_block_data(RTC_ADDRESS, 0, 8)
@@ -24,130 +42,57 @@ def hex_rtc_data(bus):
     return [hex(x) for x in read_rtc_data(bus)]
 
 def dec_rtc_data(hex_data):
-    return [int(x.replace("0x", "")) for x in hex_data]
+    return [int(x.replace("0x", ""), 16) for x in hex_data]
 
 def convert_rtc_format_to_timedatectl_format(bus):
     rtc_data = dec_rtc_data(hex_rtc_data(bus))
     return f"20{rtc_data[6]:02}-{rtc_data[5]:02}-{rtc_data[4]:02} {rtc_data[2]:02}:{rtc_data[1]:02}:{rtc_data[0]:02}"
 
-def reboot_5m():
-  for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            subprocess.run(["sudo", "reboot"], check=True)
-            return
-        except:
-            stderr_print(traceback.format_exc())
-            if attempt < MAX_RETRIES:
-                time.sleep(300)
-                stderr_print(f"5 minute interval reboot attempt failed, retrying (attempt {attempt}/{MAX_RETRIES})")
-            else:
-                stderr_print(f"Maximum amount of 5 minute interval reboot attempts reached, since the system was unable to set the time from either of the RTCs and also unable to reboot, expect incorrect data from this time onwards: {dt.now()}")
-                return
-
-def reboot_1m():
-  for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            subprocess.run(["sudo", "reboot"], check=True)
-            return
-        except:
-            stderr_print(traceback.format_exc())
-            if attempt < MAX_RETRIES:
-                time.sleep(60)
-                stderr_print(f"1 minute interval reboot attempt failed, retrying (attempt {attempt}/{MAX_RETRIES})")
-            else:
-                stderr_print("Maximum amount of 1 minute interval reboot attempts reached, now attempting to reboot every 5 minutes")
-                reboot_5m()
-
-def reboot_1s():
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            subprocess.run(["sudo", "reboot"], check=True)
-            return
-        except:
-            stderr_print(traceback.format_exc())
-            if attempt < MAX_RETRIES:
-                time.sleep(1)
-                stderr_print(f"1 second interval reboot attempt failed, retrying (attempt {attempt}/{MAX_RETRIES})")
-            else:
-                stderr_print("Maximum amount of 1 second interval reboot attempts reached, now attempting to reboot every 1 minute")
-                reboot_1m()
+def run_command(command, error_message, success_message=None):
+    try:
+        result = subprocess.check_output(command)
+        if success_message:
+            print(success_message)
+        return result.decode('utf-8')
+    except Exception as e:
+        err_print(f"{error_message}: {str(e)}")
+        return None
 
 def check_times(bus):
-    
-    try:
-        timedatectl = subprocess.check_output(["timedatectl"])
-        for line in timedatectl.splitlines():
-           print(line.strip().decode('utf-8'))
-        #TIMEDATECTL_SUCCESSFUL = True
-    except:
-        stderr_print(traceback.format_exc())
-        stderr_print("Warning: unable to run timedatectl for system time info")
-        pass
-        #TIMEDATECTL_SUCCESSFUL = False
-    
-    try:
-        print(f"Time from internal RTC rtc0 (PSEQ_RTC, being used) is: {subprocess.check_output(['sudo', 'hwclock', '-r']).strip().decode('utf-8')}")
-        #INTERNAL_RTC0_READ_SUCCESSFUL = True
-    except:
-        stderr_print(traceback.format_exc())
-        stderr_print("Warning: Unable to obtain time from internal RTC rtc0 (PSEQ_RTC, being used) for validation")
-        pass
-        #INTERNAL_RTC0_READ_SUCCESSFUL = False
-    
-    try:
-        print(f"Time from external RTC (DS3231) is: {convert_rtc_format_to_timedatectl_format(bus)}")
-        bus.close()
-    except:
-        stderr_print(traceback.format_exc())
-        stderr_print("Warning: Unable to obtain time from external RTC for validation, proceeding anyway since time was successfully set from internal RTC")
-        pass
-        
-    try:
-        print(f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {subprocess.check_output(['sudo', 'hwclock', '--rtc', '/dev/rtc1']).decode('utf-8')}")
-        #INTERNAL_RTC1_READ_SUCCESSFUL = True
-    except:
-        stderr_print(traceback.format_exc())
-        stderr_print("Info: Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)")
-        pass
-        #INTERNAL_RTC1_READ_SUCCESSFUL = False
-    
-    if bus:
-        bus.close()
-        
-    return
+    print(run_command(["timedatectl"], "Unable to run timedatectl for system time info"))
 
+    print(f"Time from internal RTC rtc0 (PSEQ_RTC, being used) is: {run_command(['sudo', 'hwclock', '-r'], 'Unable to obtain time from internal RTC rtc0 (PSEQ_RTC, being used) for validation')}")
+
+    print(f"Time from external RTC (DS3231) is: {run_command(convert_rtc_format_to_timedatectl_format(bus), 'Unable to obtain time from external RTC for validation')}")
+
+    print(f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command(['sudo', 'hwclock', '--rtc', '/dev/rtc1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)')}")
+
+def set_time_external(bus):
+    success_message = f"Time for timedatectl was set to: {convert_rtc_format_to_timedatectl_format(bus)} from external RTC"
+    command = ["sudo", "timedatectl", "set-time", convert_rtc_format_to_timedatectl_format(bus)]
+    run_command(command, "Failed to set time from external RTC", success_message)
+
+def set_time_internal():
+    success_message = f"Time for timedatectl was set to: {dt.now()} from internal RTC"
+    command = ["sudo", "hwclock", "-s"]
+    run_command(command, "Failed to set time from internal RTC", success_message)
+
+def set_time_both(bus):
+    if set_time_both.attempt % 2 == 0:
+        set_time_external(bus)
+    else:
+        set_time_internal()
+
+# Inside set_time function
 def set_time():
-    
     bus = SMBus(I2C_BUS_NUMBER)
-    
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            subprocess.run(["sudo", "timedatectl", "set-time", convert_rtc_format_to_timedatectl_format(bus)], check=True)
-            print(f"Time for timedatectl was set to: {convert_rtc_format_to_timedatectl_format(bus)} from external RTC")
-            check_times(bus)
-            if bus:
-                bus.close()
-            return
-        except:
-            try:
-                stderr_print(traceback.format_exc())
-                stderr_print("Failed to set time from external RTC, attempting to set time from internal RTC")
-                subprocess.run(["sudo", "hwclock", "-s"], check=True)
-                print(f"Time for timedatectl was set to: {dt.now()} from internal RTC")
-                check_times(bus)
-                if bus:
-                	bus.close()
-                return
-            except:
-                if attempt < MAX_RETRIES:
-                    time.sleep(1)
-                    stderr_print(f"Failed to set time from external RTC, retrying again starting from internal RTC (attempt {attempt}/{MAX_RETRIES})")
-                    continue
-                else:
-                    stderr_print("Maximum amount of time setting attempts reached, attempting to reboot system")
-                    if bus:
-                        bus.close()
-                    reboot_1s()
+    set_time_both(bus)
+    set_time_both.attempt = 0
+
+    if retry_operation(set_time_both, MAX_RETRIES, 1, "Failed to set time from both RTC sources"):
+        return
+    else:
+        reboot_sequence(MAX_RETRIES, [1, 60, 300])
 
 if __name__ == "__main__":
     set_time()
