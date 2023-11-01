@@ -49,7 +49,6 @@ def check_times():
     external_rtc_time = convert_rtc_format_to_timedatectl_format(dec_rtc_data(hex_rtc_data(bus)))
     if external_rtc_time:
         print(f"Time from external RTC (DS3231) is: {external_rtc_time}")
-        bus.close()
     else:
         stderr_print("Warning: Unable to obtain time from external RTC for validation")
     
