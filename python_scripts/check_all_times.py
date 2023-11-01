@@ -61,5 +61,5 @@ def check_times():
     if bus:
         bus.close()
 
-if __name__ == "__main":
+if __name__ == "__main__":
     check_times()
