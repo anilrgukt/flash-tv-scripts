@@ -61,7 +61,7 @@ def run_command(command, error_message, success_message=None):
         result = subprocess.check_output(command)
         if success_message:
             print(success_message)
-        return result.decode('utf-8').strip()
+        return result.strip().decode('utf-8')
     except Exception as e:
         err_print(f"{error_message}: {str(e)}")
         raise e
@@ -76,12 +76,12 @@ def check_times(bus):
     print(f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command(['sudo', 'hwclock', '--rtc', '/dev/rtc1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)')}")
 
 def set_time_external(bus):
-    success_message = f"Time for timedatectl was set to: {convert_rtc_format_to_timedatectl_format(bus)} from external RTC"
+    success_message = f"The system time was set from the external RTC"
     command = ["sudo", "timedatectl", "set-time", convert_rtc_format_to_timedatectl_format(bus)]
     run_command(command, "Failed to set time from external RTC", success_message)
 
 def set_time_internal():
-    success_message = f"Time for timedatectl was set to: {dt.now()} from internal RTC"
+    success_message = f"The system time was set from the internal RTC"
     command = ["sudo", "hwclock", "-s"]
     run_command(command, "Failed to set time from internal RTC", success_message)
 
