@@ -19,12 +19,19 @@ python /home/${usrName}/flash-tv-scripts/python_scripts/check_file_events.py $fa
 sleep 10;
 
 if [ -e "$reboot_index_path" ]; then
+
     last_line=$(tail -n 1 "$reboot_index_path")
+    
     last_index=${last_line: -1}
+    
     new_index=$((last_index + 1))
+    
 else
+
     new_index=1
+    
 fi
+
 dt_for_index=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
 
 echo "flash_periodic_restart.sh was just restarted around ${dt_for_index}, implying that the current reboot index is: ${new_index}" >> "$reboot_index_path"
@@ -60,10 +67,6 @@ do
 		if [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'` ]; then
 	 
 	 		backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}'`
-	
-		elif [ `lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep /mnt/usb | awk '{print $2}'` ]; then
-	 
-	 		backup_usb_path=`lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep /mnt/usb | awk '{print $2}'`
 
     		else
       			echo "Backup USB not Found in lsblk at Time: ${dt}"
@@ -79,11 +82,8 @@ do
 		echo "USB Backup without Face Folders Created at Time: ${dt}"
 			
 	else
- 
-		if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 		
-			echo "Backup USB not Found in lsusb at Time: ${dt}"
-		fi	
+		echo "Backup USB not Found in lsusb at Time: ${dt}"
   
 	fi
 	
