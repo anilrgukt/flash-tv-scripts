@@ -9,6 +9,7 @@ import sys
 MAX_RETRIES = 60
 RTC_ADDRESS = 104
 I2C_BUS_NUMBER = 1  # Replace with the actual bus number if different
+START_DATE_FILE_PATH = sys.argv[1]
 BUS = SMBus(I2C_BUS_NUMBER)
 
 def err_print(*args, **kwargs):
@@ -38,22 +39,45 @@ def reboot_sequence(max_retries, intervals):
     for interval in intervals:
         reboot(interval, max_retries)
 
-def read_rtc_data():
+def read_RTC_data(bus=BUS):
     return BUS.read_i2c_block_data(RTC_ADDRESS, 0, 8)
 
-def hex_rtc_data():
-    return [hex(x) for x in read_rtc_data()]
+def hex_RTC_data():
+    return [hex(x) for x in read_RTC_data()]
 
-def dec_rtc_data(hex_data):
+def dec_RTC_data(hex_data):
     return [int(x.replace("0x", "")) for x in hex_data]
+	
+def is_within_12_days(file_path=START_DATE_FILE_PATH, ext_RTC_date=None):
+    if os.path.exists(file_path):
+        with open(file_path, "r") as file:
+            start_date_str = file.read().strip()
 
-def convert_rtc_format_to_timedatectl_format():
+        start_date = dt.strptime(start_date_str, "%Y-%m-%d %H:%M:%S")
+
+        if ext_RTC_date:
+            delta = abs(ext_RTC_date - start_date)
+            # Option 1: Check if the difference is less than or equal to 14 days
+            if delta.days <= 12:
+                print("The date from the external RTC was within 12 days of the start date, proceeding to attempt to set the time")
+                return True
+            else:
+                stderr_print("The date from the external RTC was more than 12 days away from the start date")
+                return False
+        else:
+            stderr_print("No external RTC date provided for comparison to the start date")
+            return None
+    else:
+        stderr_print(f"Start date file '{file_path}' not found")
+        return None
+
+def convert_RTC_format_to_timedatectl_format():
 	try:
-		rtc_data = dec_rtc_data(hex_rtc_data())
-		if int(f"20{rtc_data[6]:02}") - 2023 < 5:
-			return f"20{rtc_data[6]:02}-{rtc_data[5]:02}-{rtc_data[4]:02} {rtc_data[2]:02}:{rtc_data[1]:02}:{rtc_data[0]:02}"
+		RTC_data = dec_RTC_data(hex_RTC_data())
+		if is_within_12_days(RTC_data):
+			return f"20{RTC_data[6]:02}-{RTC_data[5]:02}-{RTC_data[4]:02} {RTC_data[2]:02}:{RTC_data[1]:02}:{RTC_data[0]:02}"
 		else:
-			return "The year from the external RTC, {20{rtc_data[6]:02}}, was too far from the expected year"
+			return f"The date from the external RTC, {20{RTC_data[6]:02}-{RTC_data[5]:02}-{RTC_data[4]:02} {RTC_data[2]:02}:{RTC_data[1]:02}:{RTC_data[0]:02}}, was too far from the start date"
 	except Exception as e:
 		return str(e)
 		
@@ -74,13 +98,13 @@ def check_times():
 
     print(f"Time from internal RTC rtc0 (PSEQ_RTC, being used) is: {run_command(['sudo', 'hwclock', '-r'], 'Unable to obtain time from internal RTC rtc0 (PSEQ_RTC, being used) for validation', raise_exception=False)}")
 
-    print(f"Time from external RTC (DS3231) is: {convert_rtc_format_to_timedatectl_format()}")
+    print(f"Time from external RTC (DS3231) is: {convert_RTC_format_to_timedatectl_format()}")
 
-    print(f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command(['sudo', 'hwclock', '--rtc', '/dev/rtc1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)', raise_exception=False)}")
+    print(f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command(['sudo', 'hwclock', '--RTC', '/dev/RTC1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)', raise_exception=False)}")
 
 def set_time_external():
     success_message = f"The system time was set from the external RTC"
-    command = ["sudo", "timedatectl", "set-time", convert_rtc_format_to_timedatectl_format()]
+    command = ["sudo", "timedatectl", "set-time", convert_RTC_format_to_timedatectl_format()]
     run_command(command, "Failed to set time from external RTC", success_message, raise_exception=True)
 
 def set_time_internal():
