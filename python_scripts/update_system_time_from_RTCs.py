@@ -9,6 +9,7 @@ import sys
 MAX_RETRIES = 60
 RTC_ADDRESS = 104
 I2C_BUS_NUMBER = 1  # Replace with the actual bus number if different
+BUS = SMBus(I2C_BUS_NUMBER)
 
 def err_print(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -37,18 +38,18 @@ def reboot_sequence(max_retries, intervals):
     for interval in intervals:
         reboot(interval, max_retries)
 
-def read_rtc_data(bus):
-    return bus.read_i2c_block_data(RTC_ADDRESS, 0, 8)
+def read_rtc_data():
+    return BUS.read_i2c_block_data(RTC_ADDRESS, 0, 8)
 
-def hex_rtc_data(bus):
-    return [hex(x) for x in read_rtc_data(bus)]
+def hex_rtc_data():
+    return [hex(x) for x in read_rtc_data()]
 
 def dec_rtc_data(hex_data):
     return [int(x.replace("0x", "")) for x in hex_data]
 
-def convert_rtc_format_to_timedatectl_format(bus):
+def convert_rtc_format_to_timedatectl_format():
 	try:
-		rtc_data = dec_rtc_data(hex_rtc_data(bus))
+		rtc_data = dec_rtc_data(hex_rtc_data())
 		if int(f"20{rtc_data[6]:02}") - 2023 < 5:
 			return f"20{rtc_data[6]:02}-{rtc_data[5]:02}-{rtc_data[4]:02} {rtc_data[2]:02}:{rtc_data[1]:02}:{rtc_data[0]:02}"
 		else:
@@ -56,7 +57,7 @@ def convert_rtc_format_to_timedatectl_format(bus):
 	except Exception as e:
 		return str(e)
 		
-def run_command(command, error_message, success_message=None):
+def run_command(command, error_message, success_message=None, raise_exception=True):
     try:
         result = subprocess.check_output(command)
         if success_message:
@@ -64,44 +65,45 @@ def run_command(command, error_message, success_message=None):
         return result.strip().decode('utf-8')
     except Exception as e:
         err_print(f"{error_message}: {str(e)}")
-        raise e
+	if raise_exception:
+        	raise e
+	return None
 
-def check_times(bus):
-    print(run_command(["timedatectl"], "Unable to run timedatectl for system time info"))
+def check_times():
+    print(run_command(["timedatectl"], "Unable to run timedatectl for system time info", raise_exception=False))
 
-    print(f"Time from internal RTC rtc0 (PSEQ_RTC, being used) is: {run_command(['sudo', 'hwclock', '-r'], 'Unable to obtain time from internal RTC rtc0 (PSEQ_RTC, being used) for validation')}")
+    print(f"Time from internal RTC rtc0 (PSEQ_RTC, being used) is: {run_command(['sudo', 'hwclock', '-r'], 'Unable to obtain time from internal RTC rtc0 (PSEQ_RTC, being used) for validation', raise_exception=False)}")
 
-    print(f"Time from external RTC (DS3231) is: {convert_rtc_format_to_timedatectl_format(bus)}")
+    print(f"Time from external RTC (DS3231) is: {convert_rtc_format_to_timedatectl_format()}")
 
-    print(f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command(['sudo', 'hwclock', '--rtc', '/dev/rtc1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)')}")
+    print(f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command(['sudo', 'hwclock', '--rtc', '/dev/rtc1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)', raise_exception=False)}")
 
-def set_time_external(bus):
+def set_time_external():
     success_message = f"The system time was set from the external RTC"
-    command = ["sudo", "timedatectl", "set-time", convert_rtc_format_to_timedatectl_format(bus)]
-    run_command(command, "Failed to set time from external RTC", success_message)
+    command = ["sudo", "timedatectl", "set-time", convert_rtc_format_to_timedatectl_format()]
+    run_command(command, "Failed to set time from external RTC", success_message, raise_exception=True)
 
 def set_time_internal():
     success_message = f"The system time was set from the internal RTC"
     command = ["sudo", "hwclock", "-s"]
-    run_command(command, "Failed to set time from internal RTC", success_message)
+    run_command(command, "Failed to set time from internal RTC", success_message, raise_exception=True)
 
-def set_time_both(bus):
+def set_time_both():
     try:
-    	set_time_external(bus)
+    	set_time_external()
     except Exception:
     	set_time_internal()
     return
 
 # Inside set_time function
-def set_time(bus):
-    if retry_operation(set_time_both, MAX_RETRIES, 1, "Failed to set time from both RTC sources", bus):
+def set_time():
+    if retry_operation(set_time_both, MAX_RETRIES, 1, "Failed to set time from both RTC sources"):
         return
     else:
         reboot_sequence(MAX_RETRIES, [1, 60, 300])
 
 if __name__ == "__main__":
-    bus = SMBus(I2C_BUS_NUMBER)
-    set_time(bus)
-    check_times(bus)
-    if bus:
-    	bus.close()
+    set_times()
+    check_times()
+    if BUS:
+    	BUS.close()
