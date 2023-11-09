@@ -37,5 +37,14 @@ def set_external_rtc_time():
         stderr_print("Failed to properly set time for external RTC. Please retry before continuing.")
         sys.exit(1)
 
+def save_current_date_to_file(file_path):
+    current_date = dt.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    with open(file_path, "w") as file:
+        file.write(current_date)
+
 if __name__ == "__main__":
+    famid = sys.argv[1]
     set_external_rtc_time()
+    save_current_date_to_file(f"{famid}_start_date.txt")
+
