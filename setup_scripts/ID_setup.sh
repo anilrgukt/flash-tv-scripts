@@ -4,6 +4,8 @@
 rm -r ~/flash-tv-scripts/video_capture_scripts
 rm -r ~/flash-tv-scripts/internal_testing
 
+skip_checking=0
+
 if [ "$#" -ne 2 ]; then
 
 	if [ "$#" -eq 3 ]; then
