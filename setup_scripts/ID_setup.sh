@@ -6,11 +6,21 @@ rm -r ~/flash-tv-scripts/internal_testing
 
 if [ "$#" -ne 2 ]; then
 
-   echo "Command Line Usage: $0 (deviceID) (familyID)"
-   
-   deviceID=$(zenity --entry --width 500 --height 100 --text="Enter FLASH device ID (3 digits):")
-   
-   familyID=$(zenity --entry --width 500 --height 100 --text="Enter family ID (3 digits for Study 4, P1-1[3 digits no brackets] for TECH):")
+	if [ "$#" -eq 3 ]; then
+
+		deviceID=$1
+		familyID=$2
+  		skip_checking=$3
+
+ 	else
+	   
+    		echo "Command Line Usage: $0 (deviceID) (familyID)"
+	   
+	   	deviceID=$(zenity --entry --width 500 --height 100 --text="Enter FLASH device ID (3 digits):")
+	   
+	   	familyID=$(zenity --entry --width 500 --height 100 --text="Enter family ID (3 digits for Study 4, P1-1[3 digits no brackets] for TECH):")
+
+	fi
 
 else
  
@@ -18,13 +28,16 @@ else
   familyID=$2
   
 fi
-  
-zenity --question --title="Verify Device and Family ID" --width 500 --height 100 --text="Please verify the following details\nFamily ID: ${familyID}\nDevice ID: ${deviceID}" --no-wrap
-user_resp=$?
 
-if [ ${user_resp} -eq 1 ]; then
-	zenity --warning --text="Exiting the code since the device and family ID were not entered correctly according to the user. Please restart the script to try again." --width 500 --height 100
-	exit 1
+if [ $skip_checking -ne 1]; then
+	
+ 	zenity --question --title="Verify Device and Family ID" --width 500 --height 100 --text="Please verify the following details\nFamily ID: ${familyID}\nDevice ID: ${deviceID}" --no-wrap
+	user_resp=$?
+	
+	if [ ${user_resp} -eq 1 ]; then
+		zenity --warning --text="Exiting the code since the device and family ID were not entered correctly according to the user. Please restart the script to try again." --width 500 --height 100
+		exit 1
+	fi
 fi
 
 # Create data directory
