@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ "$#" -eq 2 ]; then
+if [ "$#" -ne 2 ]; then
 
   echo "Command Line Usage: $0 (ID of Device You are Transferring Faces FROM) (ID of Device You are Transferring Faces TO)"
   read -p 'Enter the ID of the device you are transferring faces FROM (3 digits):' olddeviceID
