@@ -44,8 +44,8 @@ sed -i "s/XXX/${deviceID}/g" ~/flash-tv-scripts/services/homeassistant-run-on-bo
 sed -i "s/123/${familyID}/g" ~/flash-tv-scripts/services/homeassistant-run-on-boot.service
 sed -i "s/XXX/${deviceID}/g" ~/flash-tv-scripts/runtime_scripts/data_details.sh
 sed -i "s/123/${familyID}/g" ~/flash-tv-scripts/runtime_scripts/data_details.sh
-sed -i "s/XXX/${deviceID}/g" ~/flash-tv-scripts/runtime_scripts/face_id_transfer.sh
-sed -i "s/123/${familyID}/g" ~/flash-tv-scripts/runtime_scripts/face_id_transfer.sh
+sed -i "s/XXX/${deviceID}/g" ~/flash-tv-scripts/runtime_scripts/face_ID_transfer.sh
+sed -i "s/123/${familyID}/g" ~/flash-tv-scripts/runtime_scripts/face_ID_transfer.sh
 sed -i "s/XXX/${deviceID}/g" ~/flash-tv-scripts/install_scripts/configuration.yaml
 sed -i "s/123/${familyID}/g" ~/flash-tv-scripts/install_scripts/configuration.yaml
 sed -i "s/XXX/${deviceID}/g" ~/flash-tv-scripts/setup_scripts/USB_backup_setup.sh
