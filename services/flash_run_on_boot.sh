@@ -13,7 +13,7 @@ python /home/${usrName}/flash-tv-scripts/python_scripts/check_file_events.py $fa
 
 timedatectl set-ntp 0;
 sleep 1;
-python3 /home/$usrName/flash-tv-scripts/python_scripts/update_system_time_from_RTCs.py /home/$usrName/data/${famId}_data/{$famId}_start_date.txt
+python3 /home/$usrName/flash-tv-scripts/python_scripts/update_system_time_from_RTCs.py "/home/$usrName/data/${famId}_data/{$famId}_start_date.txt"
 
 # runs a while loop for the FLASH-TV algorithm only if it doesn't already exist
 while true;
