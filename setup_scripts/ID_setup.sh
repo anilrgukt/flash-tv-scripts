@@ -26,8 +26,8 @@ if [ "$#" -ne 2 ]; then
 
 else
  
-  deviceID=$1
-  familyID=$2
+	deviceID=$1
+	familyID=$2
   
 fi
 
