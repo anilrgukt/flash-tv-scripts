@@ -9,7 +9,7 @@ import sys
 MAX_RETRIES = 60
 RTC_ADDRESS = 104
 I2C_BUS_NUMBER = 1  # Replace with the actual bus number if different
-START_DATE_FILE_PATH = sys.argv[1]
+START_DATE_FILE_PATH = f"{sys.argv[1]}"
 BUS = SMBus(I2C_BUS_NUMBER)
 
 def err_print(*args, **kwargs):
@@ -57,7 +57,6 @@ def is_within_12_days(file_path=START_DATE_FILE_PATH, ext_RTC_date=None):
 
         if ext_RTC_date:
             delta = abs(ext_RTC_date - start_date)
-            # Option 1: Check if the difference is less than or equal to 14 days
             if delta.days <= 12:
                 print("The date from the external RTC was within 12 days of the start date, proceeding to attempt to set the time")
                 return True
