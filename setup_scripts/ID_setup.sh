@@ -4,6 +4,7 @@
 rm -r ~/flash-tv-scripts/video_capture_scripts
 rm -r ~/flash-tv-scripts/internal_testing
 
+
 deviceID=$(zenity --entry --width 500 --height 100 --text="Enter FLASH device ID (3 digits):")
 
 familyID=$(zenity --entry --width 500 --height 100 --text="Enter family ID (3 digits for Study 4, P1-1[3 digits no brackets] for TECH):")
