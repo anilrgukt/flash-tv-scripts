@@ -6,6 +6,7 @@ import sys
 # Constants
 RTC_ADDRESS = 104  # Replace with the actual RTC address if different
 I2C_BUS_NUMBER = 1  # Replace with the actual bus number if different
+START_DATE_FILE_PATH = f"{sys.argv[1]}"
 
 def stderr_print(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -37,15 +38,13 @@ def set_external_rtc_time():
         stderr_print("Failed to properly set time for external RTC. Please retry before continuing.")
         sys.exit(1)
 
-def save_current_date_to_file(file_path):
+def save_current_date_to_file(file_path=START_DATE_FILE_PATH):
     current_date = dt.now().strftime("%Y-%m-%d %H:%M:%S")
 
     with open(file_path, "w") as file:
         file.write(current_date)
 
 if __name__ == "__main__":
-    famid = sys.argv[1]
-    username = sys.argv[2]
     set_external_rtc_time()
-    save_current_date_to_file(f"/home/{username}/data/{famid}_data/{famid}_start_date.txt")
+    save_current_date_to_file(START_DATE_FILE_PATH)
 
