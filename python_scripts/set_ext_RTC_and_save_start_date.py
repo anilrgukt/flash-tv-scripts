@@ -45,6 +45,7 @@ def save_current_date_to_file(file_path):
 
 if __name__ == "__main__":
     famid = sys.argv[1]
+    username = sys.argv[2]
     set_external_rtc_time()
-    save_current_date_to_file(f"{famid}_start_date.txt")
+    save_current_date_to_file(f"/home/{username}/data/{famid}_data/{famid}_start_date.txt")
 
