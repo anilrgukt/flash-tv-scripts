@@ -31,7 +31,7 @@ else
   
 fi
 
-if [ $skip_checking -ne 1]; then
+if [ $skip_checking -ne 1 ]; then
 	
  	zenity --question --title="Verify Device and Family ID" --width 500 --height 100 --text="Please verify the following details\nFamily ID: ${familyID}\nDevice ID: ${deviceID}" --no-wrap
 	user_resp=$?
