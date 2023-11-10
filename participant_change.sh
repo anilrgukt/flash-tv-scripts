@@ -37,7 +37,7 @@ else
   
 fi
 
-if [ $skip_checking -ne 1]; then
+if [ $skip_checking -ne 1 ]; then
 
 	zenity --question --title="Verify Plug ID, Device ID, and Family ID" --width 500 --height 100 --text="Please verify the following details\n\nPlug ID: $plugID\nFamily ID: ${familyID}\nDevice ID: ${deviceID}" --no-wrap
 	user_resp=$?
