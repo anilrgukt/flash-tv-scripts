@@ -2,6 +2,11 @@
 
 source ~/py38/bin/activate
 
+if [ ! `borg list | grep -P "\d{3}XXX"` ]; then
+	echo "Skipping USB backup setup since it was already set up"
+ 	exit 0
+fi
+
 if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 
 	backup_usb_block_id=$(lsblk -o NAME,MODEL | grep -A 1 SanDisk | awk '/SanDisk/{getline; gsub("└─", ""); print}')
