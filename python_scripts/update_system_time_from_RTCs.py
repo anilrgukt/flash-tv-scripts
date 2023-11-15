@@ -11,6 +11,7 @@ MAX_RETRIES = 60
 RTC_ADDRESS = 104
 I2C_BUS_NUMBER = 1  # Replace with the actual bus number if different
 START_DATE_FILE_PATH = f"{sys.argv[1]}"
+print(START_DATE_FILE_PATH)
 BUS = SMBus(I2C_BUS_NUMBER)
 
 def err_print(*args, **kwargs):
@@ -100,7 +101,7 @@ def check_times():
 
     print(f"Time from external RTC (DS3231) is: {convert_RTC_format_to_timedatectl_format()}")
 
-    print(f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command(['sudo', 'hwclock', '--RTC', '/dev/RTC1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)', raise_exception=False)}")
+    print(f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command(['sudo', 'hwclock', '-rtc', '/dev/rtc1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)', raise_exception=False)}")
 
 def set_time_external():
     success_message = f"The system time was set from the external RTC"
