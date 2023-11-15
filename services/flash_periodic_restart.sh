@@ -22,7 +22,7 @@ if [ -e "$reboot_index_path" ]; then
 
     last_line=$(tail -n 1 "$reboot_index_path")
     
-    last_index=${last_line: -1}
+    last_index=$(echo "$last_line" | awk '{print $NF}')
     
     new_index=$((last_index + 1))
     
