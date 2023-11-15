@@ -81,16 +81,16 @@ def convert_RTC_format_to_timedatectl_format():
 		return str(e)
 		
 def run_command(command, error_message, success_message=None, raise_exception=True):
-    try:
-        result = subprocess.check_output(command)
-        if success_message:
-            print(success_message)
-        return result.strip().decode('utf-8')
-    except Exception as e:
-        err_print(f"{error_message}: {str(e)}")
-	if raise_exception:
-        	raise e
-	return None
+	try:
+        	result = subprocess.check_output(command)
+        	if success_message:
+	            print(success_message)
+        	return result.strip().decode('utf-8')
+	except Exception as e:
+		err_print(f"{error_message}: {str(e)}")
+		if raise_exception:
+			raise e
+		return None
 
 def check_times():
     print(run_command(["timedatectl"], "Unable to run timedatectl for system time info", raise_exception=False))
