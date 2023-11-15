@@ -20,7 +20,7 @@ sleep 1;
 sudo hwclock --rtc /dev/rtc1 -w && echo "Internal RTC rtc1 (tegra-RTC, not being used) was set" || "Internal RTC rtc1 (tegra-RTC, not being used) was unable to be set"
 sleep 1;
 
-python3 ~/flash-tv-scripts/python_scripts/set_ext_RTC_and_save_start_date.py "/home/${username}/data/${famId}_data/${famId}_start_date.txt"
+python3 ~/flash-tv-scripts/python_scripts/set_ext_RTC_and_save_start_date.py /home/${username}/data/${famId}_data/${famId}_start_date.txt
 set_correctly=$?
 
 if [ $set_correctly -eq 1 ]; then
