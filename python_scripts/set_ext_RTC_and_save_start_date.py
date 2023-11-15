@@ -6,7 +6,7 @@ import sys
 # Constants
 RTC_ADDRESS = 104  # Replace with the actual RTC address if different
 I2C_BUS_NUMBER = 1  # Replace with the actual bus number if different
-START_DATE_FILE_PATH = f"{sys.argv[1]}"
+START_DATE_FILE_PATH = sys.argv[1]
 
 def stderr_print(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
