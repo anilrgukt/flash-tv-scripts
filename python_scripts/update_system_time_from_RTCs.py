@@ -10,7 +10,7 @@ import os
 MAX_RETRIES = 60
 RTC_ADDRESS = 104
 I2C_BUS_NUMBER = 1  # Replace with the actual bus number if different
-START_DATE_FILE_PATH = f"{sys.argv[1]}"
+START_DATE_FILE_PATH = sys.argv[1]
 print(START_DATE_FILE_PATH)
 BUS = SMBus(I2C_BUS_NUMBER)
 
