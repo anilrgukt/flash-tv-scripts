@@ -101,7 +101,7 @@ def check_times():
 
     print(f"Time from external RTC (DS3231) is: {convert_RTC_format_to_timedatectl_format()}")
 
-    print(f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command(['sudo', 'hwclock', '-rtc', '/dev/rtc1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)', raise_exception=False)}")
+    print(f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command(['sudo', 'hwclock', '--rtc', '/dev/rtc1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)', raise_exception=False)}")
 
 def set_time_external():
     success_message = f"The system time was set from the external RTC"
