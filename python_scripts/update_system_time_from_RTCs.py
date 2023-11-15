@@ -126,7 +126,7 @@ def set_time():
         reboot_sequence(MAX_RETRIES, [1, 60, 300])
 
 if __name__ == "__main__":
-    set_times()
+    set_time()
     check_times()
     if BUS:
     	BUS.close()
