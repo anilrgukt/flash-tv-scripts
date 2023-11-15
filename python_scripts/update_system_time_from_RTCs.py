@@ -76,7 +76,7 @@ def convert_RTC_format_to_timedatectl_format():
 		if is_within_12_days(RTC_data):
 			return f"20{RTC_data[6]:02}-{RTC_data[5]:02}-{RTC_data[4]:02} {RTC_data[2]:02}:{RTC_data[1]:02}:{RTC_data[0]:02}"
 		else:
-			return f"The date from the external RTC, {20{RTC_data[6]:02}-{RTC_data[5]:02}-{RTC_data[4]:02} {RTC_data[2]:02}:{RTC_data[1]:02}:{RTC_data[0]:02}}, was too far from the start date"
+			return f"The date from the external RTC, 20{RTC_data[6]:02}-{RTC_data[5]:02}-{RTC_data[4]:02} {RTC_data[2]:02}:{RTC_data[1]:02}:{RTC_data[0]:02}, was too far from the start date"
 	except Exception as e:
 		return str(e)
 		
