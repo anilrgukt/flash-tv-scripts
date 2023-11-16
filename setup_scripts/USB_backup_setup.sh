@@ -72,6 +72,9 @@ if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 	grep -q '.*BORG_REPO.*' "${BASHRC}" || echo "${BORG_REPO_EXPORT_LINE}" >> "${BASHRC}"
 	sed -i "s@.*BORG_REPO.*@${BORG_REPO_EXPORT_LINE}@" "${BASHRC}"
 
+	# Comment out line in .bashrc preventing running in non-interactive shells so that it can be sourced from a script
+	sed -i '/^case $- in/,/^esac/s/^/#/' "${BASHRC}"
+
 	# Initialize borg repo
 	borg init -v --encryption=repokey
 
