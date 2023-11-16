@@ -67,7 +67,7 @@ if [ ! `lsusb | grep -q "SanDisk Corp. Ultra Fit"` ]; then
 	# Export and save borg repo path
 	export BORG_REPO=${backup_usb_mount_path}/USB_Backup_Data_flashsysXXX
 	
-	BORG_REPO_EXPORT_LINE="export BORG_REPO=${backup_usb_mount_path}/USB_Backup_Data_flashsysXXX"
+	BORG_REPO_EXPORT_LINE="export BORG_REPO='${backup_usb_mount_path}/USB_Backup_Data_flashsysXXX'"
 	
 	grep -q '.*BORG_REPO.*' "${BASHRC}" || echo "${BORG_REPO_EXPORT_LINE}" >> "${BASHRC}"
 	sed -i "s@.*BORG_REPO.*@${BORG_REPO_EXPORT_LINE}@" "${BASHRC}"
