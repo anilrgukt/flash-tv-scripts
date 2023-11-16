@@ -36,7 +36,7 @@ dt_for_index=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
 
 echo "flash_periodic_restart.sh was just restarted around ${dt_for_index}, implying that the current reboot index is: ${new_index}" >> "$reboot_index_path"
 
-i=1
+loop=1
 while true;
 do
 	sleep 21600;
@@ -89,12 +89,12 @@ do
 	
 	sleep 5;
  
-	if (($i%2==0)); then
+	if ((loop % 2 == 0)); then
  		reboot
    		systemctl start flash-run-on-boot.service
   	else
 		systemctl start flash-run-on-boot.service
-  		((i=i+1))
+  		((loop=loop+1))
  	fi
  	
 done
