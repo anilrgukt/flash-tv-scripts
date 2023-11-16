@@ -2,7 +2,9 @@
 
 source ~/py38/bin/activate
 
-if [ ! `borg list | grep -Pq "\d{3}XXX"` ]; then
+skip_checking=$1
+
+if [ ! `borg list | grep -Pq "\d{3}XXX"` ] and [ $skip_checking -eq 1 ]; then
 	echo "Skipping USB backup setup since it was already set up"
  	exit 0
 fi
