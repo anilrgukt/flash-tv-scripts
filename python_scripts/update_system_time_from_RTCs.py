@@ -52,6 +52,7 @@ def reboot_sequence(max_retries, intervals):
 def read_RTC_date(bus=BUS):
     return BUS.read_i2c_block_data(RTC_ADDRESS, 0, 8)
 
+
 def hex_RTC_date():
     return [hex(x) for x in read_RTC_date()]
 
@@ -90,8 +91,9 @@ def is_within_12_days(*args, file_path=START_DATE_FILE_PATH, ext_RTC_date=None, 
 def convert_RTC_format_to_timedatectl_format():
     try:
         RTC_date = dec_RTC_date(hex_RTC_date())
-	formatted_RTC_date = f"20{RTC_date[6]:02}-{RTC_date[5]:02}-{RTC_date[4]:02} {RTC_date[2]:02}:{RTC_date[1]:02}:{RTC_date[0]:02}"
-	datetime_RTC_date = dt.strptime(formatted_RTC_date, "%Y-%m-%d %H:%M:%S")
+        formatted_RTC_date = f"20{RTC_date[6]:02}-{RTC_date[5]:02}-{RTC_date[4]:02} {RTC_date[2]:02}:{RTC_date[1]:02}:{RTC_date[0]:02}"
+        datetime_RTC_date = dt.strptime(
+            formatted_RTC_date, "%Y-%m-%d %H:%M:%S")
         if is_within_12_days(file_path=START_DATE_FILE_PATH, ext_RTC_date=datetime_RTC_date):
             return formatted_RTC_date
         else:
@@ -124,7 +126,7 @@ def check_times():
         f"Time from external RTC (DS3231) is: {convert_RTC_format_to_timedatectl_format()}")
 
     print(
-        f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command(['sudo', 'hwclock', '--rtc', '/dev/rtc1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)', raise_exception=False)}")   
+        f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command(['sudo', 'hwclock', '--rtc', '/dev/rtc1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)', raise_exception=False)}")
 
 
 def set_time_external():
@@ -133,7 +135,7 @@ def set_time_external():
                convert_RTC_format_to_timedatectl_format()]
     run_command(command, "Failed to set time from external RTC",
                 success_message, raise_exception=True)
-	
+
 
 def set_time_internal():
     success_message = f"The system time was set from the internal RTC"
