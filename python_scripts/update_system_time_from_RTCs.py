@@ -49,18 +49,18 @@ def reboot_sequence(max_retries, intervals):
         reboot(interval, max_retries)
 
 
-def read_RTC_data(bus=BUS):
+def read_RTC_date(bus=BUS):
     return BUS.read_i2c_block_data(RTC_ADDRESS, 0, 8)
 
-def hex_RTC_data():
-    return [hex(x) for x in read_RTC_data()]
+def hex_RTC_date():
+    return [hex(x) for x in read_RTC_date()]
 
 
-def dec_RTC_data(hex_data):
-    return [int(x.replace("0x", "")) for x in hex_data]
+def dec_RTC_date(hex_date):
+    return [int(x.replace("0x", "")) for x in hex_date]
 
 
-def is_within_12_days(file_path=START_DATE_FILE_PATH, ext_RTC_date=None):
+def is_within_12_days(*args, **kwargs, file_path=START_DATE_FILE_PATH, ext_RTC_date=None):
     if os.path.exists(file_path):
         with open(file_path, "r") as file:
             start_date_str = file.read().strip()
@@ -93,11 +93,11 @@ def is_within_12_days(file_path=START_DATE_FILE_PATH, ext_RTC_date=None):
 
 def convert_RTC_format_to_timedatectl_format():
     try:
-        RTC_data = dec_RTC_data(hex_RTC_data())
-        if is_within_12_days(file_path=START_DATE_FILE_PATH, ext_RTC_data=RTC_data):
-            return f"20{RTC_data[6]:02}-{RTC_data[5]:02}-{RTC_data[4]:02} {RTC_data[2]:02}:{RTC_data[1]:02}:{RTC_data[0]:02}"
+        RTC_date = dec_RTC_date(hex_RTC_date())
+        if is_within_12_days(file_path=START_DATE_FILE_PATH, ext_RTC_date=RTC_date):
+            return f"20{RTC_date[6]:02}-{RTC_date[5]:02}-{RTC_date[4]:02} {RTC_date[2]:02}:{RTC_date[1]:02}:{RTC_date[0]:02}"
         else:
-            return f"The date from the external RTC, 20{RTC_data[6]:02}-{RTC_data[5]:02}-{RTC_data[4]:02} {RTC_data[2]:02}:{RTC_data[1]:02}:{RTC_data[0]:02}, was too far from the start date"
+            return f"The date from the external RTC, 20{RTC_date[6]:02}-{RTC_date[5]:02}-{RTC_date[4]:02} {RTC_date[2]:02}:{RTC_date[1]:02}:{RTC_date[0]:02}, was too far from the start date"
     except Exception as e:
         return str(e)
 
