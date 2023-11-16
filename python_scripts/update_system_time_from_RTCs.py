@@ -51,30 +51,31 @@ def dec_RTC_data(hex_data):
     return [int(x.replace("0x", "")) for x in hex_data]
 	
 def is_within_12_days(file_path=START_DATE_FILE_PATH, ext_RTC_date=None):
-    if os.path.exists(file_path):
-        with open(file_path, "r") as file:
-            start_date_str = file.read().strip()
-
-    	print(start_date_str)
-
-        start_date = dt.strptime(start_date_str, "%Y-%m-%d %H:%M:%S")
-
-	print(start_date)
-
-        if ext_RTC_date:
-            delta = abs(ext_RTC_date - start_date)
-            if delta.days <= 12:
-                print("The date from the external RTC was within 12 days of the start date, proceeding to attempt to set the time")
-                return True
-            else:
-                stderr_print("The date from the external RTC was more than 12 days away from the start date")
-                return False
-        else:
-            stderr_print("No external RTC date provided for comparison to the start date")
-            return None
-    else:
-        stderr_print(f"Start date file '{file_path}' not found")
-        return None
+	if os.path.exists(file_path):
+		with open(file_path, "r") as file:
+			start_date_str = file.read().strip()
+		
+		print(start_date_str)
+	
+		start_date = dt.strptime(start_date_str, "%Y-%m-%d %H:%M:%S")
+	    
+		print(start_date)
+	
+		if ext_RTC_date:
+		    	delta = abs(ext_RTC_date - start_date)
+		
+		    if delta.days <= 12:
+			    print("The date from the external RTC was within 12 days of the start date, proceeding to attempt to set the time")
+			    return True
+		    else:
+			    stderr_print("The date from the external RTC was more than 12 days away from the start date")
+			    return False
+		else:
+			stderr_print("No external RTC date provided for comparison to the start date")
+			return None
+	else:
+		stderr_print(f"Start date file '{file_path}' not found")
+		return None
 
 def convert_RTC_format_to_timedatectl_format():
 	try:
