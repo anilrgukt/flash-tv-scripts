@@ -56,7 +56,7 @@ sed -i "s/YYYY/$plugID/g" ~/flash-tv-scripts/install_scripts/configuration.yaml
 bash -x ~/flash-tv-scripts/setup_scripts/ID_setup.sh $deviceID $familyID 1
 sleep 1;
 
-bash -x ~/flash-tv-scripts/setup_scripts/USB_backup_setup.sh
+bash -x ~/flash-tv-scripts/setup_scripts/USB_backup_setup.sh $skip_checking
 sleep 1;
 
 bash -x ~/flash-tv-scripts/setup_scripts/service_setup.sh
