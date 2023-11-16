@@ -73,8 +73,6 @@ def is_within_12_days(*args, file_path=START_DATE_FILE_PATH, ext_RTC_date=None, 
             delta = abs(ext_RTC_date - start_date)
 
             if delta.days <= 12:
-                print(
-                    "The date from the external RTC was within 12 days of the start date, proceeding to attempt to set the time")
                 return True
             else:
                 stderr_print(
