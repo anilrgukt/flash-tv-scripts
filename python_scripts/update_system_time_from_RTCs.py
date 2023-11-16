@@ -15,7 +15,7 @@ START_DATE_FILE_PATH = str(sys.argv[1])
 BUS = SMBus(I2C_BUS_NUMBER)
 
 
-def err_print(*args, **kwargs):
+def stderr_print(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
 
@@ -25,13 +25,13 @@ def retry_operation(operation, max_retries, sleep_interval, error_message, *args
             operation(*args, **kwargs)
             return True
         except Exception as e:
-            err_print(
+            stderr_print(
                 f"{error_message} (attempt {attempt}/{max_retries}): {str(e)}")
             if attempt < max_retries:
                 time.sleep(sleep_interval)
                 continue
             else:
-                err_print(
+                stderr_print(
                     "Maximum retries reached. Proceeding with the next step.")
                 return False
 
@@ -109,7 +109,7 @@ def run_command(command, error_message, success_message=None, raise_exception=Tr
             print(success_message)
         return result.strip().decode('utf-8')
     except Exception as e:
-        err_print(f"{error_message}: {str(e)}")
+        stderr_print(f"{error_message}: {str(e)}")
         if raise_exception:
             raise e
         return None
