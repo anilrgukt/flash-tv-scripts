@@ -74,8 +74,6 @@ do
 	 	fi
 
  		source "/home/${usrName}/.bashrc"
-
-   		export BORG_REPO=${backup_usb_path}/USB_Backup_Data_flashsysXXX
 	
 		borg create --exclude "/home/${usrName}/data/*.zip" --exclude "/home/${usrName}/data/*/*face*" ::${famId}-FLASH-HA-Data-Backup-${dt} ${BACKUP_DIRS}
 		
