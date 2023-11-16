@@ -72,10 +72,8 @@ do
       			echo "Backup USB not Found in lsblk at Time: ${dt}"
 			
 	 	fi
-	
-		export BORG_REPO=${backup_usb_path}/USB_Backup_Data_flashsysXXX
-		
-		export BORG_PASSPHRASE=$(head -n 1 /home/${usrName}/flash-tv-scripts/setup_scripts/borg-passphrase-${usrName}.txt)
+
+ 		source "/home/${usrName}/.bashrc"
 	
 		borg create --exclude "/home/${usrName}/data/*.zip" --exclude "/home/${usrName}/data/*/*face*" ::${famId}-FLASH-HA-Data-Backup-${dt} ${BACKUP_DIRS}
 		
