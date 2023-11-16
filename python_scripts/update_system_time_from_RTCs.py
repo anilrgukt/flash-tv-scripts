@@ -68,8 +68,6 @@ def is_within_12_days(*args, file_path=START_DATE_FILE_PATH, ext_RTC_date=None, 
 
         start_date = dt.strptime(start_date_str, "%Y-%m-%d %H:%M:%S")
 
-        print(start_date)
-
         if ext_RTC_date:
             delta = abs(ext_RTC_date - start_date)
 
