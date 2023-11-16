@@ -95,7 +95,7 @@ def convert_RTC_format_to_timedatectl_format():
         if is_within_12_days(file_path=START_DATE_FILE_PATH, ext_RTC_date=datetime_RTC_date):
             return formatted_RTC_date
         else:
-            return f"The date from the external RTC, 20{RTC_date[6]:02}-{RTC_date[5]:02}-{RTC_date[4]:02} {RTC_date[2]:02}:{RTC_date[1]:02}:{RTC_date[0]:02}, was too far from the start date"
+            return f"The date from the external RTC, 20{RTC_date[6]:02}-{RTC_date[5]:02}-{RTC_date[4]:02} {RTC_date[2]:02}:{RTC_date[1]:02}:{RTC_date[0]:02}, was incomparable or incorrect"
     except Exception as e:
         return str(e)
 
