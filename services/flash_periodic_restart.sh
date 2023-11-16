@@ -78,6 +78,8 @@ do
 		borg create --exclude "/home/${usrName}/data/*.zip" --exclude "/home/${usrName}/data/*/*face*" ::${famId}-FLASH-HA-Data-Backup-${dt} ${BACKUP_DIRS}
 		
 		echo "USB Backup without Face Folders Created at Time: ${dt}"
+
+  		source /home/$usrName/py38/bin/activate
 			
 	else
 		
