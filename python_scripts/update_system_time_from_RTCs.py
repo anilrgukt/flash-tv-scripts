@@ -60,7 +60,7 @@ def dec_RTC_date(hex_date):
     return [int(x.replace("0x", "")) for x in hex_date]
 
 
-def is_within_12_days(*args, **kwargs, file_path=START_DATE_FILE_PATH, ext_RTC_date=None):
+def is_within_12_days(*args, file_path=START_DATE_FILE_PATH, ext_RTC_date=None, **kwargs):
     if os.path.exists(file_path):
         with open(file_path, "r") as file:
             start_date_str = file.read().strip()
