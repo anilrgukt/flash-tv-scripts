@@ -25,6 +25,7 @@ def get_current_time_bcd():
         get_bcd(now.day),
         get_bcd(now.month),
         get_bcd(now.year % 100)  # Get last two digits of the year
+        get_bcd(0) # Set extra alarm bit to 0 to remove the default value of 255
     ]
 
 def set_external_rtc_time():
