@@ -24,7 +24,7 @@ def get_current_time_bcd():
         get_bcd(now.weekday() + 1),  # Adjust weekday to RTC format (1-7)
         get_bcd(now.day),
         get_bcd(now.month),
-        get_bcd(now.year % 100)  # Get last two digits of the year
+        get_bcd(now.year % 100),  # Get last two digits of the year
         get_bcd(0) # Set extra alarm bit to 0 to remove the default value of 255
     ]
 
