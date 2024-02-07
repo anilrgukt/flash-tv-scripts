@@ -58,7 +58,9 @@ pip install --upgrade \
 	packaging \
 	lazy_loader \
 	imageio \
-	scikit-image
+	scikit-image \
+ 	opencv-python \
+  	tqdm
 
 # install mxnet - use the below version
 
