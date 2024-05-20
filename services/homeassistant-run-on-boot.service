@@ -1,6 +1,7 @@
 [Unit]
 Description=Home Assistant
 StartLimitIntervalSec=0
+After=flash-run-on-boot.service
 
 [Service]
 Type=simple
