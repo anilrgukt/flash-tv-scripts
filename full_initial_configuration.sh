@@ -4,11 +4,9 @@
 set -e
 
 # Run all setup files
-bash -x ~/flash-tv-scripts/setup_scripts/id_setup.sh
+bash -x ~/flash-tv-scripts/setup_scripts/ID_setup.sh
 bash -x ~/flash-tv-scripts/setup_scripts/file_setup.sh
 bash -x ~/flash-tv-scripts/setup_scripts/service_setup.sh
 bash -x ~/flash-tv-scripts/install_scripts/full_install.sh
-
-# Set up RTC again just in case
-sudo sed -i 's/ATTR{hctosys}=="1"/ATTR{hctosys}=="0"/g' /lib/udev/rules.d/50-udev-default.rules 
-sudo hwclock -w
+bash -x ~/flash-tv-scripts/setup_scripts/USB_backup_setup.sh
+bash -x ~/flash-tv-scripts/setup_scripts/RTC_setup.sh

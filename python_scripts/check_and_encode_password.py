@@ -30,7 +30,7 @@ try:
 		print(key.decode())
 
 except Exception:
-	print(traceback.format_exc())
+	print(traceback.format_exc(), file=sys.stderr)
 	sys.exit(1)
 
 
