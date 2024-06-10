@@ -37,6 +37,7 @@ dt_for_index=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
 echo "flash_periodic_restart.sh was just restarted around ${dt_for_index}, implying that the current reboot index is: ${new_index}" >> "$reboot_index_path"
 
 loop=1
+
 while true;
 do
 	sleep 21600;
