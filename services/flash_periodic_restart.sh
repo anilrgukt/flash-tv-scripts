@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export famId=P1-3344008
-export usrName=flashsys008
+export famId=123XXX
+export usrName=flashsysXXX
 export BACKUP_DIRS="/home/${usrName}/data /home/${usrName}/.homeassistant"
 
 #logFolderPath=/home/$usrName/data/${famId}_data
