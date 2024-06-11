@@ -25,7 +25,7 @@ Please download the files from this Google Drive [link](https://drive.google.com
   ```
   source /home/$usrName/py38/bin/activate
   cd /home/$usrName/flash-tv-scripts/python_scripts
-  python test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId $savePath save-image $usrName
+  python run_flash_data_collection.py $famId $savePath save-image $usrName
   ```
   
   - `famId` is a 3 digit unique ID for the specific data e.g. 123
