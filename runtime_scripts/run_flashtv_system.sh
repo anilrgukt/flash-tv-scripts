@@ -53,7 +53,7 @@ echo "Everything is a success"
 
 while true;
 do
-	python run_flash_data_collection.py $famId $savePath save-image;
+	python run_flash_data_collection.py $famId $savePath save-image $usrName;
 	sleep 12;
 done
 	

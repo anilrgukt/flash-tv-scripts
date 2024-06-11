@@ -24,7 +24,7 @@ then
 	free -m && sync && echo 1 > /proc/sys/vm/drop_caches && free -m;
 
  	sleep 1;
-	python /home/$usrName/flash-tv-scripts/python_scripts/run_flash_data_collection.py $famId /home/$usrName/data/${famId}_data no-save-image;
+	python /home/$usrName/flash-tv-scripts/python_scripts/run_flash_data_collection.py $famId /home/$usrName/data/${famId}_data no-save-image $usrName;
 	sleep 30;
 else
 	sleep 30;

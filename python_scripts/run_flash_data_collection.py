@@ -90,13 +90,11 @@ def frame_write(q, frm_count):
     cv2.destroyAllWindows()
         
 # super variables 
-#write_image_data = True
-#rotate_to_find_tc = True
-#famid = 123
-
 famid = sys.argv[1]
 save_path = str(sys.argv[2])
 write_image_data = True if sys.argv[3]=='save-image' else False
+username = str(sys.argv[4])
+
 rotate_to_find_tc = True
 
 frames_path = os.path.join(save_path, str(famid)+'_frames')
@@ -112,7 +110,7 @@ log_path_reg = os.path.join(save_path, str(famid) + '_flash_log_'+tmp_fname+'_re
 log_path_rot = os.path.join(save_path, str(famid) + '_flash_log_'+tmp_fname+'_rot.txt') 
 
 num_identities = 4
-flash_tv = FLASHtv(family_id=str(famid), num_identities=num_identities, data_path=save_path, frame_res_hw=None, output_res_hw=None)
+flash_tv = FLASHtv(username, family_id=str(famid), num_identities=num_identities, data_path=save_path, frame_res_hw=None, output_res_hw=None)
 rot_frame = rotate_frame()
 
 frame_counter = 1
