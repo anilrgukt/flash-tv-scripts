@@ -13,15 +13,15 @@ else
   
 fi
 
-facefolder=`ls ~/data/123XXX_data/ | grep faces`
+facefolder=`ls ~/data/P1-3344008_data/ | grep faces`
 
-cd ~/data/123XXX_data/
+cd ~/data/P1-3344008_data/
 
 mv -v "$facefolder" "${facefolder/$olddeviceID/$newdeviceID}"
 
-faceimages=`ls ~/data/123XXX_data/123XXX_faces/`
+faceimages=`ls ~/data/P1-3344008_data/P1-3344008_faces/`
 
-cd ~/data/123XXX_data/123XXX_faces/
+cd ~/data/P1-3344008_data/P1-3344008_faces/
 
 for faceimage in $faceimages
 do

@@ -94,14 +94,13 @@ def frame_write(q, frm_count):
 #rotate_to_find_tc = True
 #famid = 123
 
-famid = int(sys.argv[1])
+famid = sys.argv[1]
 save_path = str(sys.argv[2])
 write_image_data = True if sys.argv[3]=='save-image' else False
 rotate_to_find_tc = True
 
-save_path = '/home/'+os.getlogin()+'/dmdm2023/data'
 frames_path = os.path.join(save_path, str(famid)+'_frames')
-frames_save_path = os.path.join(save_path, str(famid)+'_test_res') # '/media/FLASH_SSD/525_test_res/'
+frames_save_path = os.path.join(save_path, str(famid)+'_test_res')
 frames_path, frames_save_path = make_directories(save_path, famid, frames_path, frames_save_path)
 
 

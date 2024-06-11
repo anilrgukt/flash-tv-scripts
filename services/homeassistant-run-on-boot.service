@@ -5,11 +5,11 @@ After=flash-run-on-boot.service
 
 [Service]
 Type=simple
-User=flashsysXXX
-WorkingDirectory=/home/flashsysXXX/.homeassistant
-ExecStart=/home/flashsysXXX/ha/bin/hass -c "/home/flashsysXXX/.homeassistant"
-StandardOutput=append:/home/flashsysXXX/data/123XXX_data/123XXX_ha_logstdout.log
-StandardError=append:/home/flashsysXXX/data/123XXX_data/123XXX_ha_logstderr.log
+User=flashsys008
+WorkingDirectory=/home/flashsys008/.homeassistant
+ExecStart=/home/flashsys008/ha/bin/hass -c "/home/flashsys008/.homeassistant"
+StandardOutput=append:/home/flashsys008/data/P1-3344008_data/P1-3344008_ha_logstdout.log
+StandardError=append:/home/flashsys008/data/P1-3344008_data/P1-3344008_ha_logstderr.log
 Restart=on-failure
 RestartSec=5
 
