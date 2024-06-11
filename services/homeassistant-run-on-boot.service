@@ -9,7 +9,7 @@ User=flashsysXXX
 WorkingDirectory=/home/flashsysXXX/.homeassistant
 ExecStart=/home/flashsysXXX/ha/bin/hass -c "/home/flashsysXXX/.homeassistant"
 StandardOutput=append:/home/flashsysXXX/data/123XXX_data/123XXX_ha_logstdout.log
-StandardError=append:/home/flashsyXXX/data/123XXX_data/123XXX_ha_logstderr.log
+StandardError=append:/home/flashsysXXX/data/123XXX_data/123XXX_ha_logstderr.log
 Restart=on-failure
 RestartSec=5
 
