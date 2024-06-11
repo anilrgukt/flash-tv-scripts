@@ -1,0 +1,4 @@
+ckpt1_r50: '/home/flashsys008/gaze_models/model_v3_best_Gaze360ETHXrtGene_r50.pth.tar'
+ckpt2_r50reg: '/home/flashsys008/gaze_models/model_v3_best_Gaze360ETHXrtGene_r50reg.pth.tar'
+model_path: '/home/flashsys008/Desktop/FLASH_TV_v3/AdaFace/pretrained/adaface_ir101_webface12m.ckpt'
+det_path_loc: '/home/flashsys008/insightface/detection/RetinaFace'

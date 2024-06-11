@@ -19,12 +19,12 @@ python3 /home/$usrName/flash-tv-scripts/python_scripts/update_system_time_from_R
 # runs a while loop for the FLASH-TV algorithm only if it doesn't already exist
 while true;
 do	
-if ! [ "`pgrep -af test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py`" ]
+if ! [ "`pgrep -af run_flash_data_collection.py`" ]
 then
 	free -m && sync && echo 1 > /proc/sys/vm/drop_caches && free -m;
 
  	sleep 1;
-	python /home/$usrName/flash-tv-scripts/python_scripts/test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py $famId /home/$usrName/data/${famId}_data no-save-image $usrName;
+	python /home/$usrName/flash-tv-scripts/python_scripts/run_flash_data_collection.py $famId /home/$usrName/data/${famId}_data no-save-image;
 	sleep 30;
 else
 	sleep 30;
