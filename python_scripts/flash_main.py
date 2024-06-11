@@ -17,14 +17,12 @@ from utils.visualizer import draw_rect_det, draw_rect_ver, draw_gz
 
 class FLASHtv():
     def __init__(self, username, family_id, num_identities, data_path, frame_res_hw, output_res_hw):
-        with open('/home/'+username+'/flash-tv-scripts/python_scripts/path_locations.yaml') as stream:
-            var = yaml.safe_load(stream)
 
-        ckpt1_r50 = var['ckpt1_r50'] #'/home/'+os.getlogin()+'/gaze_models/model_v3_best_Gaze360ETHXrtGene_r50.pth.tar'
-        ckpt2_r50reg = var['ckpt2_r50reg'] #'/home/'+os.getlogin()+'/gaze_models/model_v3_best_Gaze360ETHXrtGene_r50reg.pth.tar'
+        ckpt1_r50 = '/home/'+username+'/gaze_models/model_v3_best_Gaze360ETHXrtGene_r50.pth.tar'
+        ckpt2_r50reg = '/home/'+username+'/gaze_models/model_v3_best_Gaze360ETHXrtGene_r50reg.pth.tar'
 
-        model_path = var['model_path'] #"/home/"+os.getlogin()+"/Desktop/FLASH_TV_v3/AdaFace/pretrained/adaface_ir101_webface12m.ckpt"
-        det_path_loc = var['det_path_loc'] #'/home/'+os.getlogin()+'/insightface/detection/RetinaFace'
+        model_path = "/home/"+username+"/Desktop/FLASH_TV_v3/AdaFace/pretrained/adaface_ir101_webface12m.ckpt"
+        det_path_loc = '/home/'+username+'/insightface/detection/RetinaFace'
 
 
 
