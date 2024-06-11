@@ -5,8 +5,8 @@ After=flash-run-on-boot.service
 
 [Service]
 ExecStart=/bin/bash /home/flashsysXXX/flash-tv-scripts/services/flash_periodic_restart.sh
-StandardOutput=append:/home/flashsysXXX/data/P1-3344008_data/P1-3344008_flash_logstdoutp.log
-StandardError=append:/home/flashsysXXX/data/P1-3344008_data/P1-3344008_flash_logstderrp.log
+StandardOutput=append:/home/flashsysXXX/data/123XXX_data/123XXX_flash_logstdoutp.log
+StandardError=append:/home/flashsysXXX/data/123XXX_data/123XXX_flash_logstderrp.log
 Restart=always
 RestartSec=5
 
