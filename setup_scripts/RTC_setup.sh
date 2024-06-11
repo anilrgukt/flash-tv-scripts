@@ -1,7 +1,7 @@
 #!/bin/bash
 
-export username=flashsys008
-export famId=P1-3344008
+export username=flashsysXXX
+export famId=123XXX
 
 # Set up rtc0 (PSEQ_RTC) as the main interal RTC instead of rtc1 (tegra-RTC)
 sudo sed -i 's/ATTR{hctosys}=="1"/ATTR{hctosys}=="0"/g' /lib/udev/rules.d/50-udev-default.rules
