@@ -46,6 +46,9 @@ fi
 mkdir ~/data
 mkdir ~/data/${familyID}${deviceID}_data
 
+# Copy git config into data folder
+cp ~/flash-tv-scripts/.git/config ~/data/${familyID}${deviceID}_data/git_config.txt
+
 # Replace device and family ID placeholders with input
 sed -i "s/XXX/${deviceID}/g" ~/flash-tv-scripts/services/flash-periodic-restart.service
 sed -i "s/123/${familyID}/g" ~/flash-tv-scripts/services/flash-periodic-restart.service
