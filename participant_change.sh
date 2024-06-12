@@ -26,7 +26,7 @@ if [ "$#" -ne 3 ]; then
 		
 		deviceID=$(zenity --entry --width 500 --height 100 --text="Enter FLASH device ID (3 digits):")
 		
-		familyID=$(zenity --entry --width 500 --height 100 --text="Enter family ID (3 digits for Study 4, P1-1[3 digits no brackets] for TECH):")
+		familyID=$(zenity --entry --width 500 --height 100 --text="Enter family ID (P1-1XXX for TECH):")
  	fi
    
 else
@@ -51,6 +51,7 @@ fi
 # Set to exit on non-zero error code
 set -e
 
+# Update the configuration.yaml with the plug ID
 sed -i "s/YYYY/$plugID/g" ~/flash-tv-scripts/install_scripts/configuration.yaml
 
 bash -x ~/flash-tv-scripts/setup_scripts/ID_setup.sh $deviceID $familyID 1
@@ -65,6 +66,9 @@ sleep 1;
 bash -x ~/flash-tv-scripts/setup_scripts/RTC_setup.sh
 sleep 1;
 
+# Copy modified configuration.yaml with plug ID to Home Assistant folder after updating the family and device IDs as well
 cp ~/flash-tv-scripts/install_scripts/configuration.yaml ~/.homeassistant
 
+# Copy git config into data folder
+cp ~/flash-tv-scripts/.git/config ~/data/${familyID}${deviceID}_data/git_config.txt
 
