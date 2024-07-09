@@ -21,7 +21,7 @@ then​
 	echo "Info: IP was possibly already assigned in this reboot cycle as the 'RTNETLINK answers: File exists' message was detected.";​
 fi
 
-# runs a while loop for the FLASH-TV algorithm only if it doesn't already exist
+# runs a while loop for the FLASH-TV algorithm only if it doesnt already exist
 while true;
 do	
 if ! [ "`pgrep -af run_flash_data_collection.py`" ]
