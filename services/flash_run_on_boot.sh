@@ -19,6 +19,7 @@ suffix="${usrName: -2}" ​
 if [ ! $(sudo ip addr add 10.0.0.${suffix}/24 dev eth0 | grep "RTNETLINK answers: File exists") ]​
 then​
 	echo "Info: IP was possibly already assigned in this reboot cycle as the 'RTNETLINK answers: File exists' message was detected.";​
+fi
 
 # runs a while loop for the FLASH-TV algorithm only if it doesn't already exist
 while true;
