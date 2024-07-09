@@ -16,6 +16,7 @@ scene: !include scenes.yaml
 shell_command:
   bluetoothctl_off: bluetoothctl power off
   bluetoothctl_on: bluetoothctl power on
+  bluetoothctl_scan: bluetoothctl scan on
 
 notify:
   - platform: file
@@ -64,5 +65,11 @@ automation:
       milliseconds: 0
   - service: shell_command.bluetoothctl_on
     data: {}
+  - delay:
+      hours: 0
+      minutes: 0
+      seconds: 5
+      milliseconds: 0
+  - service: shell_command.bluetoothctl_scan
+    data: {}
   mode: single
-
