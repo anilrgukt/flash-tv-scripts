@@ -91,6 +91,7 @@ def frame_write(q, frm_count):
         
 # super variables 
 famid = sys.argv[1]
+famid = famid.replace("P1-", "")
 save_path = str(sys.argv[2])
 write_image_data = True if sys.argv[3]=='save-image' else False
 username = str(sys.argv[4])
