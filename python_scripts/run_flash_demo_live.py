@@ -5,10 +5,10 @@ import time
 import cv2
 import numpy as np 
 
-from face_detection import FlashFaceDetector
-from face_verification import FLASHFaceVerification
-from gaze_estimation import FLASHGazeEstimator, load_limits, get_lims, eval_thrshld
-from face_processing import FaceModelv4 as FaceProcessing
+from flash.face_detection import FlashFaceDetector
+from flash.face_verification import FLASHFaceVerification
+from flash.gaze_estimation import FLASHGazeEstimator, load_limits, get_lims, eval_thrshld
+from flash.face_processing import FaceModelv4 as FaceProcessing
 from utils.bbox_utils import Bbox
 from utils.visualizer import draw_rect_det, draw_rect_ver, draw_gz, ts2num, num2ts, get_xticks
 
@@ -33,12 +33,12 @@ if plot_data:
     plt.ylim([0,1])
 
 
-data_path = '/home/flashsys008/dmdm2023/data'
-frame_path = '/home/flashsys008/dmdm2023/data/frames'
-det_res_path = '/home/flashsys008/dmdm2023/data/detres'
-det_bbx_path = '/home/flashsys008/dmdm2023/data/detres_bbx'
-fv_res_path = '/home/flashsys008/dmdm2023/data/fvres'
-gz_res_path = '/home/flashsys008/dmdm2023/data/gzres'
+data_path = '/home/flashsys007/dmdm2024/data'
+frame_path = '/home/flashsys007/dmdm2024/data/frames'
+det_res_path = '/home/flashsys007/dmdm2024/data/detres'
+det_bbx_path = '/home/flashsys007/dmdm2024/data/detres_bbx'
+fv_res_path = '/home/flashsys007/dmdm2024/data/fvres'
+gz_res_path = '/home/flashsys007/dmdm2024/data/gzres'
 
 
 vis = True
@@ -50,16 +50,24 @@ skip_detector = False
 frame_ls = os.listdir(frame_path)
 frame_ls.sort()
 
-fd = FlashFaceDetector() #detector_hw=[480,860]) #detector_hw=[720,1280]) #detector_hw=[480,860])
-fv = FLASHFaceVerification() #verification_threshold=0.516)
-gz = FLASHGazeEstimator()
+username = 'flashsys007'
+ckpt1_r50 = '/home/'+username+'/gaze_models/model_v3_best_Gaze360ETHXrtGene_r50.pth.tar'
+ckpt2_r50reg = '/home/'+username+'/gaze_models/model_v3_best_Gaze360ETHXrtGene_r50reg.pth.tar'
+
+model_path = "/home/"+username+"/Desktop/FLASH_TV_v3/AdaFace/pretrained/adaface_ir101_webface12m.ckpt"
+det_path_loc = '/home/'+username+'/insightface/detection/RetinaFace'
+
+fd = FlashFaceDetector(det_path_loc) #detector_hw=[480,860]) #detector_hw=[720,1280]) #detector_hw=[480,860])
+fv = FLASHFaceVerification(model_path, num_identities=4) #verification_threshold=0.516)
+gz = FLASHGazeEstimator(ckpt1_r50, ckpt2_r50reg)
 
 face_processing = FaceProcessing(frame_resolution=[1080,1920], detector_resolution=[342,608],
                                  face_size=112, face_crop_offset=16, small_face_padding=7, small_face_size=65)
 gt_embedding = fv.get_gt_emb(fam_id='123',path=data_path,face_proc=face_processing)
 
 gaze_face_processing = FaceProcessing(frame_resolution=[1080,1920], detector_resolution=[342,608], 
-                                    face_size=160, face_crop_offset=45, small_face_padding=3, small_face_size=65)                                 
+                                    face_size=160, face_crop_offset=45, small_face_padding=3, small_face_size=65)            
+                                                         
 loc_lims = load_limits(file_path='./4331_v3r50reg_reg_testlims_35_53_7_9.npy', setting='center-big-med')
 num_locs = loc_lims.shape[0]
 
@@ -156,7 +164,7 @@ while True:
     #print(det_emb.shape, gt_embedding.shape)
     
     
-    pred_ids, _, _ = fv.convert_embedding_faceid(ref_features=gt_embedding, test_features=det_emb, gal_update=[False,False,False], mean=0)
+    pred_ids, _ = fv.convert_embedding_faceid(ref_features=gt_embedding, test_features=det_emb, mean=0)
     
     for i in range(len(bls)):
         bls[i]['idx'] = pred_ids[i]
@@ -168,8 +176,9 @@ while True:
             bbx_ = Bbox(bbx)
             face, bbx_ = gaze_face_processing.crop_face_from_frame(img_cv1080, bbx_)
             face, lmarks = gaze_face_processing.resize_face(face, bbx_)
-            face_rot, angle = gaze_face_processing.rotate_face(face, lmarks, angle=None)
+            face_rot, angle, lmarks = gaze_face_processing.rotate_face(face, lmarks, angle=None)
             bbx['angle'] = angle
+            bbx['new_lmrks'] = lmarks
             
             #tc_faces.append(face_rot)
             tc_face = face_rot
@@ -247,6 +256,3 @@ while True:
 stream.stop()
 cv2.destroyAllWindows()
 plt.show()
-
-
-
