@@ -6,7 +6,7 @@ sudo add-apt-repository -y ppa:deadsnakes/ppa
 sudo apt-get update
 
 #install homeassistant dependencies
-sudo apt-get install -y python3.12 python3.12-dev python3.12-venv python3-pip bluez libffi-dev libssl-dev libjpeg-dev zlib1g-dev autoconf build-essential libopenjp2-7 libtiff5 libturbojpeg0-dev tzdata ffmpeg liblapack3 liblapack-dev libatlas-base-dev
+sudo apt-get install -y python3.12 python3.12-dev python3.12-venv python3-pip bluez libffi-dev libssl-dev libjpeg-dev zlib1g-dev autoconf build-essential libopenjp2-7 libtiff6 libturbojpeg0-dev tzdata ffmpeg liblapack3 liblapack-dev libatlas-base-dev
 
 #set up homeassistant folder
 cd /home/$USER
