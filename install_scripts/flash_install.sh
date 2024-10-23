@@ -2,7 +2,7 @@
 
 #### General dependencies
 
-sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0 nano yaml
+sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0 nano
 
 #### USB backup dependencies
 
