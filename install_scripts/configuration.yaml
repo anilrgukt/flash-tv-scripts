@@ -44,7 +44,7 @@ automation:
   action:
   - service: notify.filenotify
     data_template:
-      message: '{{states(''sensor.plug_mini_YYYY_power'')}};{{now().strftime(''%m.%d.%Y'')}};
+      message: '{{states(''sensor.third_reality_inc_3rsp02028bz_powerYYYY'')}};{{now().strftime(''%m.%d.%Y'')}};
         {{now().strftime(''%H.%M.%S'')}}'
   mode: single
   
