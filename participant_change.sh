@@ -1,7 +1,12 @@
 #!/bin/bash
 # MUST DELETE AND RECLONE the flash-tv-scripts folder BEFORE RUNNING THIS OR IT WILL NOT WORK PROPERLY
 
-if [ ! -d ~/.homeassistant ]; then
+# if [ ! -d ~/.homeassistant ]; then
+# 	zenity --warning --text="Exiting the code since Home Assistant has not been set up.\n\nPlease set up Home Assistant before running this script." --width 500 --height 100
+# 	exit 1
+# fi
+
+if [ ! -d ~/docker-compose/ha-config ]; then
 	zenity --warning --text="Exiting the code since Home Assistant has not been set up.\n\nPlease set up Home Assistant before running this script." --width 500 --height 100
 	exit 1
 fi
@@ -22,7 +27,7 @@ if [ "$#" -ne 3 ]; then
 		echo "Command Line Usage: $0 (plugID) (deviceID) (familyID)"
 		
 		# Setting up plug ID for Home Assistant config file
-		plugID=$(zenity --entry --width 500 --height 100 --text="Enter plug ID (4 characters lowercase) or YYYY (uppercase) if the plug is not ready:")
+		plugID=$(zenity --entry --width 500 --height 100 --text="Enter Zigbee plug ID index from Home Assistant or YYYY (uppercase) if the plug is not ready:")
 		
 		deviceID=$(zenity --entry --width 500 --height 100 --text="Enter FLASH device ID (3 digits):")
 		
@@ -67,7 +72,8 @@ bash -x ~/flash-tv-scripts/setup_scripts/RTC_setup.sh
 sleep 1;
 
 # Copy modified configuration.yaml with plug ID to Home Assistant folder after updating the family and device IDs as well
-cp ~/flash-tv-scripts/install_scripts/configuration.yaml ~/.homeassistant
+#cp ~/flash-tv-scripts/install_scripts/configuration.yaml ~/.homeassistant
+sudo cp /home/flashsys${deviceID}/flash-tv-scripts/install_scripts/configuration.yaml /home/flashsys${deviceID}/docker-compose/ha-config/configuration.yaml
 
 # Copy git config into data folder
 cp ~/flash-tv-scripts/.git/config ~/data/${familyID}${deviceID}_data/git_config.txt
