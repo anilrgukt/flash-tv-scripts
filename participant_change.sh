@@ -75,6 +75,9 @@ sleep 1;
 #cp ~/flash-tv-scripts/install_scripts/configuration.yaml ~/.homeassistant
 sudo cp /home/flashsys${deviceID}/flash-tv-scripts/install_scripts/configuration.yaml /home/flashsys${deviceID}/docker-compose/ha-config/configuration.yaml
 
+cd ~/docker-compose/ha-config
+docker compose up -d
+
 # Copy git config into data folder
 cp ~/flash-tv-scripts/.git/config ~/data/${familyID}${deviceID}_data/git_config.txt
 
