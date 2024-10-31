@@ -2,7 +2,7 @@
 
 export famId=123XXX
 export usrName=flashsysXXX
-export BACKUP_DIRS="/home/${usrName}/data /home/${usrName}/.homeassistant"
+export BACKUP_DIRS="/home/${usrName}/data /home/${usrName}/docker-compose/ha-config"
 
 #logFolderPath=/home/$usrName/data/${famId}_data
 logFolder=/home/$usrName/data/${famId}_data/logs
