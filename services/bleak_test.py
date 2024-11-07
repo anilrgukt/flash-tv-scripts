@@ -54,9 +54,11 @@ def device_found(device, advertisement_data):
 
 async def scan():
     scanner = BleakScanner(detection_callback=device_found)
-    await scanner.start()
-    await asyncio.sleep(1.0)  # Adjust this value to control the scan duration
-    await scanner.stop()
+    try:
+        while True:
+            await asyncio.sleep(1.0)  # Keep the scanner running indefinitely
+    except KeyboardInterrupt:
+        await scanner.stop()
 
 
 async def main():
