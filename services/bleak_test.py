@@ -1,6 +1,7 @@
 import asyncio
 from bleak import BleakScanner
 from construct import Struct, Byte, Array, ConstructError
+from datetime import datetime
 
 # Define the Eddystone format based on the provided data
 eddystone_format = Struct("frame_type" / Byte, "tx_power" / Byte, "namespace" / Array(6, Byte), "instance" / Array(6, Byte), "reserved" / Byte)
@@ -36,6 +37,7 @@ def device_found(device, advertisement_data):
         # Decode Eddystone data if available
         try:
             eddystone_data = advertisement_data.service_data["0000feaa-0000-1000-8000-00805f9b34fb"]
+            print(f"Time          : {datetime.now()}")
             print(f"Device Address: {device.address}")
             print(f"RSSI          : {advertisement_data.rssi} dBm")
             print(47 * "-")
@@ -52,19 +54,13 @@ def device_found(device, advertisement_data):
             pass
 
 
-async def scan():
+async def main():
     scanner = BleakScanner(detection_callback=device_found)
+    await scanner.start()
     try:
         while True:
-            await asyncio.sleep(1.0)  # Keep the scanner running indefinitely
+            await asyncio.sleep(1.0)
     except KeyboardInterrupt:
         await scanner.stop()
-
-
-async def main():
-    while True:
-        await scan()
-        await asyncio.sleep(0.1)  # Adjust this value to control the polling interval
-
 
 asyncio.run(main())
