@@ -55,7 +55,7 @@ def device_found(device, advertisement_data):
 
 
 async def main():
-    scanner = BleakScanner(detection_callback=device_found)
+    scanner = BleakScanner(detection_callback=device_found, scanning_mode="passive")
     await scanner.start()
     try:
         while True:
