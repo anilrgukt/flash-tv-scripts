@@ -134,7 +134,7 @@ class FLASHFaceVerification():
         
 
     def get_gt_emb(self, fam_id, path, face_proc):
-        person_ids = ['tc', 'sib', 'parent', 'poster']
+        person_ids = ['tc', 'sib', 'parent', 'extra']
         person_nums = ['1', '2', '3', '4', '5', '5']
         fnames = [fam_id + '_' + i for i in person_ids]
             
