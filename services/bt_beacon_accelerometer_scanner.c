@@ -1,7 +1,7 @@
 // Copyright (c) 2021 David G. Young
 // Copyright (c) 2015 Damian Kołakowski. All rights reserved.
 
-// cc scanner.c -lbluetooth -o scanner
+// cc bt_beacon_accelerometer_scanner.c -lbluetooth -o bt_beacon_accelerometer_scanner
 
 #include <stdio.h>
 #include <stdint.h>
