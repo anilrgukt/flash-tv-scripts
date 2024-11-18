@@ -15,7 +15,7 @@ mkdir -p $savePath/"${famId}_faces"
 
 if [ ! -d $savePath/"${famId}_face_crops" ]
 then
-	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The face crops directory indicated $savePath/${famId}_face_crops does not exist. \nPlease check data save path if the face crops directory is present. \nPlease restart with right data save path ";
+	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The indicated face_crops directory $savePath/${famId}_face_crops does not exist. \nPlease check if the face_crops directory is present.";
 	exit 
 fi
 
@@ -23,7 +23,7 @@ fi
 ntc=`ls $savePath/"${famId}_face_crops"/tc_selected/*.png | wc -l`
 min=5
 if [ $ntc -lt $min ]; then
-	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The Target child faces selected for gallery are less than $min. \nPlease check folder $savePath/${famId}_face_crops/tc_selected if it has 5 faces. \nPlease restart with right data save path "
+	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The number of target child faces selected for the gallery is less than $min. \nPlease check if the folder $savePath/${famId}_face_crops/tc_selected has less than $min faces."
 	exit
 fi
 
@@ -39,7 +39,7 @@ done
 nsib=`ls $savePath/"${famId}_face_crops"/sib_selected/*.png | wc -l`
 min=5
 if [ $nsib -lt $min ]; then
-	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The Sibling faces selected for gallery are less than $min. \nPlease check folder $savePath/${famId}_face_crops/sib_selected if it has 5 faces. \nPlease restart with right data save path "
+	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The number of sibling faces selected for the gallery is less than $min. \nPlease check if the folder $savePath/${famId}_face_crops/sib_selected has less than $min faces."
 	exit
 fi
 
@@ -57,7 +57,7 @@ done
 npar=`ls $savePath/"${famId}_face_crops"/par_selected/*.png | wc -l`
 min=5
 if [ $npar -lt $min ]; then
-	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The Parent faces selected for gallery are less than $min. \nPlease check folder $savePath/${famId}_face_crops/par_selected if it has 5 faces. \nPlease restart with right data save path "
+	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The number of parent faces selected for the gallery is less than $min. \nPlease check if the folder $savePath/${famId}_face_crops/par_selected has less than $min faces."
 	exit
 fi
 
@@ -70,11 +70,28 @@ do
 	cp $i $savePath/"${famId}_faces"/"${famId}_parent${n}.png"
 done
 
-# poster processing
+
+npar=`ls $savePath/"${famId}_face_crops"/extra_selected/*.png | wc -l`
+min=5
+if [ $npar -lt $min ]; then
+	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The extra faces selected for gallery is less than $min. \nPlease check if the folder $savePath/${famId}_face_crops/extra_selected has less than $min faces."
+	exit
+fi
+
+# extra processing
 n=0
-for i in ../poster_faces/*.png;
-do 
-	#echo $i;
-	n=$((n+1))
-	cp $i $savePath/"${famId}_faces"/"${famId}_poster${n}.png"
-done
+extra_images=($savePath/"${famId}_face_crops"/extra_selected/*.png)
+
+if [ -e "${extra_images[0]}" ]; then
+    for i in "${extra_images[@]}"; do
+        n=$((n+1))
+        cp "$i" "$savePath/${famId}_faces/${famId}_extra${n}.png"
+    done
+else
+    # poster processing
+    n=0
+    for i in ../poster_faces/*.png; do
+        n=$((n+1))
+        cp "$i" "$savePath/${famId}_faces/${famId}_extra${n}.png"
+    done
+fi
