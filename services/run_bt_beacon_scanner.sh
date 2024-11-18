@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Path to your compiled C program
-PROGRAM_PATH="~/flash-tv-scripts/services/scanner.c"
+PROGRAM_PATH=$1
 
 while true; do
   # Run the program
