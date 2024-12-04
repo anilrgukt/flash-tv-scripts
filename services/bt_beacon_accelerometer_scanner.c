@@ -21,7 +21,7 @@
 
 
 int device;
-const char target_mac[] = "DD:34:02:0A:45:3E"; // Replace with your target MAC address
+const char target_mac[] = "ZZZZ"; // Replace with your target MAC address
 
 struct hci_request ble_hci_request(uint16_t ocf, int clen, void * status, void * cparam)
 {
@@ -107,7 +107,7 @@ void process_data(const le_advertising_info *info) {
         int16_t z = (int16_t)((accelerometer_z_byte1 << 8) | (uint8_t)accelerometer_z_byte2);
         int16_t battery = (int16_t)((battery_byte_1 << 8) | (uint8_t)battery_byte_2);
 
-        write_to_csv("123XXX_beacon_data_output.csv", battery, x, y, z);
+        write_to_csv("/home/flashsysXXX/data/123XXX_data/123XXX_beacon_data_output.csv", battery, x, y, z);
     }
 }
 
