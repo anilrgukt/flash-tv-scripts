@@ -22,7 +22,7 @@ def draw_rect(img, dboxes, show, save_file=None):
     tmp_channel = np.copy(cv_img[:,:,0])
     cv_img[:,:,0] = cv_img[:,:,2]
     cv_img[:,:,2] = tmp_channel  
-    colors = {'TC':(0,255,0), 'Sib':(255,0,0), 'Par':(255,255,0)}
+    colors = {'TC':(0,255,0), 'Sib':(255,0,0), 'Par':(255,255,0), 'Extra':(255,255,255)}
     if show is not None:
     	color = colors[show]
     else:
@@ -205,7 +205,7 @@ frmsave_dir = os.path.join(savePath, str(famId)+'_face_frames')
 if not os.path.exists(frmsave_dir):
 	os.makedirs(frmsave_dir)
 
-for idx in ['tc','sib','par']:
+for idx in ['tc','sib','par','extra']:
 	tmp_path = os.path.join(imsave_dir, idx)
 	tmp_path2 = os.path.join(imsave_dir, idx+'_selected')
 
@@ -216,7 +216,7 @@ for idx in ['tc','sib','par']:
 		os.makedirs(tmp_path2)	
 
 show_face = None
-sub_count = {'TC':0, 'Sib':0, 'Par':0}
+sub_count = {'TC':0, 'Sib':0, 'Par':0, 'Extra': 0}
 
 
 cv2.namedWindow('video_frames', cv2.WINDOW_NORMAL)
@@ -285,6 +285,9 @@ while True:
 		elif pressedKey == ord('p'):
 			show_face = 'Par'
 			print('Parent face being tracked')
+		elif pressedKey == ord('e'):
+			show_face = 'Extra'
+			print('Extra face being tracked')
 		elif pressedKey == ord('u'):
 			show_face = None
 			print('NO face being tracked')
