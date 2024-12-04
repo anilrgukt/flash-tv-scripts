@@ -71,9 +71,9 @@ do
 done
 
 
-npar=`ls $savePath/"${famId}_face_crops"/extra_selected/*.png | wc -l`
+nextra=`ls $savePath/"${famId}_face_crops"/extra_selected/*.png | wc -l`
 min=5
-if [ $npar -lt $min ]; then
+if [ $nextra -lt $min ]; then
 	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The extra faces selected for gallery is less than $min. \nPlease check if the folder $savePath/${famId}_face_crops/extra_selected has less than $min faces."
 	exit
 fi
