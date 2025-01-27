@@ -1,14 +1,15 @@
 #!/bin/bash
 
-#### General dependencies
+### General Package Dependencies ###
 
-sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0 nano yaml
+sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0 nano
 
-#### USB backup dependencies
+### USB Backup Package Dependencies ###
 
 sudo apt-get install -y borgbackup
 
-#### PYTORCH dependencies
+### PyTorch Package Dependencies ###
+
 # visit https://docs.nvidia.com/deeplearning/frameworks/install-pytorch-jetson-platform/index.html
 
 sudo apt-get install -y \
@@ -19,38 +20,52 @@ sudo apt-get install -y \
 	python3-pip \
 	python-numpy \
 	python3-testresources \
-	libatlas-base-dev 
+	libatlas-base-dev
 
-cd /home/$USER
+cd "${HOME}" || exit 1
 
-# Create a venv if it doesn't already exist
+# Create a Python 3.8 vjrtual environment if it doesn't already exist
 
-if ! ls | grep -q "py38"
-then 
-	python3 -m venv ~/py38
+if [ ! -d "py38" ]; then
+	python3 -m venv "${HOME}/py38"
 fi
 
-# Activate the virtual env
+# Activate the virtual environment
 
-source ~/py38/bin/activate
+# shellcheck source=/dev/null
+source "${HOME}/py38/bin/activate"
 
-### RTC Python Dependencies
+### RTC Python Dependencies ###
 
 pip install smbus2 watchdog
 
-### USB Backup Python Dependencies
+### USB Backup Python Dependencies ### 
 
-pip install cryptography
+pip install cryptography --upgrade
+
+### PyTorch Python Dependencies ###
+
+export TORCH_INSTALL=https://developer.download.nvidia.cn/compute/redist/jp/v51/pytorch/torch-1.14.0a0+44dac51c.nv23.01-cp38-cp38-linux_aarch64.whl
+
+python3 -m pip install --upgrade pip
 
 # numpy=='1.21.2'???
 # scipy=='1.9.1'???
 
-export TORCH_INSTALL=https://developer.download.nvidia.cn/compute/redist/jp/v51/pytorch/torch-1.14.0a0+44dac51c.nv23.01-cp38-cp38-linux_aarch64.whl
+python3 -m pip install aiohttp numpy=='1.21.4' scipy=='1.9.1'
 
-python3 -m pip install --upgrade pip; python3 -m pip install aiohttp numpy=='1.21.4' scipy=='1.9.1'; export "LD_LIBRARY_PATH=/usr/lib/llvm-8/lib:$LD_LIBRARY_PATH"; python3 -m pip install --upgrade protobuf; python3 -m pip install --no-cache $TORCH_INSTALL; pip install torchvision==0.14.1
+export LD_LIBRARY_PATH="/usr/lib/llvm-8/lib:${LD_LIBRARY_PATH}"
 
-#### MXNET dependencies
+python3 -m pip install --upgrade protobuf
+
+python3 -m pip install --no-cache ${TORCH_INSTALL}
+
+pip install torchvision==0.14.1
+
+### MXNet Python Dependencies ###
+
 # check instructions at https://mxnet.apache.org/versions/1.9.1/get_started/jetson_setup
+
 pip install --upgrade \
 	pip \
 	setuptools \
@@ -59,49 +74,66 @@ pip install --upgrade \
 	lazy_loader \
 	imageio \
 	scikit-image \
- 	opencv-python \
-  	tqdm
+	opencv-python \
+	tqdm
 
-# install mxnet - use the below version
+# Install mxnet - use the below version
 
-cd /home/$USER
+cd "${HOME}" || exit 1
 git clone --recursive -b v1.6.x https://github.com/apache/mxnet.git mxnet
 
-# export all the paths mentioned in the installation instructions to ~/.bashrc
+# Export all the paths mentioned in the installation instructions to "${HOME}/.bashrc"
 
-PATH1="export PATH=/usr/local/cuda/bin:\$PATH"
-PATH2="export MXNET_HOME=\$HOME/mxnet/"
-PATH3="export PYTHONPATH=\$MXNET_HOME/python:\$PYTHONPATH"
+PATH1="export PATH=/usr/local/cuda/bin:\${PATH}"
+PATH2="export MXNET_HOME=\${HOME}/mxnet/"
+PATH3="export PYTHONPATH=\${MXNET_HOME}/python:\${PYTHONPATH}"
 FILE='.bashrc'
-grep -xqF -- "$PATH1" "$FILE" || echo "$PATH1" >> "$FILE"
-grep -xqF -- "$PATH2" "$FILE" || echo "$PATH2" >> "$FILE"
-grep -xqF -- "$PATH3" "$FILE" || echo "$PATH3" >> "$FILE"
+grep -xqF -- "${PATH1}" "${FILE}" || echo "${PATH1}" >>"${FILE}"
+grep -xqF -- "${PATH2}" "${FILE}" || echo "${PATH2}" >>"${FILE}"
+grep -xqF -- "${PATH3}" "${FILE}" || echo "${PATH3}" >>"${FILE}"
 
-source ~/.bashrc
+# shellcheck source=/dev/null
+source "${HOME}/.bashrc"
 
-cp ~/flash-tv-scripts/install_scripts/mxnet_config.mk ~/mxnet/config.mk
+cp "${HOME}/flash-tv-scripts/install_scripts/mxnet_config.mk" "${HOME}/mxnet/config.mk"
 
-cd ~/mxnet
-make -j12
+cd "${HOME}/mxnet" || exit 1
 
-# remember to install the python bindings
-cd ~/mxnet/python
-pip3 install -e .
-
-#Copy folders listed in FLASH_filesetup.sh before doing the following 
-
-#### INSIGHTFACE installation
-source ~/py38/bin/activate
-cd ~/insightface/python-package/ 
-python setup.py install 
-
-cd ~/insightface/detection/RetinaFace/
-make -j12
-
-#### DARKNET face release installation
-source ~/py38/bin/activate
-cd ~/FLASH_TV/darknet_face_release
 make clean
+
 make -j12 all
 
-#reboot
+# Install the MXNet Python bindings
+cd "${HOME}/mxnet/python" || exit 1
+
+pip3 install -e .
+
+# Copy folders listed in file_setup.sh before doing the following
+
+### InsightFace Installation ###
+
+# shellcheck source=/dev/null
+source "${HOME}/py38/bin/activate"
+
+cd "${HOME}/insightface/python-package/" || exit 1
+
+python "setup.py" install
+
+cd "${HOME}/insightface/detection/RetinaFace/" || exit 1
+
+make clean
+
+make -j12 all
+
+### darknet Face Release Installation ###
+
+# shellcheck source=/dev/null
+source "${HOME}/py38/bin/activate"
+
+cd "${HOME}/FLASH_TV/darknet_face_release" || exit 1
+
+make clean
+
+make -j12 all
+
+exit 0
