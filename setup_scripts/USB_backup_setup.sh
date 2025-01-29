@@ -5,23 +5,23 @@ source "${HOME}/py38/bin/activate"
 
 skip_checking=$1
 
-if borg list > /dev/null 2>&1 && borg list | grep -Pq "\d{3}XXX" && [ "$skip_checking" -eq 1 ]; then
+if borg list > /dev/null 2>&1 && borg list | grep -Pq "\d{3}XXX" && [ "${skip_checking}" -eq 1 ]; then
 	echo "Skipping USB backup setup since it was already set up"
  	exit 0
 fi
 
-if [ ! "$(lsusb | grep -q "SanDisk Corp. Ultra Fit")" ]; then
+if lsusb | grep -q "SanDisk Corp. Ultra Fit"; then
 
-	backup_usb_block_id=$(lsblk -o NAME,MODEL | grep -A 1 SanDisk | awk '/SanDisk/{getline; gsub("└─", ""); print}')
+	BACKUP_USB_BLOCK_ID=$(lsblk -o NAME,MODEL | grep -A 1 SanDisk | awk '/SanDisk/{getline; gsub("└─", ""); print}')
 	
-	if [ -z "$backup_usb_block_id" ]; then
+	if [ -z "${BACKUP_USB_BLOCK_ID}" ]; then
 	    zenity --warning --width 500 --height 100 --text="Exiting the code since the backup USB is not detected in lsblk.\nPlease reconnect the backup USB and try again."
 	    exit 1
 	fi
 
- 	backup_usb_uuid=$(sudo blkid -t TYPE=vfat -sUUID | grep "${backup_usb_block_id}" | cut -d '"' -f2)
+ 	BACKUP_USB_UUID=$(sudo blkid -t TYPE=vfat -sUUID | grep "${BACKUP_USB_BLOCK_ID}" | cut -d '"' -f2)
 	
-	if [ -z "$backup_usb_uuid" ]; then
+	if [ -z "${BACKUP_USB_UUID}" ]; then
 	    zenity --warning --width 500 --height 100 --text="Exiting the code since the backup USB is not detected in blkid.\nPlease reconnect the backup USB and try again."
 	    exit 1
 	fi
@@ -29,12 +29,12 @@ if [ ! "$(lsusb | grep -q "SanDisk Corp. Ultra Fit")" ]; then
 	# Enable automounting of the USB on boot (disabled by default)
  	FSTAB=/etc/fstab
 
-  	backup_usb_mount_path="/media/flashsysXXX/${backup_usb_uuid}"
+  	backup_usb_mount_path="/media/flashsysXXX/${BACKUP_USB_UUID}"
 
- 	backup_usb_fstab_line="UUID=${backup_usb_uuid} /media/flashsysXXX/${backup_usb_uuid} auto uid=${UID},gid=${UID} 0 0"
+ 	BACKUP_USB_FSTAB_LINE="UUID=${BACKUP_USB_UUID} /media/flashsysXXX/${BACKUP_USB_UUID} auto uid=${UID},gid=${UID} 0 0"
 
- 	grep -q '.*UUID=.* /media/flashsysXXX/.* auto uid=.*,gid=.* 0 0.*' "${FSTAB}" || echo "${backup_usb_fstab_line}" | sudo tee -a "${FSTAB}"
-  	sudo sed -i "s@.*UUID=.* /media/flashsysXXX/.* auto uid=.*,gid=.* 0 0.*@${backup_usb_fstab_line}@" "${FSTAB}"
+ 	grep -q '.*UUID=.* /media/flashsysXXX/.* auto uid=.*,gid=.* 0 0.*' "${FSTAB}" || echo "${BACKUP_USB_FSTAB_LINE}" | sudo tee -a "${FSTAB}"
+  	sudo sed -i "s@.*UUID=.* /media/flashsysXXX/.* auto uid=.*,gid=.* 0 0.*@${BACKUP_USB_FSTAB_LINE}@" "${FSTAB}"
  
  	sudo sed -i /etc/fstab -e 's/noauto//' -e 's/ ,,/ /' -e 's/ ,/ /' -e 's/,,/,/' -e 's/, / /'
  
@@ -44,7 +44,7 @@ if [ ! "$(lsusb | grep -q "SanDisk Corp. Ultra Fit")" ]; then
 	zenity --entry --hide-text --width 500 --height 100 --text="Enter USB Backup Password:" > "${temp_file}"
 	
 	# Send password to be checked and encoded using cryptography modules in Python
-	encoded_password=$(python3 /home/flashsysXXX/flash-tv-scripts/python_scripts/check_and_encode_password.py "${temp_file}")
+	ENCODED_PASSWORD=$(python3 /home/flashsysXXX/flash-tv-scripts/python_scripts/check_and_encode_password.py "${temp_file}")
 	exit_code=$?
 	
 	# Overwrite and destroy temp file
@@ -58,10 +58,10 @@ if [ ! "$(lsusb | grep -q "SanDisk Corp. Ultra Fit")" ]; then
 	BASHRC=/home/flashsysXXX/.bashrc
 
 	# Export and save encoded password as borg passphrase
-	export BORG_PASSPHRASE="${encoded_password}"
+	export BORG_PASSPHRASE="${ENCODED_PASSWORD}"
 		
 	# shellcheck disable=SC2027
-	BORG_PASSPHRASE_EXPORT_LINE="export BORG_PASSPHRASE="${encoded_password}""
+	BORG_PASSPHRASE_EXPORT_LINE="export BORG_PASSPHRASE="${ENCODED_PASSWORD}""
 
 	grep -q '.*BORG_PASSPHRASE.*' "${BASHRC}" || echo "${BORG_PASSPHRASE_EXPORT_LINE}" >> "${BASHRC}"
 	sed -i "s@.*BORG_PASSPHRASE.*@${BORG_PASSPHRASE_EXPORT_LINE}@" "${BASHRC}"

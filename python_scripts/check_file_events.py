@@ -1,38 +1,36 @@
 import sys
 import time
-from watchdog.observers import Observer
+from pathlib import Path
 from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
 
-famid = sys.argv[1]
-read_path = sys.argv[2]
-save_path = sys.argv[3]
 
 class EventHandler(FileSystemEventHandler):
-    def on_any_event(self, event):
-        tmp=10
-        #print(event)
-    def on_modified(self, event):
-        tmp=10
-        #print(event)
-    
-    def on_created(self, event):
-        #print('triggeered')
-        #print(event)
-        #print(event.event_type)
-        if not event.src_path.endswith('.swp'):
-            #print(event.src_path)
-            fid = open(save_path,'a')
-            fid.write(event.src_path+'\n')
-            fid.close()
-            
-        #print(event.is_directory)
+    def on_any_event(self, event) -> None:
+        tmp = 10
+        # print(event)
+        pass  # Placeholder for handling any event
+
+    def on_modified(self, event) -> None:
+        tmp = 10
+        # print(event)
+        pass  # Placeholder for handling modified events
+
+    def on_created(self, event) -> None:
+        # print('triggered')
+        # print(event)
+        # print(event.event_type)
+        if not event.src_path.endswith(".swp"):
+            # print(event.src_path)
+            with Path(save_path, "a").open() as fid:
+                fid.write(f"{event.src_path}\n")
+        # print(event.is_directory)
 
 
-if __name__ == "__main__":
-    path = read_path #"/home/akv/FLASH_PO1/check_events"
+def main(participant_id: str, read_path: str, save_path: str) -> None:
     event_handler = EventHandler()
     observer = Observer()
-    observer.schedule(event_handler, path, recursive=True)
+    observer.schedule(event_handler, read_path, recursive=True)
     observer.start()
     try:
         while True:
@@ -40,3 +38,10 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         observer.stop()
     observer.join()
+
+
+if __name__ == "__main__":
+    participant_id = sys.argv[1]
+    read_path = sys.argv[2]
+    save_path = sys.argv[3]
+    main(participant_id, read_path, save_path)

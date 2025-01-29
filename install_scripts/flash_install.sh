@@ -45,7 +45,7 @@ pip install cryptography --upgrade
 
 ### PyTorch Python Dependencies ###
 
-export TORCH_INSTALL=https://developer.download.nvidia.cn/compute/redist/jp/v51/pytorch/torch-1.14.0a0+44dac51c.nv23.01-cp38-cp38-linux_aarch64.whl
+export TORCH_INSTALL="https://developer.download.nvidia.cn/compute/redist/jp/v51/pytorch/torch-1.14.0a0+44dac51c.nv23.01-cp38-cp38-linux_aarch64.whl"
 
 python3 -m pip install --upgrade pip
 

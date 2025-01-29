@@ -4,42 +4,20 @@
 rm -r "${HOME}/flash-tv-scripts/video_capture_scripts"
 rm -r "${HOME}/flash-tv-scripts/internal_testing"
 
-skip_checking=0
 
-if [ "$#" -ne 2 ]; then
+deviceID=$1
+participantID=$2
 
-	if [ "$#" -eq 3 ]; then
+deviceID=$(zenity --entry --width 500 --height 100 --text="Enter FLASH device ID (3 digits):")
 
-		deviceID=$1
-		participantID=$2
-  		skip_checking=$3
+participantID=$(zenity --entry --width 500 --height 100 --text="Enter participant ID (P1-1[3 digits no brackets] for TECH):")
 
- 	else
-	   
-    		echo "Command Line Usage: $0 (deviceID) (participantID)"
-	   
-	   	deviceID=$(zenity --entry --width 500 --height 100 --text="Enter FLASH device ID (3 digits):")
-	   
-	   	participantID=$(zenity --entry --width 500 --height 100 --text="Enter participant ID (P1-1[3 digits no brackets] for TECH):")
+zenity --question --title="Verify Device and Participant ID" --width 500 --height 100 --text="Please verify the following details\nParticipant ID: ${participantID}\nDevice ID: ${deviceID}" --no-wrap
+user_resp=$?
 
-	fi
-
-else
- 
-	deviceID=$1
-	participantID=$2
-  
-fi
-
-if [ "${skip_checking}" -ne 1 ]; then
-	
- 	zenity --question --title="Verify Device and Participant ID" --width 500 --height 100 --text="Please verify the following details\nParticipant ID: ${participantID}\nDevice ID: ${deviceID}" --no-wrap
-	user_resp=$?
-	
-	if [ "${user_resp}" -eq 1 ]; then
-		zenity --warning --text="Exiting the code since the device and participant ID were not entered correctly according to the user. Please restart the script to try again." --width 500 --height 100
-		exit 1
-	fi
+if [ "${user_resp}" -eq 1 ]; then
+	zenity --warning --text="Exiting the code since the device and participant ID were not entered correctly according to the user. Please restart the script to try again." --width 500 --height 100
+	exit 1
 fi
 
 # Create data directory
