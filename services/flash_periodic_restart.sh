@@ -1,39 +1,51 @@
 #!/bin/bash
 
-export participantID=123XXX
+export participant_id=123XXX
 export username=flashsysXXX
-export logFolder="/home/${username}/data/${participantID}_data/logs"
+export LOG_FOLDER_PATH="/home/${username}/data/${participant_id}_data/logs"
 
+mkdir -p ${LOG_FOLDER_PATH}
+# Activate Python 3.8 virtual environment with libraries set up
 source "/home/${username}/py38/bin/activate"
 
-#logFolderPath=/home/$username/data/${participantID}_data
-mkdir -p ${logFolder}
+# Run the script for checking folder file updates in the background for various folders
+python3 "/home/${username}/flash-tv-scripts/python_scripts/check_file_events.py" ${participant_id} ${LOG_FOLDER_PATH} "/home/${username}/data/${participant_id}_data/${participant_id}_varlog_filesequence.csv" &
 
-python3 "/home/${username}/flash-tv-scripts/python_scripts/check_file_events.py" ${participantID} ${logFolder} "/home/${username}/data/${participantID}_data/${participantID}_varlog_filesequence.csv" &
+python3 "/home/${username}/flash-tv-scripts/python_scripts/check_file_events.py" ${participant_id} "/home/${username}/data/${participant_id}_data /home/${username}/data/${participant_id}_data/${participant_id}_flashlog_filesequence.csv" &
 
-python3 "/home/${username}/flash-tv-scripts/python_scripts/check_file_events.py" ${participantID} "/home/${username}/data/${participantID}_data /home/${username}/data/${participantID}_data/${participantID}_flashlog_filesequence.csv" &
+# Run the tegrastats command and output it every 30 seconds to a log file in the background
+tegrastats --interval 30000 --logfile "/home/${username}/data/${participant_id}_data/${participant_id}_tegrastats.log" &
 
-tegrastats --interval 30000 --logfile "/home/${username}/data/${participantID}_data/${participantID}_tegrastats.log" &
+# Run the script for checking for FLASH camera warnings in the background 
+bash "/home/${username}/flash-tv-scripts/services/flash_check_camera_warnings.sh" ${participant_id} ${username} &
 
-bash "/home/${username}/flash-tv-scripts/services/flash_check_camera_warnings.sh" ${participantID} ${username} &
+# Run the script for scanning and saving the data from the Bluetooth beacon accelerometer in the background
+BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH="/home/${username}/flash-tv-scripts/services/bluetooth_beacon_accelerometer_scanner"
 
-BEACON_SCANNER_PROGRAM_PATH="/home/${username}/flash-tv-scripts/services/bt_beacon_accelerometer_scanner"
+PROGRAM_RUNNER_PATH="/home/${username}/flash-tv-scripts/services/run_bluetooth_beacon_scanner.sh"
 
-if [ -e "${BEACON_SCANNER_PROGRAM_PATH}" ]; then
+if [ -e "${BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH}" ]; then
 
-    bash "/home/${username}/flash-tv-scripts/services/run_beacon_scanner.sh" ${BEACON_SCANNER_PROGRAM_PATH} &
+    bash  ${PROGRAM_RUNNER_PATH} ${BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH} &
 
 else
 
-    cc "${BEACON_SCANNER_PROGRAM_PATH}.c" -lbluetooth -o ${BEACON_SCANNER_PROGRAM_PATH}
+    cc "${BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH}.c" -lbluetooth -o ${BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH}
     
-    bash "/home/${username}/flash-tv-scripts/services/run_beacon_scanner.sh" ${BEACON_SCANNER_PROGRAM_PATH} &
+    bash ${PROGRAM_RUNNER_PATH} ${BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH} &
 
 fi
 
-sleep 10;
 
-REBOOT_INDEX_PATH="/home/${username}/data/${participantID}_data/${participantID}_reboot_index.txt"
+# Get the amount of time to sleep before starting the rest of the script from the FLASH run on boot service delay (accounts for the time to update when rebooting)
+FLASH_RUN_ON_BOOT_SERVICE_PATH="/home/${username}/flash-tv-scripts/services/flash-run-on-boot.service"
+
+sleep_interval=$(grep -oP '(?<=ExecStartPre=/bin/sleep )\d+' "${FLASH_RUN_ON_BOOT_SERVICE_PATH}")
+
+sleep "${sleep_interval}";
+
+# Get the current amount of times the device has rebooted
+REBOOT_INDEX_PATH="/home/${username}/data/${participant_id}_data/${participant_id}_reboot_index.txt"
 
 if [ -e ${REBOOT_INDEX_PATH} ]; then
 
@@ -49,36 +61,43 @@ else
     
 fi
 
-dt_for_index=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
+datetime_for_index=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
 
-echo "flash_periodic_restart.sh was just restarted around ${dt_for_index}, implying that the current reboot index is: ${new_index}" >> "${REBOOT_INDEX_PATH}"
+echo "flash_periodic_restart.sh was just restarted around ${datetime_for_index}, implying that the current reboot index is: ${new_index}" >> "${REBOOT_INDEX_PATH}"
 
+# Run the periodic restart loop
 loop=1
 while true;
 do
-	sleep 21600;
-	#DOW=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
-	#dt=`date`;
+	sleep 21600; # 6 hours
 	 
-	dt=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
+	datetime=$(date +"%d_%b_%Y_%H-%M-%S_%Z")
 	
-	mkdir -p "${logFolder}/varlogs_${dt}"
-	echo "Reboot Index: ${new_index}" >> "${logFolder}/varlogs_${dt}/log_${dt}.txt"
-	systemctl status flash-run-on-boot.service >> "${logFolder}/varlogs_${dt}/log_${dt}.txt"
+	mkdir -p "${LOG_FOLDER_PATH}/varlogs_${datetime}"
+
+	# Output various statuses
+	echo "Reboot Index: ${new_index}" >> "${LOG_FOLDER_PATH}/varlogs_${datetime}/log_${datetime}.txt"
+	echo "Reboot Index: ${new_index}" >> "${LOG_FOLDER_PATH}/varlogs_${datetime}/logend_${datetime}.txt"
+	echo "Reboot Index: ${new_index}" >> "${LOG_FOLDER_PATH}/varlogs_${datetime}/timedate_${datetime}.txt"
+
+	systemctl status flash-run-on-boot.service >> "${LOG_FOLDER_PATH}/varlogs_${datetime}/log_${datetime}.txt"
+	systemctl status flash-run-on-boot.service >> "${LOG_FOLDER_PATH}/varlogs_${datetime}/logend_${datetime}.txt"
+	
+	python3 /home/${username}/flash-tv-scripts/python_scripts/check_all_times.py >> "${LOG_FOLDER_PATH}/varlogs_${datetime}/timedate_${datetime}.txt"
+	
+	v4l2-ctl --list-devices > "${LOG_FOLDER_PATH}/varlogs_${datetime}/camera_${datetime}.txt"
+	
+	# Stop the FLASH run on boot service
 	systemctl stop flash-run-on-boot.service
-	echo "Reboot Index: ${new_index}" >> "${logFolder}/varlogs_${dt}/logend_${dt}.txt"
-	systemctl status flash-run-on-boot.service >> "${logFolder}/varlogs_${dt}/logend_${dt}.txt"
-	echo "Reboot Index: ${new_index}" >> "${logFolder}/varlogs_${dt}/timedate_${dt}.txt"
-	python3 /home/${username}/flash-tv-scripts/python_scripts/check_all_times.py >> "${logFolder}/varlogs_${dt}/timedate_${dt}.txt"
-	v4l2-ctl --list-devices > "${logFolder}/varlogs_${dt}/camera_${dt}.txt"
 	
+	# Make sure that all instances of the FLASH script are destroyed
 	pkill -9 -f run_flash_data_collection.py
 	
-	mv "/home/${username}/data/${participantID}_data/${participantID}_flash_logstdout.log" "/home/${username}/data/${participantID}_data/${participantID}_flash_logstderr.log" "${logFolder}/varlogs_${dt}"
-	cp "/home/${username}/data/${participantID}_data/${participantID}_flash_logstdoutp.log" "/home/${username}/data/${participantID}_data/${participantID}_flash_logstderrp.log" "${logFolder}/varlogs_${dt}"
-	#mv /var/log/"${participantID}_flash_logstdout.log" /var/log/"${participantID}_flash_logstderr.log" "${logFolder}/varlogs_${dt}"
-	#cp /var/log/"${participantID}_flash_logstdoutp.log" /var/log/"${participantID}_flash_logstderrp.log" "${logFolder}/varlogs_${dt}"
+	# Backup logs
+	mv "/home/${username}/data/${participant_id}_data/${participant_id}_flash_logstdout.log" "/home/${username}/data/${participant_id}_data/${participant_id}_flash_logstderr.log" "${LOG_FOLDER_PATH}/varlogs_${datetime}"
+	cp "/home/${username}/data/${participant_id}_data/${participant_id}_flash_logstdoutp.log" "/home/${username}/data/${participant_id}_data/${participant_id}_flash_logstderrp.log" "${LOG_FOLDER_PATH}/varlogs_${datetime}"
  
+	# Backup files to the USB, not including faces
 	if ! lsusb | grep -q "SanDisk Corp. Ultra Fit"; then	
 
 		if [ "$(lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}')" ]; then
@@ -89,7 +108,7 @@ do
 
 		else
 		
-			echo "Backup USB not Found in lsblk at Time: ${dt}"
+			echo "Backup USB not Found in lsblk at Time: ${datetime}"
 			
 	 	fi
 
@@ -97,20 +116,21 @@ do
 
   		export BACKUP_DIRS="/home/${username}/data /home/${username}/docker-compose/ha-config"
 	
-		borg create --exclude "/home/${username}/data/*.zip" --exclude "/home/${username}/data/*/*face*" "::${participantID}-FLASH-HA-Data-Backup-${dt}" "${BACKUP_DIRS}"
+		borg create --exclude "/home/${username}/data/*.zip" --exclude "/home/${username}/data/*/*face*" "::${participant_id}-FLASH-HA-Data-Backup-${datetime}" "${BACKUP_DIRS}"
 		
-		echo "USB Backup without Face Folders Created at Time: ${dt}"
+		echo "USB Backup without Face Folders Created at Time: ${datetime}"
 
   		source "/home/${username}/py38/bin/activate"
 			
 	else
 		
-		echo "Backup USB not Found in lsusb at Time: ${dt}"
+		echo "Backup USB not Found in lsusb at Time: ${datetime}"
   
 	fi
 	
 	sleep 5;
  
+	# Restart the FLASH run on boot service and if on a second loop reboot the device
 	if ((loop % 2 == 0)); then
  		reboot
    		systemctl start flash-run-on-boot.service
