@@ -85,6 +85,8 @@ do
 	 
 	 		BACKUP_USB_PATH="$(lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}')"
 
+			echo "Backup USB path found ${BACKUP_USB_PATH} but backup USB was not detected"
+
 		else
 		
 			echo "Backup USB not Found in lsblk at Time: ${dt}"
