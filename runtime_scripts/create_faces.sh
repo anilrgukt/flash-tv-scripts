@@ -70,13 +70,6 @@ do
 	cp $i $savePath/"${famId}_faces"/"${famId}_parent${n}.png"
 done
 
-nextra=`ls $savePath/"${famId}_face_crops"/extra_selected/*.png | wc -l`
-min=5
-if [ $nextra -lt $min ]; then
-	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The extra faces selected for gallery is less than $min. \nPlease check if the folder $savePath/${famId}_face_crops/extra_selected has less than $min faces."
-	exit
-fi
-
 # extra processing
 n=0
 extra_images=($savePath/"${famId}_face_crops"/extra_selected/*.png)
@@ -92,4 +85,11 @@ else
         n=$((n+1))
         cp "$i" "$savePath/${famId}_faces/${famId}_extra${n}.png"
     done
+fi
+
+nextra=$(ls "${save_path}/${participant_id}_faces/${participant_id}_extra*.png" | wc -l)
+min=5
+if [ $nextra -lt $min ]; then
+	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The extra faces selected for gallery is less than $min. \nPlease check if the folder $savePath/${participant_id}_faces has less than $min faces."
+	exit
 fi
