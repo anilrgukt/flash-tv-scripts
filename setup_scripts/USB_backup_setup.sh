@@ -1,14 +1,9 @@
 #!/bin/bash
 
+username=flashsysXXX
+
 # shellcheck source=/dev/null
 source "${HOME}/py38/bin/activate"
-
-skip_checking=$1
-
-if borg list > /dev/null 2>&1 && borg list | grep -Pq "\d{3}XXX" && [ "${skip_checking}" -eq 1 ]; then
-	echo "Skipping USB backup setup since it was already set up"
- 	exit 0
-fi
 
 if lsusb | grep -q "SanDisk Corp. Ultra Fit"; then
 
@@ -19,7 +14,9 @@ if lsusb | grep -q "SanDisk Corp. Ultra Fit"; then
 	    exit 1
 	fi
 
- 	BACKUP_USB_UUID=$(sudo blkid -t TYPE=vfat -sUUID | grep "${BACKUP_USB_BLOCK_ID}" | cut -d '"' -f2)
+ 	# shellcheck disable=SC2086
+	# Must use unquoted variable for some reason
+ 	BACKUP_USB_UUID=$(sudo blkid -t TYPE=vfat -sUUID | grep ${BACKUP_USB_BLOCK_ID} | cut -d '"' -f2)
 	
 	if [ -z "${BACKUP_USB_UUID}" ]; then
 	    zenity --warning --width 500 --height 100 --text="Exiting the code since the backup USB is not detected in blkid.\nPlease reconnect the backup USB and try again."
@@ -29,12 +26,12 @@ if lsusb | grep -q "SanDisk Corp. Ultra Fit"; then
 	# Enable automounting of the USB on boot (disabled by default)
  	FSTAB=/etc/fstab
 
-  	backup_usb_mount_path="/media/flashsysXXX/${BACKUP_USB_UUID}"
+  	BACKUP_USB_MOUNT_PATH="/media/${username}/${BACKUP_USB_UUID}"
 
- 	BACKUP_USB_FSTAB_LINE="UUID=${BACKUP_USB_UUID} /media/flashsysXXX/${BACKUP_USB_UUID} auto uid=${UID},gid=${UID} 0 0"
+ 	BACKUP_USB_FSTAB_LINE="UUID=${BACKUP_USB_UUID} /media/${username}/${BACKUP_USB_UUID} auto uid=${UID},gid=${UID} 0 0"
 
- 	grep -q '.*UUID=.* /media/flashsysXXX/.* auto uid=.*,gid=.* 0 0.*' "${FSTAB}" || echo "${BACKUP_USB_FSTAB_LINE}" | sudo tee -a "${FSTAB}"
-  	sudo sed -i "s@.*UUID=.* /media/flashsysXXX/.* auto uid=.*,gid=.* 0 0.*@${BACKUP_USB_FSTAB_LINE}@" "${FSTAB}"
+ 	grep -q ".*UUID=.* /media/${username}/.* auto uid=.*,gid=.* 0 0.*" "${FSTAB}" || echo "${BACKUP_USB_FSTAB_LINE}" | sudo tee -a "${FSTAB}"
+  	sudo sed -i "s@.*UUID=.* /media/${username}/.* auto uid=.*,gid=.* 0 0.*@${BACKUP_USB_FSTAB_LINE}@" "${FSTAB}"
  
  	sudo sed -i /etc/fstab -e 's/noauto//' -e 's/ ,,/ /' -e 's/ ,/ /' -e 's/,,/,/' -e 's/, / /'
  
@@ -43,8 +40,8 @@ if lsusb | grep -q "SanDisk Corp. Ultra Fit"; then
 	
 	zenity --entry --hide-text --width 500 --height 100 --text="Enter USB Backup Password:" > "${temp_file}"
 	
-	# Send password to be checked and encoded using cryptography modules in Python
-	ENCODED_PASSWORD=$(python3 /home/flashsysXXX/flash-tv-scripts/python_scripts/check_and_encode_password.py "${temp_file}")
+	# Send password to be checked and encoded
+	encoded_password=$(python3 "/home/${username}/flash-tv-scripts/python_scripts/check_and_encode_password.py" "${temp_file}")
 	exit_code=$?
 	
 	# Overwrite and destroy temp file
@@ -55,24 +52,23 @@ if lsusb | grep -q "SanDisk Corp. Ultra Fit"; then
 		exit 1
 	fi
 	
-	BASHRC=/home/flashsysXXX/.bashrc
+	BASHRC=/home/${username}/.bashrc
 
 	# Export and save encoded password as borg passphrase
-	export BORG_PASSPHRASE="${ENCODED_PASSWORD}"
+	export BORG_PASSPHRASE="${encoded_password}"
 		
-	# shellcheck disable=SC2027
-	BORG_PASSPHRASE_EXPORT_LINE="export BORG_PASSPHRASE="${ENCODED_PASSWORD}""
+	borg_passphrase_export_line="export BORG_PASSPHRASE=${encoded_password}"
 
-	grep -q '.*BORG_PASSPHRASE.*' "${BASHRC}" || echo "${BORG_PASSPHRASE_EXPORT_LINE}" >> "${BASHRC}"
-	sed -i "s@.*BORG_PASSPHRASE.*@${BORG_PASSPHRASE_EXPORT_LINE}@" "${BASHRC}"
+	grep -q '.*BORG_PASSPHRASE.*' "${BASHRC}" || echo "${borg_passphrase_export_line}" >> "${BASHRC}"
+	sed -i "s@.*BORG_PASSPHRASE.*@${borg_passphrase_export_line}@" "${BASHRC}"
 
 	# Export and save borg repo path
-	export BORG_REPO="${backup_usb_mount_path}/USB_Backup_Data_flashsysXXX"
+	export BORG_REPO="${BACKUP_USB_MOUNT_PATH}/USB_Backup_Data_${username}"
 	
-	BORG_REPO_EXPORT_LINE="export BORG_REPO='${backup_usb_mount_path}/USB_Backup_Data_flashsysXXX'"
+	borg_repo_export_line="export BORG_REPO='${BACKUP_USB_MOUNT_PATH}/USB_Backup_Data_${username}'"
 	
-	grep -q '.*BORG_REPO.*' "${BASHRC}" || echo "${BORG_REPO_EXPORT_LINE}" >> "${BASHRC}"
-	sed -i "s@.*BORG_REPO.*@${BORG_REPO_EXPORT_LINE}@" "${BASHRC}"
+	grep -q '.*BORG_REPO.*' "${BASHRC}" || echo "${borg_repo_export_line}" >> "${BASHRC}"
+	sed -i "s@.*BORG_REPO.*@${borg_repo_export_line}@" "${BASHRC}"
 
 	# Comment out line in .bashrc preventing running in non-interactive shells so that it can be sourced from a script
 	sed -i '/^case $- in/,/^esac/s/^/#/' "${BASHRC}"
@@ -81,9 +77,9 @@ if lsusb | grep -q "SanDisk Corp. Ultra Fit"; then
 	borg init -v --encryption=repokey
 
 	# Export borg encryption keys to multiple places for backup
-	borg key export --paper :: > "${backup_usb_mount_path}/borg-encrypted-key-backup-flashsysXXX.txt"
-	borg key export --paper :: > "/home/flashsysXXX/borg-encrypted-key-backup-flashsysXXX.txt"
-	borg key export --paper :: > "/home/flashsysXXX/flash-tv-scripts/setup_scripts/borg-encrypted-key-backup-flashsysXXX.txt"
+	borg key export --paper :: > "${BACKUP_USB_MOUNT_PATH}/borg-encrypted-key-backup-${username}.txt"
+	borg key export --paper :: > "/home/${username}/borg-encrypted-key-backup-${username}.txt"
+	borg key export --paper :: > "/home/${username}/flash-tv-scripts/setup_scripts/borg-encrypted-key-backup-${username}.txt"
 
 else
 	zenity --warning --width 500 --height 100 --text="Exiting the code since the backup USB was not detected in lsusb.\nPlease reconnect the backup USB and try again."
