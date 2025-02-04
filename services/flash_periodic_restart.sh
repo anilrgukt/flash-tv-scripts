@@ -5,12 +5,12 @@ export username=flashsysXXX
 export LOG_FOLDER_PATH="/home/${username}/data/${participant_id}_data/logs"
 
 mkdir -p ${LOG_FOLDER_PATH}
+
 # Activate Python 3.8 virtual environment with libraries set up
 source "/home/${username}/py38/bin/activate"
 
 # Run the script for checking folder file updates in the background for various folders
 python3 "/home/${username}/flash-tv-scripts/python_scripts/check_file_events.py" ${participant_id} ${LOG_FOLDER_PATH} "/home/${username}/data/${participant_id}_data/${participant_id}_varlog_filesequence.csv" &
-
 python3 "/home/${username}/flash-tv-scripts/python_scripts/check_file_events.py" ${participant_id} "/home/${username}/data/${participant_id}_data /home/${username}/data/${participant_id}_data/${participant_id}_flashlog_filesequence.csv" &
 
 # Run the tegrastats command and output it every 30 seconds to a log file in the background
