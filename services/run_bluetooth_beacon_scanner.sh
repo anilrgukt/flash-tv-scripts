@@ -1,10 +1,10 @@
 #!/bin/bash
 
-PROGRAM_PATH=$1
+BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH=$1
 
 while true; do
   # Run the program
-  sudo "${PROGRAM_PATH}"
+  sudo "${BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH}"
   
   # Wait for the program to exit
   wait $!
