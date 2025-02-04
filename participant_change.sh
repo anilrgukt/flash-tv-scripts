@@ -1,27 +1,27 @@
 #!/bin/bash
 # MUST DELETE AND RECLONE the flash-tv-scripts folder BEFORE RUNNING THIS OR IT WILL NOT WORK PROPERLY
 
-if [ ! -d "${HOME}/docker-compose/ha-config" ]; then
+HOME_ASSISTANT_FOLDER="${HOME}/docker-compose/ha-config"
+if [ ! -d "${HOME_ASSISTANT_FOLDER}" ]; then
 	zenity --warning --text="Exiting the code since Home Assistant has not been set up.\n\nPlease set up Home Assistant before running this script." --width 500 --height 100
 	exit 1
 fi
 
+# Prompt user for the smart plug ID, FLASH device ID, participant ID, and Bluetooth beacon accelerometer MAC address
 
-# Prompt user for plugID, deviceID, participantID, and MAC address
+smart_plug_id=$(zenity --entry --width 500 --height 100 --text="Enter the Zigbee smart plug ID's extra index at the end, displayed in Home Assistant. Leave blank if no extra index. Enter YYYY (uppercase) if the smart plug is not ready:")
 
-plugID=$(zenity --entry --width 500 --height 100 --text="Enter the Zigbee plug ID extra index from Home Assistant, leave blank if no extra index, or YYYY (uppercase) if the plug is not ready:")
+flash_device_id=$(zenity --entry --width 500 --height 100 --text="Enter the current FLASH device's ID (3 digits at the end of the username):")
 
-deviceID=$(zenity --entry --width 500 --height 100 --text="Enter the FLASH device ID (3 digits):")
+participant_id=$(zenity --entry --width 500 --height 100 --text="Enter the participant ID (P1-1[3 digits no brackets] for TECH):")
 
-participantID=$(zenity --entry --width 500 --height 100 --text="Enter the participant ID (P1-1XXX for TECH):")
+bluetooth_beacon_mac_address=$(zenity --entry --width 500 --height 100 --text="Enter the Bluetooth beacon accelerometer's MAC address (format: XX:XX:XX:XX:XX:XX):")
 
-mac_address=$(zenity --entry --width 500 --height 100 --text="Enter the MAC address (format: XX:XX:XX:XX:XX:XX):")
-
-zenity --question --title="Verify Plug ID, Device ID, Family ID, and MAC Address" --width 500 --height 100 --text="Please verify the following details\n\nPlug ID: $plugID\nFamily ID: ${participantID}\nDevice ID: ${deviceID}\nMAC Address: ${mac_address}" --no-wrap
+zenity --question --title="Verify the smart plug ID, FLASH device ID, participant ID, and Bluetooth beacon accelerometer MAC address" --width 500 --height 100 --text="Please verify the following details\n\nPlug ID: $smart_plug_id\nFamily ID: ${participant_id}\nDevice ID: ${flash_device_id}\nMAC Address: ${bluetooth_beacon_mac_address}" --no-wrap
 user_resp=$?
 
 if [ ${user_resp} -eq 1 ]; then
-	zenity --warning --text="Exiting the code since the plug ID, device ID, family ID, or MAC address were not entered correctly according to the user. Please restart the script to try again." --width 500 --height 100
+	zenity --warning --text="Exiting the code since the smart plug ID, FLASH device ID, participant ID, and/or Bluetooth beacon accelerometer MAC address were not entered correctly according to the user. Please restart the script to try again." --width 500 --height 100
 	exit 1
 fi
 
@@ -37,39 +37,44 @@ validate_mac_address() {
 }
 
 # Validate the MAC address format
-if ! validate_mac_address "${mac_address}"; then
-    zenity --warning --text="The MAC address format is invalid. Please enter a valid MAC address in the format XX:XX:XX:XX:XX:XX." --width 500 --height 100
+if ! validate_mac_address "${bluetooth_beacon_mac_address}"; then
+    zenity --warning --text="The MAC address's format was invalid. Please enter a valid MAC address in the format XX:XX:XX:XX:XX:XX." --width 500 --height 100
     exit 1
 fi
 
-# Update the target MAC address in the C code
-sed -i "s/ZZZZ/${mac_address}/g" ~/flash-tv-scripts/services/bt_beacon_accelerometer_scanner.c
+# Update the target MAC address in the Bluetooth beacon accelerometer scanner code
+sed -i "s/ZZZZ/${bluetooth_beacon_mac_address}/g" ~/flash-tv-scripts/services/bluetooth_beacon_accelerometer_scanner.c
 
 # Set to exit on non-zero error code
 set -e
 
 # Update the configuration.yaml with the plug ID
-sed -i "s/YYYY/${plugID}/g" "${HOME}/flash-tv-scripts/install_scripts/configuration.yaml"
+sed -i "s/YYYY/${smart_plug_id}/g" "${HOME}/flash-tv-scripts/install_scripts/configuration.yaml"
 
-bash -x "${HOME}/flash-tv-scripts/setup_scripts/ID_setup.sh" "${deviceID}" "${participantID}" 1
+# Run the ID setup script
+bash -x "${HOME}/flash-tv-scripts/setup_scripts/ID_setup.sh" "${flash_device_id}" "${participant_id}" 1
 sleep 1
 
-bash -x "${HOME}/flash-tv-scripts/setup_scripts/USB_backup_setup.sh" 1
+# Run the USB backup setup script
+bash -x "${HOME}/flash-tv-scripts/setup_scripts/USB_backup_setup.sh"
 sleep 1
 
+# Run the service setup script
 bash -x "${HOME}/flash-tv-scripts/setup_scripts/service_setup.sh"
 sleep 1
 
+# Run the RTC setup script
 bash -x "${HOME}/flash-tv-scripts/setup_scripts/RTC_setup.sh"
 sleep 1
 
 # Copy modified configuration.yaml with plug ID to Home Assistant folder after updating the family and device IDs as well
-sudo cp "/home/flashsys${deviceID}/flash-tv-scripts/install_scripts/configuration.yaml" "/home/flashsys${deviceID}/docker-compose/ha-config/configuration.yaml"
+sudo cp "/home/flashsys${flash_device_id}/flash-tv-scripts/install_scripts/configuration.yaml" "/home/flashsys${flash_device_id}/docker-compose/ha-config/configuration.yaml"
 
+# Start the Home Assistant Docker compose instance
 cd "${HOME}/docker-compose/ha-config"
 
 docker compose up -d
 
 # Copy git config into data folder
-cp "${HOME}/flash-tv-scripts/.git/config" "${HOME}/data/${participantID}${deviceID}_data/git_config.txt"
+cp "${HOME}/flash-tv-scripts/.git/config" "${HOME}/data/${participant_id}${flash_device_id}_data/git_config.txt"
 
