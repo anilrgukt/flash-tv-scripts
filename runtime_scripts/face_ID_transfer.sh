@@ -1,31 +1,35 @@
 #!/bin/bash
 
+# Data details
+participant_id=123XXX
+username=flashsysXXX
+DATA_FOLDER_PATH="/home/${username}/data/${participant_id}_data"
+
+# If there aren't exactly 2 command line arguments, prompt the user for the old device ID and the new device ID
 if [ "$#" -ne 2 ]; then
-
   echo "Command Line Usage: $0 (ID of Device You are Transferring Faces FROM) (ID of Device You are Transferring Faces TO)"
-  read -p 'Enter the ID of the device you are transferring faces FROM (3 digits):' olddeviceID
-  read -p 'Enter the ID of the device you are transferring faces TO (3 digits):' newdeviceID
-  
+  read -rp 'Enter the ID of the device you are transferring faces FROM (3 digits): ' old_device_id
+  read -rp 'Enter the ID of the device you are transferring faces TO (3 digits): ' new_device_id
 else
-
-  olddeviceID=$1
-  newdeviceID=$2
-  
+  old_device_id=$1
+  new_device_id=$2
 fi
 
-facefolder=`ls ~/data/123XXX_data/ | grep faces`
-
-cd ~/data/123XXX_data/
-
-mv -v "$facefolder" "${facefolder/$olddeviceID/$newdeviceID}"
-
-faceimages=`ls ~/data/123XXX_data/123XXX_faces/`
-
-cd ~/data/123XXX_data/123XXX_faces/
-
-for faceimage in $faceimages
-do
-  mv -v "$faceimage" "${faceimage/$olddeviceID/$newdeviceID}"
+# Find the faces folder within the data folder
+for folder in "${DATA_FOLDER_PATH}"/*; do
+  if [[ "${folder}" == *faces* ]]; then
+    FACES_FOLDER_PATH="${folder}"
+    break
+  fi
 done
 
+# Replace the old device ID with the new device ID within the faces folder path (syntax is specific)
+NEW_FACES_FOLDER_PATH="${FACES_FOLDER_PATH/${old_device_id}/${new_device_id}}"
+mv -v "${FACES_FOLDER_PATH}" "${NEW_FACES_FOLDER_PATH}"
 
+# Replace the old device ID with the new device ID within each face image path (syntax is specific)
+face_images=$(ls "${FACES_FOLDER_PATH}")
+for image in ${face_images}; do
+  new_image="${image/${old_device_id}/${new_device_id}}"
+  mv -v "${image}" "${new_image}"
+done

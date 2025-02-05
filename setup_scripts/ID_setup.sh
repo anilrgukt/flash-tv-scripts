@@ -42,8 +42,14 @@ sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/services/flash_run_
 sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/services/homeassistant-run-on-boot.service"
 sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/services/homeassistant-run-on-boot.service"
 
-sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/data_details.sh"
-sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/data_details.sh"
+sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/build_gallery.sh"
+sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/build_gallery.sh"
+
+sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/create_faces.sh"
+sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/create_faces.sh"
+
+sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/run_flashtv_system.sh"
+sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/run_flashtv_system.sh"
 
 sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/face_ID_transfer.sh"
 sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/face_ID_transfer.sh"

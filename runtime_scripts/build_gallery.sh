@@ -1,54 +1,44 @@
 #!/bin/bash
 
-zenity --warning --title "Warning Message" --width 500 --height 100 --text "Please close folder windows or programs (Cheese, incomplete protocols) that you are not using. \n\nReducing the clutter helps."
+# Data details
+participant_id=123XXX
+username=flashsysXXX
+DATA_FOLDER_PATH="/home/${username}/data/${participant_id}_data"
 
-camStat=`ls /dev/video*`
-#echo $camStat
-for dev in $camStat
+# Check whether or not the available camera(s) is/are being used by other programs
+video_device_list=$(ls /dev/video*)
+for device in ${video_device_list}
 do
-	#echo 'cam ident: ' $dev
-	camUse=`fuser $dev`
-	#echo $camUse
-	if [ $camUse ]; then
-		#echo 'cam is used', $camUse
-		zenity --warning --title "Warning Message" --width 500 --height 100 --text "Camera is being used by another program. \n\nMay be you are running cheese in another terminal somewhere. \nPlease close the other program."
+	camera_being_used=$(fuser "${device}")
+	if [ "${camera_being_used}" ]; then
+		zenity --warning --title "Warning Message" --width 500 --height 100 --text "The camera is being used by another program.\nPlease close the other program before continuing."
 		exit
 	fi
 done
 
-source data_details.sh
-
-zenity --question --title="Creating the faces" --width 500 --height 100 --text="Please verify the following details\nFamily ID: $famId \nUser Name: $usrName \nData save path: $savePath" --no-wrap
+# Verify the data details
+zenity --question --title="Verifying Data Details" --width 500 --height 100 --text="Please verify the following data details\nParticipant ID: ${participant_id}\nUsername: ${username}\nData Folder Path: ${data_folder_path}" --no-wrap
 user_resp=$?
 
-if [ $user_resp -eq 1 ]; then
-	#echo "Exitted the code $user_resp"
-	zenity --warning --text="Exiting the code since data details are not correct. Please modify them and restart the script."
-	exit 
-	#famId=$(zenity --entry --title="Please input Family ID" --text="Family ID :")
-	#usrName=$(zenity --entry --title="Please input Device User Name" --text="User Name :")
-	#savePath=$(zenity  --file-selection --title="Choose a directory to save the data" --directory)
-	#echo "famId=${famId}" > data_details.sh
-	#echo "usrName=${usrName}" >> data_details.sh
-	#echo "savePath=${savePath}" >> data_details.sh
-fi
-
-
-zenity --question --title="Building Gallery for FLASH-TV face verification" --width 500 --height 100 --text="Click YES to start video streaming\nFamily ID: $famId \nData save path: $savePath" --no-wrap
-user_resp=$?
-
-if [ $user_resp -eq 1 ]; then
-	echo "Exitted the code $user_resp"
+if [ ${user_resp} -eq 1 ]; then
+	zenity --warning --text="Exiting the code since the data details were not correct according to the user. Please modify them and restart the script."
 	exit 
 fi
 
-source /home/$usrName/py38/bin/activate
-#cd /home/$usrName/Desktop/FLASH_TV_v3
-cd /home/$usrName/flash-tv-scripts/python_scripts
+# Confirm the start of the gallery building
+zenity --question --title="Building Gallery for FLASH-TV face verification" --width 500 --height 100 --text="Click Yes to start video streaming\nFamily ID: ${participant_id} \nData save path: ${DATA_FOLDER_PATH}" --no-wrap
+user_resp=$?
 
-echo "Everything is a success"
+if [ ${user_resp} -eq 1 ]; then
+	echo "Exiting the code due to the user clicking No"
+	exit 
+fi
 
-python cv2_capture_automate.py $famId $savePath $usrName
+# Activate Python 3.8 virtual environment with libraries set up
+source "/home/${username}/py38/bin/activate"
+
+# Start the gallery building script
+python "/home/${username}/flash-tv-scripts/python_scripts/cv2_capture_automate.py" "${participant_id}" "${DATA_FOLDER_PATH}" "${username}"
 
 
 

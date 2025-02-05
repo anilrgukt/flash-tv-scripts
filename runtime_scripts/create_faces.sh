@@ -1,97 +1,80 @@
 #!/bin/bash
-source data_details.sh
 
-zenity --question --title="Creating the faces" --width 500 --height 100 --text="Please verify the following details\nFamily ID: $famId \nData save path: $savePath" --no-wrap
+# Data details
+participant_id=123XXX
+username=flashsysXXX
+DATA_FOLDER_PATH="/home/${username}/data/${participant_id}_data"
+
+# Verify the data details
+zenity --question --title="Verifying Data Details" --width 500 --height 100 --text="Please verify the following data details\nParticipant ID: ${participant_id}\nUsername: ${username}\nData Folder Path: ${DATA_FOLDER_PATH}" --no-wrap
 user_resp=$?
 
-if [ $user_resp -eq 1 ]; then
-	#echo "Exitted the code $user_resp"
-	zenity --warning --text="Exiting the code since data details are not correct. Please modify them and restart the script."
+if [ ${user_resp} -eq 1 ]; then
+	zenity --warning --text="Exiting the code since the data details were not correct according to the user. Please modify them and restart the script."
 	exit 
 fi
 
-mkdir -p $savePath/"${famId}_faces"
+# Create the faces folder
+FACES_FOLDER_PATH="${DATA_FOLDER_PATH}/${participant_id}_faces"
+mkdir -p "${FACES_FOLDER_PATH}"
 
-
-if [ ! -d $savePath/"${famId}_face_crops" ]
-then
-	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The indicated face_crops directory $savePath/${famId}_face_crops does not exist. \nPlease check if the face_crops directory is present.";
-	exit 
+# Verify that the face_crops folder exists
+FACE_CROPS_FOLDER_PATH="${DATA_FOLDER_PATH}/${participant_id}_face_crops"
+if [ ! -d "${FACE_CROPS_FOLDER_PATH}" ]; then
+    zenity --warning --title "Warning Message" --width 700 --height 100 --text "The indicated face_crops directory ${FACE_CROPS_FOLDER_PATH} does not exist. \nPlease check if the face_crops directory is present."
+    exit
 fi
 
-# target child processing
-ntc=`ls $savePath/"${famId}_face_crops"/tc_selected/*.png | wc -l`
-min=5
-if [ $ntc -lt $min ]; then
-	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The number of target child faces selected for the gallery is less than $min. \nPlease check if the folder $savePath/${famId}_face_crops/tc_selected has less than $min faces."
-	exit
-fi
+# Define the minimum number of faces required within each category
+min_faces=5
 
+# Function to check and copy faces
+copy_faces() {
+    local face_crop_type=$1
+    local FACE_CROP_TYPE_SELECTED_PATH="${FACE_CROPS_FOLDER_PATH}/${face_crop_type}_selected"
+    face_crop_type_count=$(find "${FACE_CROP_TYPE_SELECTED_PATH}" -name "*.png" | wc -l)
+	local face_crop_type_count
 
-n=0
-for i in $savePath/"${famId}_face_crops"/tc_selected/*.png;
-do 
-	#echo $i;
-	n=$((n+1))
-	cp $i $savePath/"${famId}_faces"/"${famId}_tc${n}.png"
-done
+    # shellcheck disable=SC2086
+    if [ ${face_crop_type_count} -lt ${min_faces} ]; then
+        zenity --warning --title "Warning Message" --width 700 --height 100 --text "The number of ${face_crop_type} faces selected for the gallery is less than ${min_faces}. \nPlease check if the folder ${FACE_CROP_TYPE_SELECTED_PATH} has less than ${min_faces} faces."
+        exit
+    fi
 
-nsib=`ls $savePath/"${famId}_face_crops"/sib_selected/*.png | wc -l`
-min=5
-if [ $nsib -lt $min ]; then
-	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The number of sibling faces selected for the gallery is less than $min. \nPlease check if the folder $savePath/${famId}_face_crops/sib_selected has less than $min faces."
-	exit
-fi
-
-
-# sibling processing
-n=0
-for i in $savePath/"${famId}_face_crops"/sib_selected/*.png;
-do 
-	#echo $i;
-	n=$((n+1))
-	cp $i $savePath/"${famId}_faces"/"${famId}_sib${n}.png"
-done
-
-
-npar=`ls $savePath/"${famId}_face_crops"/par_selected/*.png | wc -l`
-min=5
-if [ $npar -lt $min ]; then
-	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The number of parent faces selected for the gallery is less than $min. \nPlease check if the folder $savePath/${famId}_face_crops/par_selected has less than $min faces."
-	exit
-fi
-
-# parent processing
-n=0
-for i in $savePath/"${famId}_face_crops"/par_selected/*.png;
-do 
-	#echo $i;
-	n=$((n+1))
-	cp $i $savePath/"${famId}_faces"/"${famId}_parent${n}.png"
-done
-
-
-nextra=`ls $savePath/"${famId}_face_crops"/extra_selected/*.png | wc -l`
-min=5
-if [ $nextra -lt $min ]; then
-	zenity --warning --title "Warning Message" --width 700 --height 100 --text "The extra faces selected for gallery is less than $min. \nPlease check if the folder $savePath/${famId}_face_crops/extra_selected has less than $min faces."
-	exit
-fi
-
-# extra processing
-n=0
-extra_images=($savePath/"${famId}_face_crops"/extra_selected/*.png)
-
-if [ -e "${extra_images[0]}" ]; then
-    for i in "${extra_images[@]}"; do
+    local n=0
+    for i in "${FACE_CROP_TYPE_SELECTED_PATH}"/*.png; do
         n=$((n+1))
-        cp "$i" "$savePath/${famId}_faces/${famId}_extra${n}.png"
+        cp "${i}" "${FACES_FOLDER_PATH}/${participant_id}_${face_crop_type}${n}.png"
     done
+}
+
+# Check and copy target child faces
+copy_faces "tc"
+
+# Check and copy sibling faces
+copy_faces "sib"
+
+# Check and copy parent faces
+copy_faces "par"
+
+# Check and copy extra faces
+extra_images=$(find "${FACE_CROPS_FOLDER_PATH}/extra_selected/" -name "*.png" | wc -l)
+# shellcheck disable=SC2086
+if [ ${extra_images} -gt 0 ]; then
+    copy_faces "extra"
 else
-    # poster processing
+    # Copy poster faces if extra faces were not selected
     n=0
-    for i in ../poster_faces/*.png; do
+    for i in "${HOME}/flash-tv-scripts/poster_faces"/*.png; do
         n=$((n+1))
-        cp "$i" "$savePath/${famId}_faces/${famId}_extra${n}.png"
+        cp "${i}" "${FACES_FOLDER_PATH}/${participant_id}_extra${n}.png"
     done
+
+    # Check extra faces again
+    n_extra_faces=$(find "${FACES_FOLDER_PATH}" -name "${participant_id}_extra*.png" | wc -l)
+    if [ "${n_extra_faces}" -lt ${min_faces} ]; then
+        zenity --warning --title "Warning Message" --width 700 --height 100 --text "The number of extra faces selected for the gallery is less than ${min_faces}. \nPlease check if the folder ${DATA_FOLDER_PATH}/${participant_id}_face_crops/extra_selected has less than ${min_faces} faces."
+        exit
+    fi
 fi
+
