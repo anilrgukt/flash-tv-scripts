@@ -62,7 +62,7 @@ void signal_handler(int s)
 	exit_clean();
 }
 
-void write_int16_values_to_csv(const char *filename, const char *headers, int16_t values[])
+void save_int16_values_to_csv(const char *filename, const char *headers, int16_t values[])
 {
 	FILE *file = fopen(filename, "a");
 	if (file == NULL)
@@ -100,7 +100,7 @@ void write_int16_values_to_csv(const char *filename, const char *headers, int16_
 	fclose(file);
 }
 
-void process_data(const le_advertising_info *info)
+void read_and_save_battery_and_accelerometer_data(const le_advertising_info *info)
 {
 	if (info->length >= 10)
 	{
@@ -113,14 +113,14 @@ void process_data(const le_advertising_info *info)
 		int8_t accelerometer_z_byte1 = (int8_t)info->data[info->length - 2];
 		int8_t accelerometer_z_byte2 = (int8_t)info->data[info->length - 1];
 
+		int16_t battery = (int16_t)((battery_byte_1 << 8) | (uint8_t)battery_byte_2);
 		int16_t x = (int16_t)((accelerometer_x_byte1 << 8) | (uint8_t)accelerometer_x_byte2);
 		int16_t y = (int16_t)((accelerometer_y_byte1 << 8) | (uint8_t)accelerometer_y_byte2);
 		int16_t z = (int16_t)((accelerometer_z_byte1 << 8) | (uint8_t)accelerometer_z_byte2);
-		int16_t battery = (int16_t)((battery_byte_1 << 8) | (uint8_t)battery_byte_2);
-
+		
 		int16_t data_values[] = {battery, x, y, z, NULL};
 
-		write_int16_values_to_csv("/home/flashsysXXX/data/123XXX_data/123XXX_bluetooth_beacon_accelerometer_data.csv", "Battery (mV),X,Y,Z", data_values);
+		save_int16_values_to_csv("/home/flashsysXXX/data/123XXX_data/123XXX_bluetooth_beacon_accelerometer_data.csv", "Battery (mV),X,Y,Z", data_values);
 	}
 }
 
@@ -283,7 +283,7 @@ int main()
 							for (int i = 0; i < info->length; i++)
 								printf(" %02X", (unsigned char)info->data[i]);
 							printf("\n");
-							process_data(info);
+							read_and_save_battery_and_accelerometer_data(info);
 						}
 					}
 					offset = info->data + info->length + 2;
