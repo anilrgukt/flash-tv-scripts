@@ -20,7 +20,7 @@ tegrastats --interval 30000 --logfile "/home/${username}/data/${participant_id}_
 bash "/home/${username}/flash-tv-scripts/services/flash_check_camera_warnings.sh" ${participant_id} ${username} &
 
 # Run the script for scanning and saving the data from the Bluetooth beacon accelerometer in the background
-BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH="/home/${username}/flash-tv-scripts/services/bluetooth_beacon_accelerometer_scanner"
+BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH="/home/${username}/flash-tv-scripts/services/bluetooth_beacon_accelerometer_data_reader"
 
 PROGRAM_RUNNER_PATH="/home/${username}/flash-tv-scripts/services/run_bluetooth_beacon_scanner.sh"
 
