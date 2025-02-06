@@ -109,15 +109,15 @@ int main()
     if (device < 0)
     {
         device = hci_open_dev(0);
-        if (device >= 0)
-        {
-            printf("Using hci0\n");
-        }
+        // if (device >= 0)
+        // {
+        //   //printf("Using hci0\n");
+        // }
     }
-    else
-    {
-        printf("Using hci1\n");
-    }
+    // else
+    // {
+    //     printf("Using hci1\n");
+    // }
 
     if (device < 0)
     {
