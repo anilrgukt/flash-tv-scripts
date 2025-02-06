@@ -7,4 +7,5 @@ bash -x ~/flash-tv-scripts/services/stop_services.sh
 sudo cp ~/flash-tv-scripts/services/flash-run-on-boot.service /etc/systemd/system
 sudo cp ~/flash-tv-scripts/services/flash-periodic-restart.service /etc/systemd/system
 
+# Reload the systemctl daemon
 sudo systemctl daemon-reload

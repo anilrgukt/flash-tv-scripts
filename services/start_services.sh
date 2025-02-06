@@ -12,5 +12,5 @@ sleep 1;
 sudo systemctl start flash-run-on-boot.service
 sleep 1;
 
-#Display the status of all services
+# Display the status of all services
 sudo systemctl status --no-pager flash-periodic-restart.service flash-run-on-boot.service

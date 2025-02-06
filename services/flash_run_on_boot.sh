@@ -1,12 +1,13 @@
 #!/bin/bash
 
-export participantID=123XXX
+export participant_id=123XXX
 export username=flashsysXXX
+export DATA_FOLDER_PATH="/home/${username}/data/${participant_id}_data"
 
-export LD_LIBRARY_PATH=/home/$username/mxnet/lib:$LD_LIBRARY_PATH
-export PATH=/usr/local/cuda-11/bin:$PATH
-export MXNET_HOME=/home/$username/mxnet
-export PYTHONPATH=$MXNET_HOME/python:$PYTHONPATH
+export LD_LIBRARY_PATH="/home/${username}/mxnet/lib:${LD_LIBRARY_PATH}"
+export PATH="/usr/local/cuda-11/bin:${PATH}"
+export MXNET_HOME="/home/${username}/mxnet"
+export PYTHON_PATH="${MXNET_HOME}/python:${PYTHON_PATH}"
 
 # Activate Python 3.8 virtual environment with libraries set up
 source "/home/${username}/py38/bin/activate"
@@ -14,7 +15,7 @@ source "/home/${username}/py38/bin/activate"
 # Disable automatic time updating and update the time from the RTCs instead
 timedatectl set-ntp 0;
 sleep 1;
-python3 /home/${username}/flash-tv-scripts/python_scripts/update_system_time_from_RTCs.py /home/${username}/data/${participantID}_data/${participantID}_start_date.txt
+python3 "/home/${username}/flash-tv-scripts/python_scripts/update_system_time_from_RTCs.py" "/home/${username}/data/${participant_id}_data/${participant_id}_start_date.txt"
 
 # Create a local network (without internet) to connect to when transferring data at visit 2
 suffix=$(printf "%d" "${username: -2}")
@@ -30,7 +31,9 @@ if ! [ "$(pgrep -af run_flash_data_collection.py)" ]; then
 	free -m && sync && echo 1 > /proc/sys/vm/drop_caches && free -m;
 
  	sleep 1;
-	python /home/${username}/flash-tv-scripts/python_scripts/run_flash_data_collection.py ${participantID} /home/${username}/data/${participantID}_data no-save-image ${username};
+
+	python /home/${username}/flash-tv-scripts/python_scripts/run_flash_data_collection.py "${participant_id}" "${DATA_FOLDER_PATH}" no-save-image "${username}";
+	
 	sleep 30;
 else
 	sleep 30;
