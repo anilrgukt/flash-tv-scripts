@@ -200,7 +200,7 @@ int main()
 
     const int timeout = 40;
     const int reset_timeout = 1; // wether to reset the timer on a received scan event (continuous scanning)
-    // const int max_count = 10000;
+    const int max_count = 10000; //check the value
 
     // Install a signal handler so that we can set the exit code and clean up
     if (signal(SIGALRM, signal_handler) == SIG_ERR)
@@ -225,7 +225,7 @@ int main()
 
     // Keep scanning until the timeout is triggered or we have seen lots of advertisements.  Then exit.
     // We exit in this case because the scan may have failed or stopped. Higher level code can restart
-    while (1) // while (count < max_count || max_count <= 0)
+    while (count < max_count || max_count <= 0)
     {
         len = read(device, buf, sizeof(buf));
         if (len >= HCI_EVENT_HDR_SIZE)
