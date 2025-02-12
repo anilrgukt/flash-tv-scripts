@@ -21,7 +21,7 @@ bash ~/flash-tv-scripts/services/run_bluetooth_beacon_scanner.sh &
 sleep 10
 
 # Display unique MAC addresses
-unique_mac_addresses=$(sort -u /home/unique_mac_addresses.txt)
+unique_mac_addresses=$(sort -u /home/${username}/flash-tv-scripts/services/unique_mac_addresses.txt)
 zenity --info --width 500 --height 300 --text="Unique MAC addresses detected:\n\n${unique_mac_addresses}"
 
 bluetooth_beacon_mac_address=$(zenity --entry --width 500 --height 100 --text="Enter the Bluetooth beacon accelerometer's MAC address (format: XX:XX:XX:XX:XX:XX):")
