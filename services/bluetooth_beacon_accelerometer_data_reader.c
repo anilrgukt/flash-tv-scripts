@@ -100,8 +100,35 @@ void save_int16_values_to_csv(const char *filename, const char *headers, int16_t
 	fclose(file);
 }
 
+void save_unique_mac_address(const char *filename, const char *mac_address)
+{
+    FILE *file = fopen(filename, "a+");
+    if (file == NULL)
+    {
+        perror("Unable to open file");
+        return;
+    }
+
+    char line[18];
+    while (fgets(line, sizeof(line), file))
+    {
+        if (strncmp(line, mac_address, 17) == 0)
+        {
+            fclose(file);
+            return; // MAC address already exists
+        }
+    }
+
+    fprintf(file, "%s\n", mac_address);
+    fclose(file);
+}
+    
 void read_and_save_battery_and_accelerometer_data(const le_advertising_info *info)
 {
+	char addr[18];
+    	ba2str(&(info->bdaddr), addr);
+   	save_unique_mac_address("/home/flashsysXXX/data/123XXX_data/unique_mac_addresses.txt"
+		
 	if (info->length >= 10)
 	{
 		int8_t battery_byte_1 = (int8_t)info->data[info->length - 10];
