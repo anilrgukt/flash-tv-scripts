@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH= "/home/${username}/flash-tv-scripts/services/bluetooth_beacon_accelerometer_data_reader"
+BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH= "/home/flash-tv-scripts/services/bluetooth_beacon_accelerometer_data_reader"
 
 if [ ! -e "${BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH}" ]; then
 
