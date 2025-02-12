@@ -7,6 +7,15 @@ if [ ! -d "${HOME_ASSISTANT_FOLDER}" ]; then
 	exit 1
 fi
 
+UNIQUE_MAC_ADDRESSES_FILE="/home/${username}/data/${participant_id}_data/unique_mac_addresses.txt"
+
+if [ -f "${UNIQUE_MAC_ADDRESSES_FILE}" ]; then
+    unique_macs=$(cat "${UNIQUE_MAC_ADDRESSES_FILE}")
+    zenity --info --width 500 --height 300 --text="Unique MAC addresses found:\n\n${unique_macs}"
+else
+    zenity --warning --width 500 --height 100 --text="No unique MAC addresses found."
+fi
+
 # Prompt user for the smart plug ID, FLASH device ID, participant ID, and Bluetooth beacon accelerometer MAC address
 
 smart_plug_id=$(zenity --entry --width 500 --height 100 --text="Enter the Zigbee smart plug ID's extra index at the end, displayed in Home Assistant. Leave blank if no extra index. Enter YYYY (uppercase) if the smart plug is not ready:")
