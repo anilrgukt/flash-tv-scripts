@@ -3,26 +3,26 @@
 
 HOME_ASSISTANT_FOLDER="${HOME}/docker-compose/ha-config"
 if [ ! -d "${HOME_ASSISTANT_FOLDER}" ]; then
-	zenity --warning --text="Exiting the code since Home Assistant has not been set up.\n\nPlease set up Home Assistant before running this script." --width 500 --height 100
-	exit 1
-fi
-
-UNIQUE_MAC_ADDRESSES_FILE="/home/${username}/data/${participant_id}_data/unique_mac_addresses.txt"
-
-if [ -f "${UNIQUE_MAC_ADDRESSES_FILE}" ]; then
-    unique_macs=$(cat "${UNIQUE_MAC_ADDRESSES_FILE}")
-    zenity --info --width 500 --height 300 --text="Unique MAC addresses found:\n\n${unique_macs}"
-else
-    zenity --warning --width 500 --height 100 --text="No unique MAC addresses found."
+    zenity --warning --text="Exiting the code since Home Assistant has not been set up.\n\nPlease set up Home Assistant before running this script." --width 500 --height 100
+    exit 1
 fi
 
 # Prompt user for the smart plug ID, FLASH device ID, participant ID, and Bluetooth beacon accelerometer MAC address
-
 smart_plug_id=$(zenity --entry --width 500 --height 100 --text="Enter the Zigbee smart plug ID's extra index at the end, displayed in Home Assistant. Leave blank if no extra index. Enter YYYY (uppercase) if the smart plug is not ready:")
 
 flash_device_id=$(zenity --entry --width 500 --height 100 --text="Enter the current FLASH device's ID (3 digits at the end of the username):")
 
 participant_id=$(zenity --entry --width 500 --height 100 --text="Enter the participant ID (P1-1[3 digits no brackets] for TECH):")
+
+# Run the Bluetooth beacon scanner script
+bash ~/flash-tv-scripts/services/run_bluetooth_beacon_scanner.sh &
+
+# Wait for a few seconds to gather some MAC addresses
+sleep 10
+
+# Display unique MAC addresses
+unique_mac_addresses=$(sort -u /home/unique_mac_addresses.txt)
+zenity --info --width 500 --height 300 --text="Unique MAC addresses detected:\n\n${unique_mac_addresses}"
 
 bluetooth_beacon_mac_address=$(zenity --entry --width 500 --height 100 --text="Enter the Bluetooth beacon accelerometer's MAC address (format: XX:XX:XX:XX:XX:XX):")
 
@@ -30,8 +30,8 @@ zenity --question --title="Verify the smart plug ID, FLASH device ID, participan
 user_resp=$?
 
 if [ ${user_resp} -eq 1 ]; then
-	zenity --warning --text="Exiting the code since the smart plug ID, FLASH device ID, participant ID, and/or Bluetooth beacon accelerometer MAC address were not entered correctly according to the user. Please restart the script to try again." --width 500 --height 100
-	exit 1
+    zenity --warning --text="Exiting the code since the smart plug ID, FLASH device ID, participant ID, and/or Bluetooth beacon accelerometer MAC address were not entered correctly according to the user. Please restart the script to try again." --width 500 --height 100
+    exit 1
 fi
 
 # Function to validate MAC address format (XX:XX:XX:XX:XX:XX)
@@ -86,4 +86,3 @@ docker compose up -d
 
 # Copy git config into data folder
 cp "${HOME}/flash-tv-scripts/.git/config" "${HOME}/data/${participant_id}${flash_device_id}_data/git_config.txt"
-
