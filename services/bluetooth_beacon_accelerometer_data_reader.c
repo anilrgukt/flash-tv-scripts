@@ -127,7 +127,7 @@ void read_and_save_battery_and_accelerometer_data(const le_advertising_info *inf
 {
 	char addr[18];
     	ba2str(&(info->bdaddr), addr);
-   	save_unique_mac_address("/home/flashsysXXX/data/123XXX_data/unique_mac_addresses.txt"
+   	save_unique_mac_address("/home/unique_mac_addresses.txt")
 		
 	if (info->length >= 10)
 	{
@@ -147,7 +147,7 @@ void read_and_save_battery_and_accelerometer_data(const le_advertising_info *inf
 		
 		int16_t data_values[] = {battery, x, y, z, NULL};
 
-		save_int16_values_to_csv("/home/flashsysXXX/data/123XXX_data/123XXX_bluetooth_beacon_accelerometer_data.csv", "Battery (mV),X,Y,Z", data_values);
+		save_int16_values_to_csv("/home/bluetooth_beacon_accelerometer_data.csv", "Battery (mV),X,Y,Z", data_values);
 	}
 }
 
