@@ -8,51 +8,48 @@ if [ ! -d "${HOME_ASSISTANT_FOLDER}" ]; then
 fi
 
 # Prompt user for the smart plug ID, FLASH device ID, participant ID, and Bluetooth beacon accelerometer MAC address
-smart_plug_id=$(zenity --entry --width 500 --height 100 --text="Enter the Zigbee smart plug ID's extra index at the end, displayed in Home Assistant. Leave blank if no extra index. Enter YYYY (uppercase) if the smart plug is not ready:")
+smart_plug_id=$(zenity --entry --width 500 --height 100 --text="Enter the Zigbee smart plug ID's extra index at the end, displayed in Home Assistant.\n\nLeave blank if no extra index.\n\nEnter YYYY (uppercase) if the smart plug is not ready:")
 
 flash_device_id=$(zenity --entry --width 500 --height 100 --text="Enter the current FLASH device's ID (3 digits at the end of the username):")
 
 participant_id=$(zenity --entry --width 500 --height 100 --text="Enter the participant ID (P1-1[3 digits no brackets] for TECH):")
 
-# Run the Bluetooth beacon scanner script
-bash ~/flash-tv-scripts/services/run_bluetooth_beacon_scanner.sh &
+if zenity --question --title="Are you using Bluetooth beacon accelerometer(s) for this visit?" --width 500 --height 100 --text="Are you using Bluetooth beacon accelerometer(s) for this visit?" --no-wrap; then
+	echo "Scanning for Bluetooth beacon accelerometer MAC addresses... please wait around 30 seconds."
+	unique_mac_addresses="$(sudo bash "/home/flashsys${flash_device_id}/flash-tv-scripts/services/run_bluetooth_beacon_accelerometer_searcher.sh" flashsys"${flash_device_id}")"
+	# Function to validate MAC address format (XX:XX:XX:XX:XX:XX)
+	validate_mac_address() {
+	    local mac=$1
+	    # Check if MAC address has exactly 6 pairs of hexadecimal digits separated by colons
+	    if [[ $mac =~ ^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$ ]]; then
+		return 0
+	    else
+		return 1
+	    fi
+	}
+    while true; do
+        if ! bluetooth_beacon_mac_address=$(zenity --entry --width 500 --height 100 --text="Enter the Bluetooth beacon accelerometer's MAC address (format: XX:XX:XX:XX:XX:XX).\n\nUnique MAC Addresses found:\n${unique_mac_addresses}"); then
+            exit 1
+        else
+            if validate_mac_address "${bluetooth_beacon_mac_address}"; then
+                break
+            else
+                zenity --warning --text="The MAC address ${bluetooth_beacon_mac_address} was invalid.\n\nPlease enter a valid MAC address in the format XX:XX:XX:XX:XX:XX." --width 500 --height 100
+            fi
+        fi
+    done
 
-# Wait for a few seconds to gather some MAC addresses
-sleep 10
+else
+	bluetooth_beacon_mac_address="Not Needed for this Visit"
+fi
 
-# Display unique MAC addresses
-unique_mac_addresses=$(sort -u /home/${username}/flash-tv-scripts/services/unique_mac_addresses.txt)
-zenity --info --width 500 --height 300 --text="Unique MAC addresses detected:\n\n${unique_mac_addresses}"
-
-bluetooth_beacon_mac_address=$(zenity --entry --width 500 --height 100 --text="Enter the Bluetooth beacon accelerometer's MAC address (format: XX:XX:XX:XX:XX:XX):")
-
-zenity --question --title="Verify the smart plug ID, FLASH device ID, participant ID, and Bluetooth beacon accelerometer MAC address" --width 500 --height 100 --text="Please verify the following details\n\nPlug ID: $smart_plug_id\nFamily ID: ${participant_id}\nDevice ID: ${flash_device_id}\nMAC Address: ${bluetooth_beacon_mac_address}" --no-wrap
-user_resp=$?
-
-if [ ${user_resp} -eq 1 ]; then
+if ! zenity --question --title="Verify Details" --width 500 --height 100 --text="Please verify the following details\n\nPlug ID: $smart_plug_id\nFamily ID: ${participant_id}\nDevice ID: ${flash_device_id}\nBluetooth Beacon Accelerometer MAC Address: ${bluetooth_beacon_mac_address}" --no-wrap; then
     zenity --warning --text="Exiting the code since the smart plug ID, FLASH device ID, participant ID, and/or Bluetooth beacon accelerometer MAC address were not entered correctly according to the user. Please restart the script to try again." --width 500 --height 100
     exit 1
 fi
 
-# Function to validate MAC address format (XX:XX:XX:XX:XX:XX)
-validate_mac_address() {
-    local mac=$1
-    # Check if MAC address has exactly 6 pairs of hexadecimal digits separated by colons
-    if [[ $mac =~ ^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$ ]]; then
-        return 0  # Valid MAC address
-    else
-        return 1  # Invalid MAC address
-    fi
-}
-
-# Validate the MAC address format
-if ! validate_mac_address "${bluetooth_beacon_mac_address}"; then
-    zenity --warning --text="The MAC address's format was invalid. Please enter a valid MAC address in the format XX:XX:XX:XX:XX:XX." --width 500 --height 100
-    exit 1
-fi
-
-# Update the target MAC address in the Bluetooth beacon accelerometer scanner code
-sed -i "s/ZZZZ/${bluetooth_beacon_mac_address}/g" ~/flash-tv-scripts/services/bluetooth_beacon_accelerometer_scanner.c
+# Update the target MAC address in the Bluetooth beacon accelerometer data reader code
+sed -i "s/ZZZZ/${bluetooth_beacon_mac_address}/g" ~/flash-tv-scripts/services/bluetooth_beacon_accelerometer_data_reader.c
 
 # Set to exit on non-zero error code
 set -e
@@ -61,7 +58,7 @@ set -e
 sed -i "s/YYYY/${smart_plug_id}/g" "${HOME}/flash-tv-scripts/install_scripts/configuration.yaml"
 
 # Run the ID setup script
-bash -x "${HOME}/flash-tv-scripts/setup_scripts/ID_setup.sh" "${flash_device_id}" "${participant_id}" 1
+bash -x "${HOME}/flash-tv-scripts/setup_scripts/ID_setup.sh" "${flash_device_id}" "${participant_id}" 0
 sleep 1
 
 # Run the USB backup setup script

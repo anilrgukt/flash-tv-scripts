@@ -62,7 +62,7 @@ void signal_handler(int s)
 	exit_clean();
 }
 
-void save_int16_values_to_csv(const char *filename, const char *headers, int16_t values[])
+void save_int16_array_to_csv(const char *filename, const char *headers, int16_t values[])
 {
 	FILE *file = fopen(filename, "a");
 	if (file == NULL)
@@ -100,34 +100,8 @@ void save_int16_values_to_csv(const char *filename, const char *headers, int16_t
 	fclose(file);
 }
 
-void save_unique_mac_address(const char *filename, const char *mac_address)
-{
-    FILE *file = fopen(filename, "a+");
-    if (file == NULL)
-    {
-        perror("Unable to open file");
-        return;
-    }
-
-    char line[18];
-    while (fgets(line, sizeof(line), file))
-    {
-        if (strncmp(line, mac_address, 17) == 0)
-        {
-            fclose(file);
-            return; // MAC address already exists
-        }
-    }
-
-    fprintf(file, "%s\n", mac_address);
-    fclose(file);
-}
-    
 void read_and_save_battery_and_accelerometer_data(const le_advertising_info *info)
 {
-	char addr[18];
-    	ba2str(&(info->bdaddr), addr);
-   	save_unique_mac_address("/home/${username}/flash-tv-scripts/services/unique_mac_addresses.txt")
 		
 	if (info->length >= 10)
 	{
@@ -147,7 +121,7 @@ void read_and_save_battery_and_accelerometer_data(const le_advertising_info *inf
 		
 		int16_t data_values[] = {battery, x, y, z, NULL};
 
-		save_int16_values_to_csv("/home/${username}/flash-tv-scripts/services/bluetooth_beacon_accelerometer_data.csv", "Battery (mV),X,Y,Z", data_values);
+		save_int16_array_to_csv("/home/flashsysXXX/data/123XXX_data/123XXX_bluetooth_beacon_accelerometer_data.csv", "Battery (mV),X,Y,Z", data_values);
 	}
 }
 
