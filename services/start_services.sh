@@ -12,5 +12,10 @@ sleep 1;
 sudo systemctl start flash-run-on-boot.service
 sleep 1;
 
+# Start Home Assistant Docker container
+cd "${HOME}/docker-compose" || exit
+docker compose up -d
+
 # Display the status of all services
 sudo systemctl status --no-pager flash-periodic-restart.service flash-run-on-boot.service
+docker ps -a
