@@ -1,7 +1,7 @@
 #!/bin/bash
 # MUST DELETE AND RECLONE the flash-tv-scripts folder BEFORE RUNNING THIS OR IT WILL NOT WORK PROPERLY
 
-HOME_ASSISTANT_FOLDER="${HOME}/docker-compose/ha-config"
+HOME_ASSISTANT_FOLDER="${HOME}/homeassistant-compose/config"
 if [ ! -d "${HOME_ASSISTANT_FOLDER}" ]; then
     zenity --warning --text="Exiting the code since Home Assistant has not been set up.\n\nPlease set up Home Assistant before running this script." --width 500 --height 100
     exit 1
@@ -74,10 +74,10 @@ bash -x "${HOME}/flash-tv-scripts/setup_scripts/RTC_setup.sh"
 sleep 1
 
 # Copy modified configuration.yaml with plug ID to Home Assistant folder after updating the family and device IDs as well
-sudo cp "/home/flashsys${flash_device_id}/flash-tv-scripts/install_scripts/configuration.yaml" "/home/flashsys${flash_device_id}/docker-compose/ha-config/configuration.yaml"
+sudo cp "/home/flashsys${flash_device_id}/flash-tv-scripts/install_scripts/configuration.yaml" "/home/flashsys${flash_device_id}/homeassistant-compose/config/configuration.yaml"
 
 # Start the Home Assistant Docker compose instance
-cd "${HOME}/docker-compose/ha-config"
+cd "${HOME}/homeassistant-compose/config"
 
 docker compose up -d
 

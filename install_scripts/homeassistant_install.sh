@@ -34,4 +34,4 @@ cp "${HOME}/flash-tv-scripts/install_scripts/compose.yaml" "."
 
 docker compose up -d
 
-echo "Need to go to localhost:8123 after this to set up Home Assistant, then do 'docker compose down' in the 'docker-compose' folder when finished"
+echo "Need to go to localhost:8123 after this to set up Home Assistant, then do 'docker compose down' in the 'homeassistant-compose' folder when finished"
