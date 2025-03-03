@@ -63,3 +63,5 @@ sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/setup_scripts/USB_b
 sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/setup_scripts/RTC_setup.sh"
 sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/setup_scripts/RTC_setup.sh"
 
+sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/services/bluetooth_beacon_accelerometer_data_reader.c"
+sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/services/bluetooth_beacon_accelerometer_data_reader.c"
