@@ -55,22 +55,20 @@ def convert_external_RTC_datetime_to_decimal_format(bus: SMBus) -> list[int]:
 
 
 def get_start_datetime() -> datetime_class | None:
-    start_datetime_file_path = Path(sys.argv[1])
-
-    if Path(start_datetime_file_path).exists():
-        with Path(start_datetime_file_path).open() as file:
+    if Path(START_DATETIME_FILE_PATH).exists():
+        with Path(START_DATETIME_FILE_PATH).open() as file:
             start_datetime_str = file.read().strip()
             return datetime_class.strptime(start_datetime_str, "%Y-%m-%d %H:%M:%S")
     else:
-        stderr_print(f"Start datetime file '{start_datetime_file_path}' not found")
+        stderr_print(f"Start datetime file '{START_DATETIME_FILE_PATH}' not found")
         return None
 
 
-def is_external_RTC_datetime_within_12_days_of_start_datetime(*, RTC_datetime: datetime_class | None = None) -> bool | None:
-    if RTC_datetime:
+def is_external_RTC_datetime_within_12_days_of_start_datetime(*, external_RTC_datetime: datetime_class | None = None) -> bool | None:
+    if external_RTC_datetime:
         start_datetime = get_start_datetime()
         if start_datetime:
-            datetime_difference = abs(RTC_datetime - start_datetime)
+            datetime_difference = abs(external_RTC_datetime - start_datetime)
             if datetime_difference.days <= 12:
                 return True
             else:
@@ -86,14 +84,14 @@ def is_external_RTC_datetime_within_12_days_of_start_datetime(*, RTC_datetime: d
 
 def convert_external_RTC_datetime_format_to_timedatectl_format(bus: SMBus) -> str:
     try:
-        RTC_datetime_decimal_array = convert_external_RTC_datetime_to_decimal_format(bus=bus)
-        RTC_datetime_str = f"20{RTC_datetime_decimal_array[6]:02}-{RTC_datetime_decimal_array[5]:02}-{RTC_datetime_decimal_array[4]:02} {RTC_datetime_decimal_array[2]:02}:{RTC_datetime_decimal_array[1]:02}:{RTC_datetime_decimal_array[0]:02}"
-        RTC_datetime = datetime_class.strptime(RTC_datetime_str, "%Y-%m-%d %H:%M:%S")
+        external_RTC_datetime_decimal_array = convert_external_RTC_datetime_to_decimal_format(bus=bus)
+        external_RTC_datetime_str = f"20{external_RTC_datetime_decimal_array[6]:02}-{external_RTC_datetime_decimal_array[5]:02}-{external_RTC_datetime_decimal_array[4]:02} {external_RTC_datetime_decimal_array[2]:02}:{external_RTC_datetime_decimal_array[1]:02}:{external_RTC_datetime_decimal_array[0]:02}"
+        external_RTC_datetime = datetime_class.strptime(external_RTC_datetime_str, "%Y-%m-%d %H:%M:%S")
 
-        if is_external_RTC_datetime_within_12_days_of_start_datetime(RTC_datetime=RTC_datetime):
-            return RTC_datetime_str
+        if is_external_RTC_datetime_within_12_days_of_start_datetime(external_RTC_datetime=external_RTC_datetime):
+            return external_RTC_datetime_str
         else:
-            return f"The datetime from the external RTC, 20{RTC_datetime_decimal_array[6]:02}-{RTC_datetime_decimal_array[5]:02}-{RTC_datetime_decimal_array[4]:02} {RTC_datetime_decimal_array[2]:02}:{RTC_datetime_decimal_array[1]:02}:{RTC_datetime_decimal_array[0]:02}, was incomparable or incorrect"
+            return f"The datetime from the external RTC, 20{external_RTC_datetime_decimal_array[6]:02}-{external_RTC_datetime_decimal_array[5]:02}-{external_RTC_datetime_decimal_array[4]:02} {external_RTC_datetime_decimal_array[2]:02}:{external_RTC_datetime_decimal_array[1]:02}:{external_RTC_datetime_decimal_array[0]:02}, was incomparable or incorrect"
     except Exception as e:
         return str(e)
 
@@ -174,6 +172,14 @@ if __name__ == "__main__":
     RTC_ADDRESS = 104  # Replace with the actual RTC address if different
     I2C_BUS_NUMBER = 1  # Replace with the actual bus number if different
 
-    set_datetime_with_retries()
+    UPDATE_OR_CHECK = Path(sys.argv[1])
+    START_DATETIME_FILE_PATH = Path(sys.argv[2])
 
-    check_all_datetimes()
+    if UPDATE_OR_CHECK == "update":
+        set_datetime_with_retries()
+        check_all_datetimes()
+    elif UPDATE_OR_CHECK == "check":
+        check_all_datetimes()
+    else:
+        print("Invalid input. Please provide 'update' or 'check' as the first argument")
+        sys.exit(1)

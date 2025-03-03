@@ -15,7 +15,7 @@ source "/home/${username}/py38/bin/activate"
 # Disable automatic time updating and update the time from the RTCs instead
 timedatectl set-ntp 0;
 sleep 1;
-python3 "/home/${username}/flash-tv-scripts/python_scripts/update_system_time_from_RTCs.py" "/home/${username}/data/${participant_id}_data/${participant_id}_start_date.txt"
+python3 "/home/${username}/flash-tv-scripts/python_scripts/update_system_time_from_RTCs.py" "update" "/home/${username}/data/${participant_id}_data/${participant_id}_start_date.txt"
 
 # Create a local network (without internet) to connect to when transferring data at visit 2
 suffix=$(printf "%d" "${username: -2}")
