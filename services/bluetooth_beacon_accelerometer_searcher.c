@@ -161,7 +161,7 @@ int main()
     int count = 0;
 
     const int timeout = 40;
-    const int reset_timeout = 1; // wether to reset the timer on a received scan event (continuous scanning)
+    const int reset_timeout = 0; // wether to reset the timer on a received scan event (continuous scanning)
     const int max_count = 10000; // check the value
 
     // Install a signal handler so that we can set the exit code and clean up
@@ -214,9 +214,7 @@ int main()
                         info->data[7] == 0x10 && info->data[8] == 0x16 && info->data[9] == 0xAA && info->data[10] == 0xFE &&
                         info->data[11] == 0x21 && info->data[12] == 0x00)
                     {
-                        printf("%s %d", addr, (int8_t)info->data[info->length]);
-                        for (int i = 0; i < info->length; i++)
-                            printf(" %02X", (unsigned char)info->data[i]);
+                        printf("%s", addr);
                         printf("\n");
                     }
                     offset = info->data + info->length + 2;
