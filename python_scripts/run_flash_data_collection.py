@@ -1,7 +1,6 @@
 import os
 
 # import queue libraries
-import subprocess
 import sys
 import threading as th
 
@@ -18,11 +17,11 @@ import numpy as np
 # custom libs
 from flash_main import FLASHtv
 from utils.flash_runtime_utils import cam_id, check_face_presence, correct_rotation, make_directories, write_log_file
-from utils.rotate_frame import rotate_frame
+from utils.rotate_frame import FrameRotator
 from utils.visualizer import draw_gz, draw_rect_ver
 
 
-def frame_write(q, frm_count):
+def frame_write(q, frame_count):
     idx = cam_id()
     cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
     # cap = cv2.VideoCapture('/dev/video'+str(idx), cv2.CAP_V4L2)
@@ -36,7 +35,7 @@ def frame_write(q, frm_count):
     fps = int(cap.get(5))
     # print('fps: ', fps)
 
-    count = frm_count
+    count = frame_count
     write_img = True
 
     global stop_capture
@@ -111,7 +110,7 @@ log_path_rot = os.path.join(save_path, str(famid) + "_flash_log_" + tmp_fname + 
 
 num_identities = 4
 flash_tv = FLASHtv(username, family_id=str(famid), num_identities=num_identities, data_path=save_path, frame_res_hw=None, output_res_hw=None)
-rot_frame = rotate_frame()
+rot_frame = FrameRotator()
 
 frame_counter = 1
 log_file = [log_path, frame_counter]
@@ -306,7 +305,7 @@ while True:
                             np.array(gaze_data1).reshape(1, 3),
                             tc_bbox,
                             save_path,
-                            gz_label=None,
+                            gaze_label=None,
                             write_img=True,
                             scale=[480, 854],
                         )

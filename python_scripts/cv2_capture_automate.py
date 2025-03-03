@@ -1,21 +1,22 @@
 import os
-import sys
-import numpy as np
-
-usrname = str(sys.argv[3])
-sys.path.insert(1, os.path.join("/home/" + usrname + "/FLASH_TV/python_wrapper"))
-
 import subprocess
+import sys
 import threading as th
 import time
-from datetime import datetime
 from queue import Queue
 
 import cv2
-import imageio as io
-import skimage.io
-import skimage.transform
+import numpy as np
 from face_detector_YOLOv2 import YoloFace
+
+IMAGE_SIZE = [1080, 1920]
+DETECTED_IMAGE_SIZE = [342, 608]
+BBOX_SCALE = [IMAGE_SIZE[i] / float(DETECTED_IMAGE_SIZE[i]) for i in range(2)]
+HEIGHT_SCALE = BBOX_SCALE[0]
+WIDTH_SCALE = BBOX_SCALE[1]
+
+username = str(sys.argv[3])
+sys.path.insert(1, os.path.join("/home/" + username + "/FLASH_TV/python_wrapper"))
 
 
 def draw_rect(img, dboxes, show, save_file=None):
@@ -54,32 +55,26 @@ def area(boxA):
     return boxAArea
 
 
-imgSize = [1080, 1920]
-detImgSize = [342, 608]
-bboxScale = [imgSize[i] / float(detImgSize[i]) for i in range(2)]
-hsc = bboxScale[0]
-wsc = bboxScale[1]
-
-
 def get_face(detface):
-    off = 7
-    dl = detface["left"] - off
-    dr = detface["right"] + off
-    dt = detface["top"] - off
-    db = detface["bottom"] + off
+    offset = 7
+    det_left = detface["left"] - offset
+    det_right = detface["right"] + offset
+    det_top = detface["top"] - offset
+    det_bottom = detface["bottom"] + offset
 
-    w = dr - dl
-    h = db - dt
-    w = w * wsc
-    h = h * hsc
+    width = det_right - det_left
+    h = det_bottom - det_top
 
-    offW = 0  # max((100-w)/2.0, 0)
-    offH = 0  # max((100-h)/2.0, 0)
+    width = width * WIDTH_SCALE
+    h = h * HEIGHT_SCALE
 
-    y1 = max(0, int(dt * hsc - offH))
-    y2 = min(int(db * hsc + offH), 1080)
-    x1 = max(0, int(dl * wsc - offW))
-    x2 = min(int(dr * wsc + offW), 1920)
+    width_offset = 0  # max((100-w)/2.0, 0)
+    height_offset = 0  # max((100-h)/2.0, 0)
+
+    y1 = max(0, int(det_top * HEIGHT_SCALE - height_offset))
+    y2 = min(int(det_bottom * HEIGHT_SCALE + height_offset), 1080)
+    x1 = max(0, int(det_left * WIDTH_SCALE - width_offset))
+    x2 = min(int(det_right * WIDTH_SCALE + width_offset), 1920)
     # face = img[y1:y2, x1:x2, :]
     # face = skimage.transform.resize(face, [160, 160])
     return [x1, x2, y1, y2]
@@ -180,9 +175,9 @@ def frame_write(q, frm_count, yolo) -> None:
 print("starting the YoLo Face model")
 
 yolo_model = YoloFace(
-    os.path.join("/home/" + usrname + "/FLASH_TV/darknet_face_release"),
-    config_path=os.path.join("/home/" + usrname + "/FLASH_TV/darknet_face_release/cfg/face-shallow-size608-anchor5.cfg"),
-    weight_path=os.path.join("/home/" + usrname + "/FLASH_TV/darknet_face_release/trained_models/face-shallow-size608-anchor5.weights"),
+    os.path.join("/home/" + USERNAME + "/FLASH_TV/darknet_face_release"),
+    config_path=os.path.join("/home/" + USERNAME + "/FLASH_TV/darknet_face_release/cfg/face-shallow-size608-anchor5.cfg"),
+    weight_path=os.path.join("/home/" + USERNAME + "/FLASH_TV/darknet_face_release/trained_models/face-shallow-size608-anchor5.weights"),
 )
 
 

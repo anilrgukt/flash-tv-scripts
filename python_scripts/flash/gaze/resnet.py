@@ -1,6 +1,12 @@
-import torch.nn as nn
-import torch.utils.model_zoo as model_zoo
+from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from torch.nn import AdaptiveAvgPool2d, AvgPool2d, BatchNorm2d, Conv2d, Linear, MaxPool2d, Module, ReLU, Sequential, init
+from torch.utils import model_zoo
+
+if TYPE_CHECKING:
+    import torch
 
 __all__ = ["ResNet", "resnet18", "resnet34", "resnet50", "resnet101", "resnet152"]
 
@@ -14,25 +20,38 @@ model_urls = {
 }
 
 
-def conv3x3(in_planes, out_planes, stride=1):
-    """3x3 convolution with padding"""
-    return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride, padding=1, bias=False)
+class BasicBlock(Module):
+    expansion: int = 1
 
+    def __init__(self, in_channels: int, out_channels: int, stride: int = 1, downsample: Module | None = None) -> None:
+        """
+        Initializes the BasicBlock.
 
-class BasicBlock(nn.Module):
-    expansion = 1
-
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
-        super(BasicBlock, self).__init__()
-        self.conv1 = conv3x3(inplanes, planes, stride)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.relu = nn.ReLU(inplace=True)
-        self.conv2 = conv3x3(planes, planes)
-        self.bn2 = nn.BatchNorm2d(planes)
+        Args:
+            in_channels (int): Number of input channels.
+            out_channels (int): Number of output channels.
+            stride (int, optional): Stride of the convolution. Default is 1.
+            downsample (Module, optional): Downsampling layer. Default is None.
+        """
+        super().__init__()
+        self.conv1 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = BatchNorm2d(out_channels)
+        self.relu = ReLU(inplace=True)
+        self.conv2 = Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn2 = BatchNorm2d(out_channels)
         self.downsample = downsample
         self.stride = stride
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass for the BasicBlock.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor after passing through the block.
+        """
         residual = x
 
         out = self.conv1(x)
@@ -51,22 +70,40 @@ class BasicBlock(nn.Module):
         return out
 
 
-class Bottleneck(nn.Module):
-    expansion = 4
+class Bottleneck(Module):
+    expansion: int = 4
 
-    def __init__(self, inplanes, planes, stride=1, downsample=None):
-        super(Bottleneck, self).__init__()
-        self.conv1 = nn.Conv2d(inplanes, planes, kernel_size=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(planes)
-        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
-        self.bn2 = nn.BatchNorm2d(planes)
-        self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
-        self.bn3 = nn.BatchNorm2d(planes * self.expansion)
-        self.relu = nn.ReLU(inplace=True)
+    def __init__(self, in_channels: int, out_channels: int, stride: int = 1, downsample: Module | None = None) -> None:
+        """
+        Initializes the Bottleneck block.
+
+        Args:
+            in_channels (int): Number of input channels.
+            out_channels (int): Number of output channels.
+            stride (int, optional): Stride of the convolution. Default is 1.
+            downsample (Module, optional): Downsampling layer. Default is None.
+        """
+        super().__init__()
+        self.conv1 = Conv2d(in_channels, out_channels, kernel_size=1, bias=False)
+        self.bn1 = BatchNorm2d(out_channels)
+        self.conv2 = Conv2d(out_channels, out_channels, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn2 = BatchNorm2d(out_channels)
+        self.conv3 = Conv2d(out_channels, out_channels * self.expansion, kernel_size=1, bias=False)
+        self.bn3 = BatchNorm2d(out_channels * self.expansion)
+        self.relu = ReLU(inplace=True)
         self.downsample = downsample
         self.stride = stride
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass for the Bottleneck block.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor after passing through the block.
+        """
         residual = x
 
         out = self.conv1(x)
@@ -89,126 +126,185 @@ class Bottleneck(nn.Module):
         return out
 
 
-class ResNet(nn.Module):
-    def __init__(self, block, layers, num_classes=1000):
-        self.inplanes = 64
-        super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+class ResNet(Module):
+    def __init__(self, block: Module, layers: list[int], num_classes: int = 1000) -> None:
+        """
+        Initializes the ResNet model.
+
+        Args:
+            block (Module): The block type to be used (BasicBlock or Bottleneck).
+            layers (list[int]): Number of blocks in each layer.
+            num_classes (int, optional): Number of output classes. Default is 1000.
+        """
+        super().__init__()
+        self.in_channels = 64
+        self.conv1 = Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.bn1 = BatchNorm2d(64)
+        self.relu = ReLU(inplace=True)
+        self.maxpool = MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        # self.avgpool = nn.AdaptativeAvgPool((1,1), stride=1)
-        self.fc1 = nn.Linear(512 * block.expansion, 1000)
-        self.fc2 = nn.Linear(1000, 3)
+        self.avgpool = AdaptiveAvgPool2d((1, 1))
+        self.fc1 = Linear(512 * block.expansion, 1000)
+        self.fc2 = Linear(1000, num_classes)
 
+        # Initialize weights
         for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+            if isinstance(m, Conv2d):
+                init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, BatchNorm2d):
+                init.constant_(m.weight, 1)
+                init.constant_(m.bias, 0)
 
-    def _make_layer(self, block, planes, blocks, stride=1):
+    def _make_layer(self, block: Module, out_channels: int, blocks: int, stride: int = 1) -> Sequential:
+        """
+        Creates a layer consisting of multiple blocks.
+
+        Args:
+            block (Module): The block type to be used (BasicBlock or Bottleneck).
+            out_channels (int): Number of output channels.
+            int): Number of blocks in the layer.
+            stride (int, optional): Stride of the first block. Default is 1.
+
+        Returns:
+            Sequential: A sequential container of blocks.
+        """
         downsample = None
-        if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(planes * block.expansion),
+        if stride != 1 or self.in_channels != out_channels * block.expansion:
+            downsample = Sequential(
+                Conv2d(self.in_channels, out_channels * block.expansion, kernel_size=1, stride=stride, bias=False),
+                BatchNorm2d(out_channels * block.expansion),
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
-        self.inplanes = planes * block.expansion
-        for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes))
+        layers.append(block(self.in_channels, out_channels, stride, downsample))
+        self.in_channels = out_channels * block.expansion
+        for _ in range(1, blocks):
+            layers.append(block(self.in_channels, out_channels))
 
-        return nn.Sequential(*layers)
+        return Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass for the ResNet model.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            torch.Tensor: Output tensor after passing through the model.
+        """
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
         x = self.layer1(x)
-        feat_D = self.layer2(x)
-        x = self.layer3(feat_D)
+        x = self.layer2(x)
+        x = self.layer3(x)
         x = self.layer4(x)
-        # print('Size at output',x.size())
         x = self.avgpool(x)
         x = x.view(x.size(0), -1)
-        # x = nn.Dropout()(x)
-        x = nn.ReLU()(self.fc1(x))
+        x = self.relu(self.fc1(x))
         x = self.fc2(x)
 
         return x
 
 
-class ResNetCAM(nn.Module):
-    def __init__(self, block, layers, num_classes=1000):
-        self.inplanes = 64
-        super(ResNetCAM, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+class ResNetCAM(Module):
+    def __init__(self, block: Module, layers: list[int], num_classes: int = 1000) -> None:
+        """
+        Initializes the ResNetCAM model.
+
+        Args:
+            block (Module): The block type to be used (BasicBlock or Bottleneck).
+            layers (list[int]): Number of blocks in each layer.
+            num_classes (int, optional): Number of output classes. Default is 1000.
+        """
+        super().__init__()
+        self.in_channels = 64
+        self.conv1 = Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.bn1 = BatchNorm2d(64)
+        self.relu = ReLU(inplace=True)
+        self.maxpool = MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-        self.avgpool = nn.AvgPool2d(7, stride=1)
-        self.fc1 = nn.Linear(512 * block.expansion, 1000)
-        self.fc2 = nn.Linear(1000, 3)
+        self.avgpool = AvgPool2d(7, stride=1)
+        self.fc1 = Linear(512 * block.expansion, 1000)
+        self.fc2 = Linear(1000, num_classes)
 
+        # Initialize weights
         for m in self.modules():
-            if isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
-            elif isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
+            if isinstance(m, Conv2d):
+                init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+            elif isinstance(m, BatchNorm2d):
+                init.constant_(m.weight, 1)
+                init.constant_(m.bias, 0)
 
-    def _make_layer(self, block, planes, blocks, stride=1):
+    def _make_layer(self, block: Module, out_channels: int, blocks: int, stride: int = 1) -> Sequential:
+        """
+        Creates a layer consisting of multiple blocks.
+
+        Args:
+            block (Module): The block type to be used (BasicBlock or Bottleneck).
+            out_channels (int): Number of output channels.
+            blocks (int): Number of blocks in the layer.
+            stride (int, optional): Stride of the first block. Default is 1.
+
+        Returns:
+            Sequential: A sequential container of blocks.
+        """
         downsample = None
-        if stride != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.Sequential(
-                nn.Conv2d(self.inplanes, planes * block.expansion, kernel_size=1, stride=stride, bias=False),
-                nn.BatchNorm2d(planes * block.expansion),
+        if stride != 1 or self.in_channels != out_channels * block.expansion:
+            downsample = Sequential(
+                Conv2d(self.in_channels, out_channels * block.expansion, kernel_size=1, stride=stride, bias=False),
+                BatchNorm2d(out_channels * block.expansion),
             )
 
         layers = []
-        layers.append(block(self.inplanes, planes, stride, downsample))
-        self.inplanes = planes * block.expansion
-        for i in range(1, blocks):
-            layers.append(block(self.inplanes, planes))
+        layers.append(block(self.in_channels, out_channels, stride, downsample))
+        self.in_channels = out_channels * block.expansion
+        for _ in range(1, blocks):
+            layers.append(block(self.in_channels, out_channels))
 
-        return nn.Sequential(*layers)
+        return Sequential(*layers)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward pass for the ResNetCAM model.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            tuple[torch.Tensor, torch.Tensor]: Output tensors after passing through the model.
+        """
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
         x = self.layer1(x)
-        x2 = self.layer2(x)
-        x2 = self.layer3(x2)
-        x2 = self.layer4(x2)
-        return x, x2
+        feature_map = self.layer2(x)
+        feature_map = self.layer3(feature_map)
+        feature_map = self.layer4(feature_map)
+        return x, feature_map
 
 
-def resnetCAM(pretrained=False, **kwargs):
-    """Constructs a ResNet-18 model.
+def resnetCAM(pretrained=False, **kwargs) -> ResNetCAM:
+    """Constructs a ResNet-18 model with CAM capabilities.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     model = ResNetCAM(BasicBlock, [2, 2, 2, 2], **kwargs)
+    if pretrained:
+        model.load_state_dict(model_zoo.load_url(model_urls["resnet18"]), strict=False)
     return model
 
 
-def resnet18(pretrained=False, **kwargs):
+def resnet18(pretrained=False, **kwargs) -> ResNet:
     """Constructs a ResNet-18 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -219,7 +315,7 @@ def resnet18(pretrained=False, **kwargs):
     return model
 
 
-def resnet34(pretrained=False, **kwargs):
+def resnet34(pretrained=False, **kwargs) -> ResNet:
     """Constructs a ResNet-34 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -230,7 +326,7 @@ def resnet34(pretrained=False, **kwargs):
     return model
 
 
-def resnet50(pretrained=False, **kwargs):
+def resnet50(pretrained=False, **kwargs) -> ResNet:
     """Constructs a ResNet-50 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -241,7 +337,7 @@ def resnet50(pretrained=False, **kwargs):
     return model
 
 
-def resnet101(pretrained=False, **kwargs):
+def resnet101(pretrained=False, **kwargs) -> ResNet:
     """Constructs a ResNet-101 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet
@@ -252,7 +348,7 @@ def resnet101(pretrained=False, **kwargs):
     return model
 
 
-def resnet152(pretrained=False, **kwargs):
+def resnet152(pretrained=False, **kwargs) -> ResNet:
     """Constructs a ResNet-152 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet

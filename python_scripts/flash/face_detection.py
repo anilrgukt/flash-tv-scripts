@@ -1,7 +1,9 @@
 import os
 import sys
+
 import cv2
 import numpy as np
+from retinaface import RetinaFace
 
 # face detection libs
 # det_path_loc = '/home/'+os.getlogin()+'/insightface/detection/RetinaFace'
@@ -17,7 +19,6 @@ class FlashFaceDetector:
         gpuid = 0
 
         sys.path.insert(1, det_path_loc)
-        from retinaface import RetinaFace
 
         self.detector = RetinaFace(os.path.join(det_path_loc, "model/retina"), 0, gpuid, "net3", vote=False)
         self.det_path_loc = det_path_loc  #'/home/'+os.getlogin()+'/insightface/detection/RetinaFace'
@@ -30,10 +31,7 @@ class FlashFaceDetector:
         return self.det_path_loc
 
     def face_detect(self, img, now_threshold=None):
-        if now_threshold is None:
-            det_thresh = self.threshold
-        else:
-            det_thresh = now_threshold
+        det_thresh = self.threshold if now_threshold is None else now_threshold
 
         # det_scales = [720, 1280] # 720, 1280
         # det_res_img = [720, 1280]

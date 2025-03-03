@@ -18,7 +18,7 @@ import numpy as np
 # custom libs
 from flash_main import FLASHtv
 from utils.flash_runtime_utils import cam_id, check_face_presence, correct_rotation, make_directories, write_log_file
-from utils.rotate_frame import rotate_frame
+from utils.rotate_frame import FrameRotator
 from utils.visualizer import draw_gz, draw_rect_ver
 
 # super variables
@@ -53,7 +53,7 @@ log_path_rot = os.path.join(save_path, str(famid) + "_flash_log_" + tmp_fname + 
 
 num_identities = 4
 flash_tv = FLASHtv(family_id=str(famid), num_identities=num_identities, data_path=save_path, frame_res_hw=None, output_res_hw=None)
-rot_frame = rotate_frame()
+rot_frame = FrameRotator()
 
 frame_counter = 1
 log_file = [log_path, frame_counter]
@@ -208,7 +208,7 @@ while True:
             save_path = os.path.join(frames_save_path, str(frame_counts[3]).zfill(6) + ".png")
             if tc_present:
                 _, _ = draw_gz(
-                    frame_1080p_ls[tc_id], np.array(gaze_data1).reshape(1, 3), tc_bbox, save_path, gz_label=None, write_img=True, scale=[480, 854]
+                    frame_1080p_ls[tc_id], np.array(gaze_data1).reshape(1, 3), tc_bbox, save_path, gaze_label=None, write_img=True, scale=[480, 854]
                 )
             else:
                 _ = draw_rect_ver(frame_1080p_ls[1], frame_bbox_ls[1], None, save_path, write_img=True, scale=[480, 854])
