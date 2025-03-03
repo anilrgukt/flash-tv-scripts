@@ -1,20 +1,21 @@
+from __future__ import annotations
+
+import math
 import os
 import sys
-import torch
+
 import numpy as np
-import math
-
-from PIL import Image
-
+import torch
+import torch.backends.cudnn as cudnn
 import torch.nn as nn
 import torch.nn.parallel
-import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
-import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 import torchvision.models as models
+import torchvision.transforms as transforms
 import torchvision.utils as vutils
+from PIL import Image
 
 # sys.path.insert(1, './gaze/')
 from .gaze.model import GazeLSTM, GazeLSTMreg
