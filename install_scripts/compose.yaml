@@ -4,7 +4,7 @@ services:
     container_name: homeassistant
     image: "ghcr.io/home-assistant/home-assistant:stable"
     volumes:
-      - /home/flashsysXXX/docker-compose/ha-config:/ha-config
+      - /home/flashsysXXX/homeassistant-compose/config:/config
       - /home/flashsysXXX/data/123XXX_data:/123XXX_data
       - /etc/localtime:/etc/localtime:ro
       - /run/dbus:/run/dbus:ro

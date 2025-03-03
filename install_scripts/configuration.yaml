@@ -11,7 +11,7 @@ scene: !include scenes.yaml
 
 homeassistant:
   allowlist_external_dirs:
-    - "/ha-config"
+    - "/config"
     - "/123XXX_data"
 
 notify:
