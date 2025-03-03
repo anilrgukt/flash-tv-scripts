@@ -24,11 +24,11 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin 
 # Set up Home Assistant folder
 cd "${HOME}" || exit 1
 
-mkdir "docker-compose"
+mkdir "homeassistant-compose"
 
-cd "docker-compose" || exit 1
+cd "homeassistant-compose" || exit 1
 
-mkdir "ha-config"
+mkdir "config"
 
 cp "${HOME}/flash-tv-scripts/install_scripts/compose.yaml" "."
 
