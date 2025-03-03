@@ -58,7 +58,7 @@ set -e
 sed -i "s/YYYY/${smart_plug_id}/g" "${HOME}/flash-tv-scripts/install_scripts/configuration.yaml"
 
 # Run the ID setup script
-bash -x "${HOME}/flash-tv-scripts/setup_scripts/ID_setup.sh" "${flash_device_id}" "${participant_id}" 0
+bash -x "${HOME}/flash-tv-scripts/setup_scripts/ID_setup.sh" 1 "${flash_device_id}" "${participant_id}"
 sleep 1
 
 # Run the USB backup setup script

@@ -4,11 +4,12 @@
 rm -r "${HOME}/flash-tv-scripts/video_capture_scripts"
 rm -r "${HOME}/flash-tv-scripts/internal_testing"
 
-flash_device_id=$1
-participant_id=$2
-skip_checking=$3
+skip_checking=$1
+flash_device_id=$2
+participant_id=$3
 
-if [ "${skip_checking}" -eq 1 ]; then
+
+if [ "${skip_checking}" -ne 1 ]; then
 	flash_device_id=$(zenity --entry --width 500 --height 100 --text="Enter the current FLASH device's ID (3 digits at the end of the username):")
 	
 	participant_id=$(zenity --entry --width 500 --height 100 --text="Enter the participant ID (P1-1[3 digits no brackets] for TECH):")
@@ -39,8 +40,8 @@ sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/services/flash-run-
 sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/services/flash_run_on_boot.sh"
 sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/services/flash_run_on_boot.sh"
 
-sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/services/homeassistant-run-on-boot.service"
-sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/services/homeassistant-run-on-boot.service"
+sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/install_scripts/compose.yaml"
+sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/install_scripts/compose.yaml"
 
 sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/build_gallery.sh"
 sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/build_gallery.sh"
