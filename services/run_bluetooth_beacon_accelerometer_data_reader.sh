@@ -1,5 +1,5 @@
 #!/bin/bash
-username=$(whoami)
+username=$1
 DATA_READER_PROGRAM_PATH="/home/${username}/flash-tv-scripts/services/bluetooth_beacon_accelerometer_data_reader"
 
 cc "${DATA_READER_PROGRAM_PATH}.c" -lbluetooth -o "${DATA_READER_PROGRAM_PATH}"

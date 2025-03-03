@@ -13,7 +13,7 @@ sudo systemctl start flash-run-on-boot.service
 sleep 1;
 
 # Start Home Assistant Docker container
-cd "${HOME}/docker-compose" || exit
+cd "${HOME}/homeassistant-compose" || exit
 docker compose up -d
 
 # Display the status of all services

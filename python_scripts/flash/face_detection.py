@@ -3,7 +3,6 @@ import sys
 
 import cv2
 import numpy as np
-from retinaface import RetinaFace
 
 # face detection libs
 # det_path_loc = '/home/'+os.getlogin()+'/insightface/detection/RetinaFace'
@@ -19,6 +18,7 @@ class FlashFaceDetector:
         gpuid = 0
 
         sys.path.insert(1, det_path_loc)
+        from retinaface import RetinaFace
 
         self.detector = RetinaFace(os.path.join(det_path_loc, "model/retina"), 0, gpuid, "net3", vote=False)
         self.det_path_loc = det_path_loc  #'/home/'+os.getlogin()+'/insightface/detection/RetinaFace'

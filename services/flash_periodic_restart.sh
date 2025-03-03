@@ -19,23 +19,8 @@ tegrastats --interval 30000 --logfile "/home/${username}/data/${participant_id}_
 # Run the script for checking for FLASH camera warnings in the background 
 bash "/home/${username}/flash-tv-scripts/services/flash_check_camera_warnings.sh" ${participant_id} ${username} &
 
-# Run the script for scanning and saving the data from the Bluetooth beacon accelerometer in the background
-BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH="/home/${username}/flash-tv-scripts/services/bluetooth_beacon_accelerometer_data_reader"
-
-PROGRAM_RUNNER_PATH="/home/${username}/flash-tv-scripts/services/run_bluetooth_beacon_scanner.sh"
-
-if [ -e "${BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH}" ]; then
-
-    bash  ${PROGRAM_RUNNER_PATH} ${BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH} &
-
-else
-
-    cc "${BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH}.c" -lbluetooth -o ${BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH}
-    
-    bash ${PROGRAM_RUNNER_PATH} ${BLUETOOTH_BEACON_SCANNER_PROGRAM_PATH} &
-
-fi
-
+# Run the script for reading and saving the data from the Bluetooth beacon accelerometer in the background
+bash "/home/${username}/flash-tv-scripts/services/run_bluetooth_beacon_accelerometer_data_reader.sh" ${username} &
 
 # Get the amount of time to sleep before starting the rest of the script from the FLASH run on boot service delay (accounts for the time to update when rebooting)
 FLASH_RUN_ON_BOOT_SERVICE_PATH="/home/${username}/flash-tv-scripts/services/flash-run-on-boot.service"
@@ -115,7 +100,7 @@ do
 
  		source "/home/${username}/.bashrc"
 
-  		export BACKUP_DIRS="/home/${username}/data /home/${username}/docker-compose/ha-config"
+  		export BACKUP_DIRS="/home/${username}/data /home/${username}/homeassistant-compose/config"
 	
 		borg create --exclude "/home/${username}/data/*.zip" --exclude "/home/${username}/data/*/*face*" "::${participant_id}-FLASH-HA-Data-Backup-${datetime}" "${BACKUP_DIRS}"
 		
