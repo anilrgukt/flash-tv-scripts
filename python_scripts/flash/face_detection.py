@@ -56,11 +56,11 @@ class FlashFaceDetector:
                 self.scale2 = [wsc, hsc]
 
                 box = faces[i, :4] * np.array([wsc, hsc, wsc, hsc])
-                lmarks = landmarks[i] * np.array([wsc, hsc]).reshape(1, 2)
+                landmarks = landmarks[i] * np.array([wsc, hsc]).reshape(1, 2)
 
                 box = box.astype(np.int32)
-                lmarks = lmarks.astype(np.int32)
+                landmarks = landmarks.astype(np.int32)
 
-                bbox_ls.append({"left": box[0], "top": box[1], "right": box[2], "bottom": box[3], "prob": score, "lmarks": lmarks})
+                bbox_ls.append({"left": box[0], "top": box[1], "right": box[2], "bottom": box[3], "prob": score, "landmarks": landmarks})
 
         return bbox_ls

@@ -1,5 +1,3 @@
-from typing import Any
-
 import numpy as np
 
 
@@ -57,7 +55,7 @@ class Bbox:
 
         return bbox
 
-    def return_dict(self) -> dict[str, Any]:
+    def return_dict(self):
         return {"left": self.left, "top": self.top, "right": self.right, "bottom": self.bottom, "prob": self.prob, "landmarks": self.landmarks}
 
     def add_offset(self, height_and_width_offset):
