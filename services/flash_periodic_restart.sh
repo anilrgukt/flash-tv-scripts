@@ -86,7 +86,8 @@ do
 	python3 /home/${username}/flash-tv-scripts/python_scripts/check_all_times.py >> "${LOG_FOLDER_PATH}/varlogs_${datetime}/timedate_${datetime}.txt"
 	
 	v4l2-ctl --list-devices > "${LOG_FOLDER_PATH}/varlogs_${datetime}/camera_${datetime}.txt"
-	
+	echo -e "\nLogitech Camera iSerial Number: $(sudo lsusb -v -d 046d: 2>/dev/null | grep -i serial | awk '{print substr($0, length($0)-7)}')" >> "${LOG_FOLDER_PATH}/varlogs_${datetime}/camera_${datetime}.txt"
+
 	# Stop the FLASH run on boot service
 	systemctl stop flash-run-on-boot.service
 	
