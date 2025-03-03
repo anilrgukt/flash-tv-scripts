@@ -11,24 +11,26 @@ scene: !include scenes.yaml
 
 homeassistant:
   allowlist_external_dirs:
-    - "/config"
+    - "/ha-config"
+    - "/123XXX_data"
+
+notify:
+  - platform: file
+    name: tvpowerdatafilenotify
+    filename: "/123XXX_data/123XXX_tv_power_5s.csv"
+    timestamp: True
 
 sensor:
-
-  - platform: file
-    name: "TV Data File Notify"
-    file_path: "/config/123XXX_tv_power_5s.csv"
-
   - platform: systemmonitor
     resources:
-      - type: disk_use_percent
-      - type: memory_use_percent		
-      - type: memory_use
-      - type: memory_free
-      - type: swap_use_percent
-      - type: swap_use		
-      - type: swap_free
-
+    - type: disk_use_percent
+    - type: memory_use_percent		
+    - type: memory_use
+    - type: memory_free
+    - type: swap_use_percent
+    - type: swap_use		
+    - type: swap_free
+    
 automation:  
 
 - alias: Backup TV Power Data from Smart Plug Every 5 Seconds
@@ -40,9 +42,8 @@ automation:
   conditions: []
   actions:
   - action: notify.send_message
-    metadata: {}
     data:
       message: "{{states('sensor.third_reality_inc_3rsp02028bz_powerYYYY')}}"
     target:
-      entity_id: notify.file
+      entity_id: notify.tvpowerdatafilenotify
   mode: single
