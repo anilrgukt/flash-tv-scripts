@@ -11,7 +11,7 @@ source "/home/${username}/py38/bin/activate"
 
 # Run the script for checking folder file updates in the background for various folders
 python3 "/home/${username}/flash-tv-scripts/python_scripts/check_file_events.py" ${participant_id} "${LOG_FOLDER_PATH}" "/home/${username}/data/${participant_id}_data/${participant_id}_varlog_filesequence.csv" &
-python3 "/home/${username}/flash-tv-scripts/python_scripts/check_file_events.py" ${participant_id} "${LOG_FOLDER_PATH}/logs" "/home/${username}/data/${participant_id}_data/${participant_id}_flashlog_filesequence.csv" &
+python3 "/home/${username}/flash-tv-scripts/python_scripts/check_file_events.py" ${participant_id} "/home/${username}/data/${participant_id}_data" "/home/${username}/data/${participant_id}_data/${participant_id}_flashlog_filesequence.csv" &
 
 # Run the tegrastats command and output it every 30 seconds to a log file in the background
 tegrastats --interval 30000 --logfile "/home/${username}/data/${participant_id}_data/${participant_id}_tegrastats.log" &
