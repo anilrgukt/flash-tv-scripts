@@ -92,7 +92,7 @@ void save_int16_array_to_csv(const char *filename, const char *headers, int16_t 
 	fprintf(file, "%s", time_buffer);
 
 	// Write values to CSV
-	for (int i = 0; values[i] != NULL; i++)
+	for (int i = 0; values[i] != -1; i++)
 	{
 		fprintf(file, ",%d", values[i]);
 	}
@@ -102,7 +102,6 @@ void save_int16_array_to_csv(const char *filename, const char *headers, int16_t 
 
 void read_and_save_battery_and_accelerometer_data(const le_advertising_info *info)
 {
-		
 	if (info->length >= 10)
 	{
 		int8_t battery_byte_1 = (int8_t)info->data[info->length - 10];
@@ -118,8 +117,8 @@ void read_and_save_battery_and_accelerometer_data(const le_advertising_info *inf
 		int16_t x = (int16_t)((accelerometer_x_byte1 << 8) | (uint8_t)accelerometer_x_byte2);
 		int16_t y = (int16_t)((accelerometer_y_byte1 << 8) | (uint8_t)accelerometer_y_byte2);
 		int16_t z = (int16_t)((accelerometer_z_byte1 << 8) | (uint8_t)accelerometer_z_byte2);
-		
-		int16_t data_values[] = {battery, x, y, z, NULL};
+
+		int16_t data_values[] = {battery, x, y, z, -1};
 
 		save_int16_array_to_csv("/home/flashsysXXX/data/123XXX_data/123XXX_bluetooth_beacon_accelerometer_data.csv", "Battery (mV),X,Y,Z", data_values);
 	}
@@ -137,12 +136,12 @@ int main()
 		device = hci_open_dev(0);
 		if (device >= 0)
 		{
-			printf("Using hci0\n");
+			// printf("Using hci0\n");
 		}
 	}
 	else
 	{
-		printf("Using hci1\n");
+		// printf("Using hci1\n");
 	}
 
 	if (device < 0)
@@ -280,10 +279,10 @@ int main()
 							info->data[7] == 0x10 && info->data[8] == 0x16 && info->data[9] == 0xAA && info->data[10] == 0xFE &&
 							info->data[11] == 0x21 && info->data[12] == 0x00)
 						{
-							printf("%s %d", addr, (int8_t)info->data[info->length]);
-							for (int i = 0; i < info->length; i++)
-								printf(" %02X", (unsigned char)info->data[i]);
-							printf("\n");
+							// printf("%s %d", addr, (int8_t)info->data[info->length]);
+							// for (int i = 0; i < info->length; i++)
+							// 	printf(" %02X", (unsigned char)info->data[i]);
+							// printf("\n");
 							read_and_save_battery_and_accelerometer_data(info);
 						}
 					}
