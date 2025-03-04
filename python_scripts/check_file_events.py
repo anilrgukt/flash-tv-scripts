@@ -25,7 +25,7 @@ class EventHandler(FileSystemEventHandler):
         # print(event.event_type)
         if not event.src_path.endswith(".swp"):
             # print(event.src_path)
-            with Path(save_path, "a").open() as fid:
+            with Path(save_path).open(mode="a") as fid:
                 fid.write(f"{event.src_path}\n")
         # print(event.is_directory)
 
