@@ -1,14 +1,14 @@
-from __future__ import annotations
-
-import random
-import time
 from datetime import datetime
 
 import matplotlib
 
 # matplotlib.use("Qt5Agg")
 import matplotlib.pyplot as plt
-from visualizer import get_xticks, num2ts, ts2num
+
+import time
+import random
+
+from visualizer import ts2num, num2ts, get_xticks
 
 if __name__ == "__main__":
     l = [0, 1, 2]

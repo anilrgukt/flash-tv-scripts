@@ -1,13 +1,12 @@
-from __future__ import annotations
-
 import os
 from datetime import datetime
 
-import cv2
-import imageio as io
-import numpy as np
 import torch
+import cv2
+import numpy as np
+import imageio as io
 from skimage.transform import resize
+
 from utils.face_verification_utils import dist_mat, distance
 
 # new fv model

@@ -1,14 +1,13 @@
-from __future__ import annotations
+import cv2
+import numpy as np
 
 import math
 
-import cv2
-import numpy as np
-from imageio import imread, imsave
 from skimage.transform import resize
+from imageio import imread, imsave
 
 
-def draw_rect_det(img, dboxes, save_file, draw_landmarks=True):
+def draw_rect_det(img, dboxes, save_file, draw_lmarks=True):
     cv_img = np.copy(img)
     tmp_channel = np.copy(cv_img[:, :, 0])
     cv_img[:, :, 0] = cv_img[:, :, 2]
@@ -18,16 +17,16 @@ def draw_rect_det(img, dboxes, save_file, draw_landmarks=True):
         if dbox["prob"] > 0.03:
             cv2.rectangle(cv_img, (int(dbox["left"]), int(dbox["top"])), (int(dbox["right"]), int(dbox["bottom"])), (0, 0, 255), 2)
         # cv2.circle(cv_img, (int(0.5 * (int(dbox["left"]) + int(dbox["right"]))), int(0.5 * (int(dbox["top"]) + int(dbox["bottom"])))), 2, (0,0,255))
-        landmarks = dbox["landmarks"]
-        if draw_landmarks:
-            for li in range(landmarks.shape[0]):
-                cv2.circle(cv_img, (landmarks[li][0], landmarks[li][1]), 1, colors[li], 2)
+        lmarks = dbox["lmarks"]
+        if draw_lmarks:
+            for li in range(lmarks.shape[0]):
+                cv2.circle(cv_img, (lmarks[li][0], lmarks[li][1]), 1, colors[li], 2)
 
     cv2.imwrite(save_file, cv_img)
     return cv_img
 
 
-def draw_rect_ver(img, dboxes1, dboxes2, save_path, draw_landmarks=False, write_img=False, scale=None):
+def draw_rect_ver(img, dboxes1, dboxes2, save_path, draw_lmarks=False, write_img=False, scale=None):
     cv_img = np.copy(img)
     tmp_channel = np.copy(cv_img[:, :, 0])
     cv_img[:, :, 0] = cv_img[:, :, 2]
@@ -41,7 +40,7 @@ def draw_rect_ver(img, dboxes1, dboxes2, save_path, draw_landmarks=False, write_
         new_img = cv2.resize(cv_img, (w, h))
         cv_img = new_img
 
-    # draw_landmarks = True
+    # draw_lmarks = True
     for i, dbox in enumerate(dboxes1):
         if scale is not None:
             dbox["left"] = dbox["left"] * w / 608.0
@@ -51,14 +50,14 @@ def draw_rect_ver(img, dboxes1, dboxes2, save_path, draw_landmarks=False, write_
             dbox["bottom"] = dbox["bottom"] * h / 342.0
 
         cv2.rectangle(cv_img, (int(dbox["left"]), int(dbox["top"])), (int(dbox["right"]), int(dbox["bottom"])), l[dbox["idx"]], 2)
-        landmarks = dbox["landmarks"]
+        lmarks = dbox["lmarks"]
         lmcolor = [(0, 0, 255), (0, 255, 0), (255, 0, 0), (255, 255, 0), (0, 0, 0)]  # rgbc,black
-        if draw_landmarks:
-            for lm in range(landmarks.shape[0]):
+        if draw_lmarks:
+            for lm in range(lmarks.shape[0]):
                 color = (0, 0, 255)
                 if lm == 0 or lm == 3:
                     color = (0, 255, 0)
-                cv2.circle(cv_img, (landmarks[lm, 0], landmarks[lm, 1]), 1, color, 2)
+                cv2.circle(cv_img, (lmarks[lm, 0], lmarks[lm, 1]), 1, color, 2)
 
     if dboxes2 is not None:
         for i, dbox in enumerate(dboxes2):
@@ -71,7 +70,7 @@ def draw_rect_ver(img, dboxes1, dboxes2, save_path, draw_landmarks=False, write_
     return cv_img
 
 
-def draw_gz(frm, gaze_angle, bbx, save_path, gaze_label=None, write_img=False, scale=None):
+def draw_gz(frm, gaze_angle, bbx, save_path, gz_label=None, write_img=False, scale=None):
     s0 = gaze_angle[0, 0]
     s1 = gaze_angle[0, 1]
 
@@ -96,8 +95,8 @@ def draw_gz(frm, gaze_angle, bbx, save_path, gaze_label=None, write_img=False, s
         cv_img = new_img
 
     colors = [(255, 0, 0), (0, 255, 0)]
-    if gaze_label is not None:
-        cv2.arrowedLine(cv_img, start, end, colors[gaze_label], 3, tipLength=0.5)
+    if gz_label is not None:
+        cv2.arrowedLine(cv_img, start, end, colors[gz_label], 3, tipLength=0.5)
     else:
         cv2.arrowedLine(cv_img, start, end, (0, 0, 255), 3, tipLength=0.5)
 

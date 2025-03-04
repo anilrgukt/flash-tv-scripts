@@ -1,8 +1,5 @@
-from __future__ import annotations
-
-import math
-
 import numpy as np
+import math
 
 
 def dist_mat(gt, det, mean=0):

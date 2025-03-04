@@ -1,113 +1,101 @@
-from __future__ import annotations
-
+import os
 import numpy as np
 
 
 class Bbox:
     def __init__(self, bbox) -> None:
-        left, top, right, bottom = bbox["left"], bbox["top"], bbox["right"], bbox["bottom"]
+        l, t, r, b = bbox["left"], bbox["top"], bbox["right"], bbox["bottom"]
         self.prob = bbox["prob"]
-        self.landmarks = bbox.get("landmarks", None)
+        if "lmarks" in bbox.keys():
+            self.lmarks = bbox["lmarks"]
+        else:
+            self.lmarks = None
 
-        self.left = left
-        self.top = top
-        self.right = right
-        self.bottom = bottom
+        self.l = l
+        self.t = t
+        self.r = r
+        self.b = b
 
     @property
     def width(self):
-        w = self.right - self.left + 1
-        if not w >= 0:
-            msg = "Negative values for bounding box width are not allowed"
-            raise ValueError(msg)
+        w = self.r - self.l + 1
+        assert w >= 0
         return w
 
     @property
     def height(self):
-        h = self.bottom - self.top + 1
-        if not h >= 0:
-            msg = "Negative values for bounding box height are not allowed"
-            raise ValueError(msg)
+        h = self.b - self.t + 1
+        assert h >= 0
         return h
 
     def area(self):
-        a = self.height() * self.width()
-        if not a >= 0:
-            msg = "Negative values for bounding box area are not allowed"
-        return a
+        A = self.height() * self.width()
+        assert A >= 0
+        return A
 
-    def assert_left_top_right_bottom(self, resolution_height_and_width):
-        resolution_height = resolution_height_and_width[0]
-        resolution_width = resolution_height_and_width[1]
+    def assert_ltrb(self, resolution_hw):
+        H = resolution_hw[0]
+        W = resolution_hw[1]
 
-        left, top, right, bottom = self.left, self.top, self.right, self.bottom
+        l, t, r, b = self.l, self.t, self.r, self.b
 
-        left = max(0, left)
-        top = max(0, top)
-        right = min(right, resolution_width)
-        bottom = min(bottom, resolution_height)
+        l = max(0, l)
+        t = max(0, t)
+        r = min(r, W)
+        b = min(b, H)
 
-        self.landmarks[:, 0] = self.landmarks[:, 0].clip(0, resolution_width)  # width
-        self.landmarks[:, 1] = self.landmarks[:, 1].clip(0, resolution_height)  # height
+        self.lmarks[:, 0] = self.lmarks[:, 0].clip(0, W)  # width
+        self.lmarks[:, 1] = self.lmarks[:, 1].clip(0, H)  # height
 
         bbox = {}
-        bbox["left"], bbox["top"], bbox["right"], bbox["bottom"] = [int(left), int(top), int(right), int(bottom)]
+        bbox["left"], bbox["top"], bbox["right"], bbox["bottom"] = [int(l), int(t), int(r), int(b)]
         bbox["prob"] = self.prob
-        bbox["landmarks"] = self.landmarks.astype(np.int32)
+        bbox["lmarks"] = self.lmarks.astype(np.int32)
 
         return bbox
 
     def return_dict(self):
-        return {"left": self.left, "top": self.top, "right": self.right, "bottom": self.bottom, "prob": self.prob, "landmarks": self.landmarks}
+        return {"left": self.l, "top": self.t, "right": self.r, "bottom": self.b, "prob": self.prob, "lmarks": self.lmarks}
 
-    def add_offset(self, height_and_width_offset):
-        left, top, right, bottom = self.left, self.top, self.right, self.bottom
+    def add_offset(self, offset_hw):
+        l, t, r, b = self.l, self.t, self.r, self.b
+        l, t, r, b = l - offset_hw[1], t - offset_hw[0], r + offset_hw[1], b + offset_hw[0]
 
-        height_offset = height_and_width_offset[0]
-        width_offset = height_and_width_offset[1]
-
-        left, top, right, bottom = (
-            left - width_offset,
-            top - height_offset,
-            right + width_offset,
-            bottom + height_offset,
-        )
-
-        if self.landmarks is not None:
-            # self.landmarks[:,0] # along width
-            # self.landmarks[:,1] # along height
-            new_landmarks = np.zeros_like(self.landmarks)
-            new_landmarks[:, 0] = self.landmarks[:, 0] + 0  # offset_hw[1]
-            new_landmarks[:, 1] = self.landmarks[:, 1] + 0  # offset_hw[0]
+        if self.lmarks is not None:
+            # self.lmarks[:,0] # along width
+            # self.lmarks[:,1] # along height
+            new_lmarks = np.zeros_like(self.lmarks)
+            new_lmarks[:, 0] = self.lmarks[:, 0] + 0  # offset_hw[1]
+            new_lmarks[:, 1] = self.lmarks[:, 1] + 0  # offset_hw[0]
         else:
-            new_landmarks = None
+            new_lmarks = None
 
         bbox = {}
-        bbox["left"], bbox["top"], bbox["right"], bbox["bottom"] = left, top, right, bottom
-        bbox["landmarks"] = new_landmarks
+        bbox["left"], bbox["top"], bbox["right"], bbox["bottom"] = l, t, r, b
+        bbox["lmarks"] = new_lmarks
         bbox["prob"] = self.prob
 
         return bbox
 
     def scale(self, scale_hw):
-        left, top, right, bottom = self.left, self.top, self.right, self.bottom
-        left, top, right, bottom = left * scale_hw[1], top * scale_hw[0], right * scale_hw[1], bottom * scale_hw[0]
-        left, top, right, bottom = [int(left), int(top), int(right), int(bottom)]
+        l, t, r, b = self.l, self.t, self.r, self.b
+        l, t, r, b = l * scale_hw[1], t * scale_hw[0], r * scale_hw[1], b * scale_hw[0]
+        l, t, r, b = [int(l), int(t), int(r), int(b)]
 
-        # new_landmarks = np.zeros_like(self.landmarks)
-        if self.landmarks is not None:
-            # self.landmarks[:,0] # along width
-            # self.landmarks[:,1] # along height
-            new_landmarks = np.zeros_like(self.landmarks)
-            new_landmarks[:, 0] = self.landmarks[:, 0] * scale_hw[1]
-            new_landmarks[:, 1] = self.landmarks[:, 1] * scale_hw[0]
-            new_landmarks = new_landmarks.astype(np.int32)
+        # new_lmarks = np.zeros_like(self.lmarks)
+        if self.lmarks is not None:
+            # self.lmarks[:,0] # along width
+            # self.lmarks[:,1] # along height
+            new_lmarks = np.zeros_like(self.lmarks)
+            new_lmarks[:, 0] = self.lmarks[:, 0] * scale_hw[1]
+            new_lmarks[:, 1] = self.lmarks[:, 1] * scale_hw[0]
+            new_lmarks = new_lmarks.astype(np.int32)
         else:
-            new_landmarks = None
+            new_lmarks = None
 
         bbox = {}
-        bbox["left"], bbox["top"], bbox["right"], bbox["bottom"] = left, top, right, bottom
-        bbox["landmarks"] = new_landmarks
+        bbox["left"], bbox["top"], bbox["right"], bbox["bottom"] = l, t, r, b
+        bbox["lmarks"] = new_lmarks
         bbox["prob"] = self.prob
 
         return bbox

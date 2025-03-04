@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import os
 import sys
 
@@ -7,7 +5,7 @@ import cv2
 import numpy as np
 
 
-class FrameRotator:
+class rotate_frame:
     def __init__(
         self,
     ):
@@ -40,9 +38,10 @@ class FrameRotator:
         if self.rotate_flip < 0:
             if not tc_present:  # tc not found in 2nd frame
                 self.rotate_status = self.rotate_count % 6
-        elif num_faces < 1:
-            # rotate_flip = not rotate_flip
-            self.rotate_status = self.rotate_count % 6
+        else:
+            if num_faces < 1:
+                # rotate_flip = not rotate_flip
+                self.rotate_status = self.rotate_count % 6
                 # print('changing rot stat', rotate_status, rotate_count)
         return None
 
@@ -52,42 +51,37 @@ class FrameRotator:
         quad = self.quad
 
         for bbox in bbox_ls:
-            x_left, y_top, x_right, y_bottom = [bbox["left"], bbox["top"], bbox["right"], bbox["bottom"]]
-            x_left, y_top, x_right, y_bottom = x_left * (1080 / 608.0), y_top * (640 / 342.0), x_right * (1080 / 608.0), y_bottom * (640 / 342.0)
+            xl, yt, xr, yb = [bbox["left"], bbox["top"], bbox["right"], bbox["bottom"]]
+            xl, yt, xr, yb = xl * (1080 / 608.0), yt * (640 / 342.0), xr * (1080 / 608.0), yb * (640 / 342.0)
 
-            landmarks_ = bbox["landmarks"]  # x,y
-            landmarks_[:, 0] = landmarks_[:, 0] * (1080 / 608.0)
-            landmarks_[:, 1] = landmarks_[:, 1] * (640 / 342.0)
-            landmarks = landmarks_.copy()
+            lmarks_ = bbox["lmarks"]  # x,y
+            lmarks_[:, 0] = lmarks_[:, 0] * (1080 / 608.0)
+            lmarks_[:, 1] = lmarks_[:, 1] * (640 / 342.0)
+            lmarks = lmarks_.copy()
 
             if rotate_angle == 90:  # if rotated counter clockwise
-                x_left1 = -(y_bottom + quad * 640 - 1920)
-                y_top1 = x_left
-                x_right1 = -(y_top + quad * 640 - 1920)
-                y_bottom1 = x_right
+                xl1 = -(yb + quad * 640 - 1920)
+                yt1 = xl
+                xr1 = -(yt + quad * 640 - 1920)
+                yb1 = xr
 
-                landmarks[:, 0] = -(landmarks_[:, 1] + quad * 640 - 1920)
-                landmarks[:, 1] = landmarks_[:, 0]
+                lmarks[:, 0] = -(lmarks_[:, 1] + quad * 640 - 1920)
+                lmarks[:, 1] = lmarks_[:, 0]
 
             else:
-                x_left1 = y_top + quad * 640
-                y_top1 = -(x_right - 1080)
-                x_right1 = y_bottom + quad * 640
-                y_bottom1 = -(x_left - 1080)
+                xl1 = yt + quad * 640
+                yt1 = -(xr - 1080)
+                xr1 = yb + quad * 640
+                yb1 = -(xl - 1080)
 
-                landmarks[:, 1] = -(landmarks_[:, 0] - 1080)
-                landmarks[:, 0] = landmarks_[:, 1] + quad * 640
+                lmarks[:, 1] = -(lmarks_[:, 0] - 1080)
+                lmarks[:, 0] = lmarks_[:, 1] + quad * 640
 
-            x_left, y_top, x_right, y_bottom = (
-                x_left1 * (608 / 1920.0),
-                y_top1 * (342 / 1080.0),
-                x_right1 * (608 / 1920.0),
-                y_bottom1 * (342 / 1080.0),
-            )
-            landmarks[:, 0] = landmarks[:, 0] * (608 / 1920.0)
-            landmarks[:, 1] = landmarks[:, 1] * (342 / 1080.0)
+            xl, yt, xr, yb = xl1 * (608 / 1920.0), yt1 * (342 / 1080.0), xr1 * (608 / 1920.0), yb1 * (342 / 1080.0)
+            lmarks[:, 0] = lmarks[:, 0] * (608 / 1920.0)
+            lmarks[:, 1] = lmarks[:, 1] * (342 / 1080.0)
 
-            bbox["left"], bbox["top"], bbox["right"], bbox["bottom"] = x_left, y_top, x_right, y_bottom
-            bbox["landmarks"] = landmarks
+            bbox["left"], bbox["top"], bbox["right"], bbox["bottom"] = xl, yt, xr, yb
+            bbox["lmarks"] = lmarks
             new_bbox_ls.append(bbox)
         return new_bbox_ls

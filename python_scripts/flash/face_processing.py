@@ -1,16 +1,17 @@
-from __future__ import annotations
-
 import cv2
-import insightface
 import numpy as np
-from skimage.transform import resize
+
+import insightface
+
 from utils import face_align
 from utils.bbox_utils import Bbox
+from skimage.transform import resize
 
 """
 facelmarks = detface['lmarks'] - np.array([detface['left'], detface['top']]).reshape(1,2)
 facelmarks[:,0] = wsc*(facelmarks[:,0] + int(sl>=0)*5) + offW #nsW*(wsc*facelmarks[:,0]+offW).astype(np.int) # column
 facelmarks[:,1] = hsc*(facelmarks[:,1] + int(st>=0)*5) + offH #nsH*(hsc*facelmarks[:,1]+offH).astype(np.int) # row
+					
 ch, cw = face.shape[0], face.shape[1]
 facelmarks[:,0] = 112*(facelmarks[:,0]/float(cw))
 facelmarks[:,1] = 112*(facelmarks[:,1]/float(ch))
@@ -19,7 +20,7 @@ facelmarks = facelmarks.reshape(5,2) #+ np.array([-2,2,0,-2,+2]).reshape(5,1)
 
 
 class FaceModelv4:
-    def __init__(self, frame_resolution, detector_resolution, face_size, face_crop_offset, small_face_padding, small_face_size) -> None:
+    def __init__(self, frame_resolution, detector_resolution, face_size, face_crop_offset, small_face_padding, small_face_size):
         self.frame_hw = frame_resolution
         self.det_hw = detector_resolution
         self.crop_offset = face_crop_offset
@@ -44,7 +45,7 @@ class FaceModelv4:
         det_scaled = detface.scale(self.scale_hw)
         det_scaled = Bbox(det_scaled)
 
-        det_off = det_scaled.add_offset(height_and_width_offset=[self.crop_offset, self.crop_offset])
+        det_off = det_scaled.add_offset(offset_hw=[self.crop_offset, self.crop_offset])
         det_off = Bbox(det_off)
 
         w = det_off.width
@@ -59,10 +60,10 @@ class FaceModelv4:
             offH = self.face_padding
 
         # small face padding
-        det_off2 = det_off.add_offset(height_and_width_offset=[offH, offW])
+        det_off2 = det_off.add_offset(offset_hw=[offH, offW])
         det_off2 = Bbox(det_off2)
 
-        bbox = det_off2.assert_left_top_right_bottom(self.frame_hw)
+        bbox = det_off2.assert_ltrb(self.frame_hw)
         face = frame[bbox["top"] : bbox["bottom"], bbox["left"] : bbox["right"], :]
 
         bbox = Bbox(bbox)

@@ -1,8 +1,5 @@
-from __future__ import annotations
-
 import os
 import sys
-
 import cv2
 import numpy as np
 
@@ -33,7 +30,10 @@ class FlashFaceDetector:
         return self.det_path_loc
 
     def face_detect(self, img, now_threshold=None):
-        det_thresh = self.threshold if now_threshold is None else now_threshold
+        if now_threshold is None:
+            det_thresh = self.threshold
+        else:
+            det_thresh = now_threshold
 
         # det_scales = [720, 1280] # 720, 1280
         # det_res_img = [720, 1280]
@@ -58,11 +58,11 @@ class FlashFaceDetector:
                 self.scale2 = [wsc, hsc]
 
                 box = faces[i, :4] * np.array([wsc, hsc, wsc, hsc])
-                landmarks = landmarks[i] * np.array([wsc, hsc]).reshape(1, 2)
+                lmarks = landmarks[i] * np.array([wsc, hsc]).reshape(1, 2)
 
                 box = box.astype(np.int32)
-                landmarks = landmarks.astype(np.int32)
+                lmarks = lmarks.astype(np.int32)
 
-                bbox_ls.append({"left": box[0], "top": box[1], "right": box[2], "bottom": box[3], "prob": score, "landmarks": landmarks})
+                bbox_ls.append({"left": box[0], "top": box[1], "right": box[2], "bottom": box[3], "prob": score, "lmarks": lmarks})
 
         return bbox_ls

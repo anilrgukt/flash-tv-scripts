@@ -1,7 +1,5 @@
-from __future__ import annotations
-
-import cv2
 import insightface
+import cv2
 from utils import face_align
 
 # face verification libs
@@ -18,7 +16,7 @@ from utils import face_align
 
 
 class FaceModelv2:
-    def __init__(self, use_large_detector=False) -> None:
+    def __init__(self, use_large_detector=False):
         if use_large_detector:
             self.detector = insightface.model_zoo.get_model("retinaface_r50_v1")
         else:

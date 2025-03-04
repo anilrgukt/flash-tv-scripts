@@ -1,13 +1,10 @@
-from __future__ import annotations
-
-import random
-import threading
-import time
-import traceback
-from datetime import datetime
-from queue import Queue
-
 import cv2
+import time
+import threading
+import random
+
+from queue import Queue
+from datetime import datetime
 
 
 class WebcamVideoStream:
@@ -16,13 +13,15 @@ class WebcamVideoStream:
     https://www.pyimagesearch.com/2015/12/21/increasing-webcam-fps-with-python-and-opencv/
     """
 
-    def __init__(self) -> None:
+    def __init__(self):
         self.vid = None
         self.running = False
+        return
 
-    def __del__(self) -> None:
-        if self.vid and self.vid.isOpened():
+    def __del__(self):
+        if self.vid.isOpened():
             self.vid.release()
+        return
 
     def start(self, src, width=None, height=None, fps=None):
         # initialize the video camera stream and read the first frame
@@ -42,15 +41,14 @@ class WebcamVideoStream:
         self.ret, self.frame = self.vid.read()
         if not self.ret:
             self.vid.release()
-            msg = "Couldn't open video frame."
-            raise OSError(msg)
+            raise IOError(("Couldn't open video frame."))
 
         # initialize the variable used to indicate if the thread should
         # check camera vid shape
         self.real_width = int(self.vid.get(3))
         self.real_height = int(self.vid.get(4))
         self.real_fps = int(self.vid.get(5))
-        print(f"Start video stream with shape and fps: {self.real_width},{self.real_height},{self.real_fps}")
+        print("Start video stream with shape and fps: {},{},{}".format(self.real_width, self.real_height, self.real_fps))
         self.running = True
 
         # start the thread to read frames from the video stream
@@ -59,22 +57,23 @@ class WebcamVideoStream:
         t.start()
         return self
 
-    def update(self) -> None:
+    def update(self):
         try:
             # keep looping infinitely until the stream is closed
             while self.running:
                 # otherwise, read the next frame from the stream
-                if self.vid:
-                    self.ret, self.frame = self.vid.read()
+                self.ret, self.frame = self.vid.read()
                 # if not self.ret:
                 #   raise 'bad frame error'
-        except Exception:
+        except:
+            import traceback
+
             traceback.print_exc()
             self.running = False
         finally:
             # if the thread indicator variable is set, stop the thread
-            if self.vid:
-                self.vid.release()
+            self.vid.release()
+        return
 
     def read(self):
         # return the frame most recently read
@@ -82,24 +81,24 @@ class WebcamVideoStream:
 
     def stop(self):
         self.running = False
-        if self.vid and self.vid.isOpened():
+        if self.vid.isOpened():
             self.vid.release()
+        return
 
 
 class VideoQueueThread(threading.Thread):
-    def __init__(self, video_path) -> None:
+    def __init__(self, video_path):
         threading.Thread.__init__(self)
         self.video_path = video_path
         self.queue = []
         self.stopped = False
 
-    def run(self, fps: int = 30, width: int = 1920, height: int = 1080) -> None:
+    def run(self, fps=30, width=1920, height=1080):
         cap = cv2.VideoCapture(self.video_path)
         if not cap.isOpened():
             # camera failed
             print("THE camera could not be opened", datetime.now())
-            msg = "Couldn't open video file or webcam at"
-            raise OSError(msg, str(datetime.now()))
+            raise IOError(("Couldn't open video file or webcam at", str(datetime.now())))
 
         codec = cv2.VideoWriter_fourcc("M", "J", "P", "G")
         cap.set(6, codec)
