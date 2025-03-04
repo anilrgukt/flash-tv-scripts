@@ -10,8 +10,8 @@ mkdir -p ${LOG_FOLDER_PATH}
 source "/home/${username}/py38/bin/activate"
 
 # Run the script for checking folder file updates in the background for various folders
-python3 "/home/${username}/flash-tv-scripts/python_scripts/check_file_events.py" ${participant_id} ${LOG_FOLDER_PATH} "/home/${username}/data/${participant_id}_data/${participant_id}_varlog_filesequence.csv" &
-python3 "/home/${username}/flash-tv-scripts/python_scripts/check_file_events.py" ${participant_id} "/home/${username}/data/${participant_id}_data /home/${username}/data/${participant_id}_data/${participant_id}_flashlog_filesequence.csv" &
+python3 "/home/${username}/flash-tv-scripts/python_scripts/check_file_events.py" ${participant_id} "${LOG_FOLDER_PATH}" "/home/${username}/data/${participant_id}_data/${participant_id}_varlog_filesequence.csv" &
+python3 "/home/${username}/flash-tv-scripts/python_scripts/check_file_events.py" ${participant_id} "${LOG_FOLDER_PATH}/logs" "/home/${username}/data/${participant_id}_data/${participant_id}_flashlog_filesequence.csv" &
 
 # Run the tegrastats command and output it every 30 seconds to a log file in the background
 tegrastats --interval 30000 --logfile "/home/${username}/data/${participant_id}_data/${participant_id}_tegrastats.log" &
@@ -68,8 +68,7 @@ do
 	systemctl status flash-run-on-boot.service >> "${LOG_FOLDER_PATH}/varlogs_${datetime}/log_${datetime}.txt"
 	systemctl status flash-run-on-boot.service >> "${LOG_FOLDER_PATH}/varlogs_${datetime}/logend_${datetime}.txt"
 	
-	python3 /home/${username}/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py "check" >> "${LOG_FOLDER_PATH}/varlogs_${datetime}/timedate_${datetime}.txt"
-	
+	python3 /home/${username}/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py "check" "/home/${username}/data/${participant_id}_data/${participant_id}_start_date.txt" >> "${LOG_FOLDER_PATH}/varlogs_${datetime}/timedate_${datetime}.txt"	
 	v4l2-ctl --list-devices > "${LOG_FOLDER_PATH}/varlogs_${datetime}/camera_${datetime}.txt"
 	echo -e "\nLogitech Camera iSerial Number: $(sudo lsusb -v -d 046d: 2>/dev/null | grep -i serial | awk '{print substr($0, length($0)-7)}')" >> "${LOG_FOLDER_PATH}/varlogs_${datetime}/camera_${datetime}.txt"
 
