@@ -15,7 +15,7 @@ flash_device_id=$(zenity --entry --width 500 --height 100 --text="Enter the curr
 participant_id=$(zenity --entry --width 500 --height 100 --text="Enter the participant ID (P1-1[3 digits no brackets] for TECH):")
 
 if zenity --question --title="Are you using Bluetooth beacon accelerometer(s) for this visit?" --width 500 --height 100 --text="Are you using Bluetooth beacon accelerometer(s) for this visit?" --no-wrap; then
-	echo "Scanning for Bluetooth beacon accelerometer MAC addresses... please wait around 30 seconds."
+	echo "Scanning for Bluetooth beacon accelerometer MAC addresses... please wait around 30 seconds. You might need to enter the password first."
 	unique_mac_addresses="$(sudo bash "/home/flashsys${flash_device_id}/flash-tv-scripts/services/run_bluetooth_beacon_accelerometer_searcher.sh" flashsys"${flash_device_id}")"
 	# Function to validate MAC address format (XX:XX:XX:XX:XX:XX)
 	validate_mac_address() {
