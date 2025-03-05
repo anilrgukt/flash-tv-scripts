@@ -41,7 +41,7 @@ if lsusb | grep -q "SanDisk Corp. Ultra Fit"; then
 	zenity --entry --hide-text --width 500 --height 100 --text="Enter USB Backup Password:" > "${temp_file}"
 	
 	# Send password to be checked and encoded
-	encoded_password=$(python3 "/home/${username}/flash-tv-scripts/python_scripts/check_and_encode_password.py" "${temp_file}")
+	encoded_password=$(python3 "/home/${username}/flash-tv-scripts/python_scripts/check_and_encode_passphrase.py" "${temp_file}")
 	exit_code=$?
 	
 	# Overwrite and destroy temp file
