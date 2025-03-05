@@ -76,10 +76,10 @@ sleep 1
 # Copy modified configuration.yaml with plug ID to Home Assistant folder after updating the family and device IDs as well
 sudo cp "/home/flashsys${flash_device_id}/flash-tv-scripts/install_scripts/configuration.yaml" "/home/flashsys${flash_device_id}/homeassistant-compose/config/configuration.yaml"
 
-# Start the Home Assistant Docker compose instance
-cd "${HOME}/homeassistant-compose/config"
+# # Start the Home Assistant Docker compose instance
+# cd "${HOME}/homeassistant-compose/config"
 
-docker compose up -d
+# docker compose up -d
 
 # Copy git config into data folder
 cp "${HOME}/flash-tv-scripts/.git/config" "${HOME}/data/${participant_id}${flash_device_id}_data/git_config.txt"
