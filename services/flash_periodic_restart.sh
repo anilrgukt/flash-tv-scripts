@@ -3,6 +3,7 @@
 export participant_id=123XXX
 export username=flashsysXXX
 export LOG_FOLDER_PATH="/home/${username}/data/${participant_id}_data/logs"
+export BACKUP_DIRS="/home/${username}/data /home/${username}/homeassistant-compose/config"
 
 mkdir -p ${LOG_FOLDER_PATH}
 
@@ -83,35 +84,33 @@ do
 	cp "/home/${username}/data/${participant_id}_data/${participant_id}_flash_logstdoutp.log" "/home/${username}/data/${participant_id}_data/${participant_id}_flash_logstderrp.log" "${LOG_FOLDER_PATH}/varlogs_${datetime}"
  
 	# Backup files to the USB, not including faces
-	if ! lsusb | grep -q "SanDisk Corp. Ultra Fit"; then	
+	if lsusb | grep -q "SanDisk Corp. Ultra Fit"; then	
 
 		if [ "$(lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}')" ]; then
 	 
 	 		BACKUP_USB_PATH="$(lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}')"
-
-			echo "Backup USB path found ${BACKUP_USB_PATH} but backup USB was not detected"
 
 		else
 		
 			echo "Backup USB not Found in lsblk at Time: ${datetime}"
 			
 	 	fi
-
- 		source "/home/${username}/.bashrc"
-
-  		export BACKUP_DIRS="/home/${username}/data /home/${username}/homeassistant-compose/config"
 	
-		borg create --exclude "/home/${username}/data/*.zip" --exclude "/home/${username}/data/*/*face*" "::${participant_id}-FLASH-HA-Data-Backup-${datetime}" ${BACKUP_DIRS}
-		
-		echo "USB Backup without Face Folders Created at Time: ${datetime}"
-
-  		source "/home/${username}/py38/bin/activate"
-			
 	else
 		
 		echo "Backup USB not Found in lsusb at Time: ${datetime}"
   
 	fi
+
+ 	source "/home/${username}/.bashrc"
+
+
+	
+	borg create --exclude "/home/${username}/data/*.zip" --exclude "/home/${username}/data/*/*face*" "::${participant_id}-FLASH-HA-Data-Backup-${datetime}" ${BACKUP_DIRS}
+		
+	echo "USB Backup without Face Folders Created at Time: ${datetime}"
+
+  	source "/home/${username}/py38/bin/activate"
 	
 	sleep 5;
  
