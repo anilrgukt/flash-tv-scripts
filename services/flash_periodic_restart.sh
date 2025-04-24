@@ -101,7 +101,7 @@ do
 
   		export BACKUP_DIRS="/home/${username}/data /home/${username}/homeassistant-compose/config"
 	
-		borg create --exclude "/home/${username}/data/*.zip" --exclude "/home/${username}/data/*/*face*" "::${participant_id}-FLASH-HA-Data-Backup-${datetime}" "${BACKUP_DIRS}"
+		borg create --exclude "/home/${username}/data/*.zip" --exclude "/home/${username}/data/*/*face*" "::${participant_id}-FLASH-HA-Data-Backup-${datetime}" ${BACKUP_DIRS}
 		
 		echo "USB Backup without Face Folders Created at Time: ${datetime}"
 
