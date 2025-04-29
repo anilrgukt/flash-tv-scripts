@@ -24,4 +24,4 @@ source bin/activate
 
 #install Python dependencies and then homeassistant
 pip install --upgrade pip
-pip3 install homeassistant==2023.12
+pip3 install homeassistant
