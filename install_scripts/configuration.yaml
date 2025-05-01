@@ -43,7 +43,7 @@ automation:
   actions:
   - action: notify.send_message
     data:
-      message: "{{states('sensor.third_reality_inc_3rsp02028bz_power_YYYY')}}"
+      message: "{{states('sensor.third_reality_inc_3rsp02028bz_powerYYYY')}}"
     target:
       entity_id: notify.tvpowerdatafilenotify
   mode: single
