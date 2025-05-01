@@ -14,11 +14,11 @@ homeassistant:
     - "/config"
     - "/123XXX_data"
 
-notify:
-  - platform: file
-    name: tvpowerdatafilenotify
-    filename: "/123XXX_data/123XXX_tv_power_5s.csv"
-    timestamp: True
+#notify:
+#  - platform: file
+#    name: tvpowerdatafilenotify
+#    filename: "/123XXX_data/123XXX_tv_power_5s.csv"
+#    timestamp: True
 
 sensor:
   - platform: systemmonitor
@@ -43,7 +43,8 @@ automation:
   actions:
   - action: notify.send_message
     data:
-      message: "{{states('sensor.third_reality_inc_3rsp02028bz_powerYYYY')}}"
+      message: '{{states(''sensor.third_reality_inc_3rsp02028bz_power'')}};{{now().strftime(''%m.%d.%Y'')}};
+        {{now().strftime(''%H.%M.%S'')}}'
     target:
-      entity_id: notify.tvpowerdatafilenotify
+      entity_id: notify.file
   mode: single
