@@ -216,7 +216,7 @@ sub_count = {"TC": 0, "Sib": 0, "Par": 0, "Extra": 0}
 
 
 cv2.namedWindow("video_frames", cv2.WINDOW_NORMAL)
-cv2.resizeWindow("video_frames", 608, 342)
+cv2.resizeWindow("video_frames", 1920, 1080)
 
 record_frame = False
 while True:
@@ -259,7 +259,8 @@ while True:
         else:
             record_frame = True
 
-        cv2.imshow("video_frames", imgrgbd)
+	imgrgbd_resized = cv2.resize(imgrgbd, (1920,1080))
+        cv2.imshow("video_frames", imgrgbd_resized)
         # cv2.imshow(frame)
         cv2.setWindowTitle("video_frames", "video_frames:  " + str(c).zfill(6))
 
