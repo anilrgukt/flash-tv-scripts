@@ -2,7 +2,7 @@
 
 ### General Package Dependencies ###
 
-sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0 nano gimp
+sudo apt-get install -y nvidia-jetpack screen htop cheese v4l-utils python3.8-venv libxcb-xinerama0 nano gimp libbluetooth-dev
 
 ### USB Backup Package Dependencies ###
 
