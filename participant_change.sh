@@ -1,12 +1,6 @@
 #!/bin/bash
 # MUST DELETE AND RECLONE the flash-tv-scripts folder BEFORE RUNNING THIS OR IT WILL NOT WORK PROPERLY
 
-HOME_ASSISTANT_FOLDER="${HOME}/homeassistant-compose/config"
-if [ ! -d "${HOME_ASSISTANT_FOLDER}" ]; then
-    zenity --warning --text="Exiting the code since Home Assistant has not been set up.\n\nPlease set up Home Assistant before running this script." --width 500 --height 100
-    exit 1
-fi
-
 # Prompt user for the smart plug ID, FLASH device ID, participant ID, and Bluetooth beacon accelerometer MAC address
 smart_plug_id=$(zenity --entry --width 500 --height 100 --text="Enter the Zigbee smart plug ID's extra index at the end, displayed in Home Assistant.\n\nLeave blank if no extra index.\n\nEnter YYYY (uppercase) if the smart plug is not ready:")
 
@@ -57,6 +51,12 @@ set -e
 # Update the configuration.yaml with the plug ID
 sed -i "s/YYYY/${smart_plug_id}/g" "${HOME}/flash-tv-scripts/install_scripts/configuration.yaml"
 
+
+HOME_ASSISTANT_FOLDER="${HOME}/homeassistant-compose"
+if [ ! -d "${HOME_ASSISTANT_FOLDER}" ]; then
+	bash "${HOME}/flash-tv-scripts/install_scripts/homeassistant_install.sh"
+fi
+
 # Run the ID setup script
 bash -x "${HOME}/flash-tv-scripts/setup_scripts/ID_setup.sh" 1 "${flash_device_id}" "${participant_id}"
 sleep 1
@@ -74,7 +74,7 @@ bash -x "${HOME}/flash-tv-scripts/setup_scripts/RTC_setup.sh"
 sleep 1
 
 # Copy modified configuration.yaml with plug ID to Home Assistant folder after updating the family and device IDs as well
-sudo cp "/home/flashsys${flash_device_id}/flash-tv-scripts/install_scripts/configuration.yaml" "/home/flashsys${flash_device_id}/homeassistant-compose/config/configuration.yaml"
+#sudo cp "/home/flashsys${flash_device_id}/flash-tv-scripts/install_scripts/configuration.yaml" "/home/flashsys${flash_device_id}/homeassistant-compose/config/configuration.yaml"
 
 # # Start the Home Assistant Docker compose instance
 # cd "${HOME}/homeassistant-compose/config"
