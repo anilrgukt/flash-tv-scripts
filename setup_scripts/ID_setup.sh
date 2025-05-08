@@ -43,6 +43,9 @@ sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/services/flash_run_
 sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/install_scripts/compose.yaml"
 sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/install_scripts/compose.yaml"
 
+sed -i "s/XXX/${flash_device_id}/g" "${HOME}/homeassistant-compose/compose.yaml"
+sed -i "s/123/${participant_id}/g" "${HOME}/homeassistant-compose/compose.yaml"
+
 sed -i "s/XXX/${flash_device_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/build_gallery.sh"
 sed -i "s/123/${participant_id}/g" "${HOME}/flash-tv-scripts/runtime_scripts/build_gallery.sh"
 
