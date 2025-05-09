@@ -17,7 +17,7 @@ do
 done
 
 # Verify the data details
-zenity --question --title="Verifying Data Details" --width 500 --height 100 --text="Please verify the following data details\nParticipant ID: ${participant_id}\nUsername: ${username}\nData Folder Path: ${data_folder_path}" --no-wrap
+zenity --question --title="Verifying Data Details" --width 500 --height 100 --text="Please verify the following data details\nParticipant ID: ${participant_id}\nUsername: ${username}\nData Folder Path: ${DATA_FOLDER_PATH}" --no-wrap
 user_resp=$?
 
 if [ ${user_resp} -eq 1 ]; then
