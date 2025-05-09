@@ -9,6 +9,10 @@ from queue import Queue
 
 import cv2
 import numpy as np
+
+username = str(sys.argv[3])
+sys.path.insert(1, os.path.join("/home/" + username + "/FLASH_TV/python_wrapper"))
+
 from face_detector_YOLOv2 import YoloFace
 
 IMAGE_SIZE = [1080, 1920]
@@ -16,10 +20,6 @@ DETECTED_IMAGE_SIZE = [342, 608]
 BBOX_SCALE = [IMAGE_SIZE[i] / float(DETECTED_IMAGE_SIZE[i]) for i in range(2)]
 HEIGHT_SCALE = BBOX_SCALE[0]
 WIDTH_SCALE = BBOX_SCALE[1]
-
-username = str(sys.argv[3])
-sys.path.insert(1, os.path.join("/home/" + username + "/FLASH_TV/python_wrapper"))
-
 
 def draw_rect(img, dboxes, show, save_file=None):
     cv_img = np.copy(img)
@@ -177,9 +177,9 @@ def frame_write(q, frm_count, yolo) -> None:
 print("starting the YoLo Face model")
 
 yolo_model = YoloFace(
-    os.path.join("/home/" + USERNAME + "/FLASH_TV/darknet_face_release"),
-    config_path=os.path.join("/home/" + USERNAME + "/FLASH_TV/darknet_face_release/cfg/face-shallow-size608-anchor5.cfg"),
-    weight_path=os.path.join("/home/" + USERNAME + "/FLASH_TV/darknet_face_release/trained_models/face-shallow-size608-anchor5.weights"),
+    os.path.join("/home/" + username + "/FLASH_TV/darknet_face_release"),
+    config_path=os.path.join("/home/" + username + "/FLASH_TV/darknet_face_release/cfg/face-shallow-size608-anchor5.cfg"),
+    weight_path=os.path.join("/home/" + username + "/FLASH_TV/darknet_face_release/trained_models/face-shallow-size608-anchor5.weights"),
 )
 
 
@@ -258,8 +258,8 @@ while True:
                     sub_count[show_face] += 1
         else:
             record_frame = True
-
-	imgrgbd_resized = cv2.resize(imgrgbd, (1920,1080))
+            
+        imgrgbd_resized = cv2.resize(imgrgbd, (1920,1080))
         cv2.imshow("video_frames", imgrgbd_resized)
         # cv2.imshow(frame)
         cv2.setWindowTitle("video_frames", "video_frames:  " + str(c).zfill(6))
