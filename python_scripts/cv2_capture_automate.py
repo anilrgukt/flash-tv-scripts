@@ -201,7 +201,7 @@ frmsave_dir = os.path.join(save_path, str(participant_id) + "_face_frames")
 if not os.path.exists(frmsave_dir):
     os.makedirs(frmsave_dir)
 
-for idx in ["tc", "sib", "par", "extra"]:
+for idx in ["tc", "sib", "parent", "extra"]:
     tmp_path = os.path.join(imsave_dir, idx)
     tmp_path2 = os.path.join(imsave_dir, idx + "_selected")
 
