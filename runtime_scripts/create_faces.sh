@@ -55,7 +55,7 @@ copy_faces "tc"
 copy_faces "sib"
 
 # Check and copy parent faces
-copy_faces "par"
+copy_faces "parent"
 
 # Check and copy extra faces
 extra_images=$(find "${FACE_CROPS_FOLDER_PATH}/extra_selected/" -name "*.png" | wc -l)
