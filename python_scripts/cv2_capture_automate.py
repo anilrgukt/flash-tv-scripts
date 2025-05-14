@@ -212,7 +212,7 @@ for idx in ["tc", "sib", "parent", "extra"]:
         os.makedirs(tmp_path2)
 
 show_face = None
-sub_count = {"TC": 0, "Sib": 0, "Par": 0, "Extra": 0}
+sub_count = {"TC": 0, "Sib": 0, "Parent": 0, "Extra": 0}
 
 
 cv2.namedWindow("video_frames", cv2.WINDOW_NORMAL)
@@ -277,7 +277,7 @@ while True:
             show_face = "Sib"
             print("Sib face being tracked")
         elif pressed_key == ord("p"):
-            show_face = "Par"
+            show_face = "Parent"
             print("Parent face being tracked")
         elif pressed_key == ord("e"):
             show_face = "Extra"
