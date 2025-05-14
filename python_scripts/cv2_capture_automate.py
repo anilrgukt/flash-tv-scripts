@@ -26,7 +26,7 @@ def draw_rect(img, dboxes, show, save_file=None):
     tmp_channel = np.copy(cv_img[:, :, 0])
     cv_img[:, :, 0] = cv_img[:, :, 2]
     cv_img[:, :, 2] = tmp_channel
-    colors = {"TC": (0, 255, 0), "Sib": (255, 0, 0), "Par": (255, 255, 0), "Extra": (255, 255, 255)}
+    colors = {"TC": (0, 255, 0), "Sib": (255, 0, 0), "Parent": (255, 255, 0), "Extra": (255, 255, 255)}
     color = colors[show] if show is not None else (0, 0, 255)
 
     for i, dbox in enumerate(dboxes):
