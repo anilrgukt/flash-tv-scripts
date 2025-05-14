@@ -32,8 +32,7 @@ min_faces=5
 copy_faces() {
     local face_crop_type=$1
     local FACE_CROP_TYPE_SELECTED_PATH="${FACE_CROPS_FOLDER_PATH}/${face_crop_type}_selected"
-    face_crop_type_count=$(find "${FACE_CROP_TYPE_SELECTED_PATH}" -name "*.png" | wc -l)
-	local face_crop_type_count
+    local face_crop_type_count=$(find "${FACE_CROP_TYPE_SELECTED_PATH}" -name "*.png" | wc -l)
 
     # shellcheck disable=SC2086
     if [ ${face_crop_type_count} -lt ${min_faces} ]; then
@@ -72,7 +71,7 @@ else
 
     # Check extra faces again
     n_extra_faces=$(find "${FACES_FOLDER_PATH}" -name "${participant_id}_extra*.png" | wc -l)
-    if [ "${n_extra_faces}" -lt ${min_faces} ]; then
+    if [ ${n_extra_faces} -lt ${min_faces} ]; then
         zenity --warning --title "Warning Message" --width 700 --height 100 --text "The number of extra faces selected for the gallery is less than ${min_faces}. \nPlease check if the folder ${DATA_FOLDER_PATH}/${participant_id}_face_crops/extra_selected has less than ${min_faces} faces."
         exit
     fi
