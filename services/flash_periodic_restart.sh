@@ -21,7 +21,7 @@ tegrastats --interval 30000 --logfile "/home/${username}/data/${participant_id}_
 bash "/home/${username}/flash-tv-scripts/services/flash_check_camera_warnings.sh" ${participant_id} ${username} &
 
 # Run the script for reading and saving the data from the Bluetooth beacon accelerometer in the background
-bash "/home/${username}/flash-tv-scripts/services/run_bluetooth_beacon_accelerometer_data_reader.sh" ${username} &
+#bash "/home/${username}/flash-tv-scripts/services/run_bluetooth_beacon_accelerometer_data_reader.sh" ${username} &
 
 # Get the amount of time to sleep before starting the rest of the script from the FLASH run on boot service delay (accounts for the time to update when rebooting)
 FLASH_RUN_ON_BOOT_SERVICE_PATH="/home/${username}/flash-tv-scripts/services/flash-run-on-boot.service"
