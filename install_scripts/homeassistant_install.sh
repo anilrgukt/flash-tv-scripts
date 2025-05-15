@@ -21,6 +21,8 @@ sudo apt-get update
 
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
+sudo usermod -aG docker $USER
+
 # Set up Home Assistant folder
 cd "${HOME}" || exit 1
 
