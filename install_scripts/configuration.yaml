@@ -48,3 +48,18 @@ automation:
     target:
       entity_id: notify.file
   mode: single
+
+- alias: Try to Turn Smart Plug On Every 30 Seconds
+  description: ""
+  initial_state: 'on'
+  triggers:
+  - trigger: time_pattern
+    seconds: "/30"
+  conditions: []
+  actions:
+  - action: switch.turn_on
+    metadata: {}
+    data: {}
+    target:
+      entity_id: switch.third_reality_inc_3rsp02028bz
+  mode: single
