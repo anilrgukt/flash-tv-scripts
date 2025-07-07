@@ -6,7 +6,7 @@ username=flashsysXXX
 DATA_FOLDER_PATH="/home/${username}/data/${participant_id}_data"
 
 # Check whether or not the available camera(s) is/are being used by other programs
-video_device_list=$(ls /dev/video*)
+video_device_list=$(ls /dev/video* 2>/dev/null || true)
 for device in ${video_device_list}
 do
 	camera_being_used=$(fuser "${device}")
@@ -20,7 +20,7 @@ done
 zenity --question --title="Verifying Data Details" --width 500 --height 100 --text="Please verify the following data details\nParticipant ID: ${participant_id}\nUsername: ${username}\nData Folder Path: ${DATA_FOLDER_PATH}" --no-wrap
 user_resp=$?
 
-if [ ${user_resp} -eq 1 ]; then
+if [ "${user_resp}" -eq 1 ]; then
 	zenity --warning --text="Exiting the code since the data details were not correct according to the user. Please modify them and restart the script."
 	exit 
 fi
@@ -29,7 +29,7 @@ fi
 zenity --question --title="Building Gallery for FLASH-TV face verification" --width 500 --height 100 --text="Click Yes to start video streaming\nFamily ID: ${participant_id} \nData save path: ${DATA_FOLDER_PATH}" --no-wrap
 user_resp=$?
 
-if [ ${user_resp} -eq 1 ]; then
+if [ "${user_resp}" -eq 1 ]; then
 	echo "Exiting the code due to the user clicking No"
 	exit 
 fi

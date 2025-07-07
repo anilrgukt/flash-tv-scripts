@@ -52,7 +52,35 @@ log_path_reg = os.path.join(save_path, str(famid) + '_flash_log_'+tmp_fname+'_re
 log_path_rot = os.path.join(save_path, str(famid) + '_flash_log_'+tmp_fname+'_rot.txt') 
 
 num_identities = 4
-flash_tv = FLASHtv(family_id=str(famid), num_identities=num_identities, data_path=save_path, frame_res_hw=None, output_res_hw=None)
+# Get actual username even when running as root
+def get_flash_username():
+    # Try SUDO_USER first (set when using sudo)
+    if 'SUDO_USER' in os.environ:
+        return os.environ['SUDO_USER']
+    
+    # Try to extract from existing hardcoded paths
+    import re
+    try:
+        # Extract from the hardcoded path pattern
+        match = re.search(r'/home/(flashsys\d+)/', frames_read_path)
+        if match:
+            return match.group(1)
+    except:
+        pass
+    
+    # Fallback: try to detect from /home directory
+    try:
+        home_dirs = [d for d in os.listdir('/home') if d.startswith('flashsys')]
+        if home_dirs:
+            return home_dirs[0]  # Use first match
+    except:
+        pass
+    
+    # Ultimate fallback
+    return 'flashsys'
+
+username = get_flash_username()
+flash_tv = FLASHtv(username, family_id=str(famid), num_identities=num_identities, data_path=save_path, frame_res_hw=None, output_res_hw=None)
 rot_frame = rotate_frame()
 
 frame_counter = 1

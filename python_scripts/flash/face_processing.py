@@ -9,8 +9,8 @@ from skimage.transform import resize
 
 """
 facelmarks = detface['lmarks'] - np.array([detface['left'], detface['top']]).reshape(1,2)
-facelmarks[:,0] = wsc*(facelmarks[:,0] + int(sl>=0)*5) + offW #nsW*(wsc*facelmarks[:,0]+offW).astype(np.int) # column
-facelmarks[:,1] = hsc*(facelmarks[:,1] + int(st>=0)*5) + offH #nsH*(hsc*facelmarks[:,1]+offH).astype(np.int) # row
+facelmarks[:,0] = wsc*(facelmarks[:,0] + int(sl>=0)*5) + offW #nsW*(wsc*facelmarks[:,0]+offW).astype(np.int32) # column
+facelmarks[:,1] = hsc*(facelmarks[:,1] + int(st>=0)*5) + offH #nsH*(hsc*facelmarks[:,1]+offH).astype(np.int32) # row
 					
 ch, cw = face.shape[0], face.shape[1]
 facelmarks[:,0] = 112*(facelmarks[:,0]/float(cw))
@@ -104,7 +104,7 @@ class FaceModelv4:
         if angle is None:
             angle = np.degrees(np.arctan2(dY, dX))  # -180,180
         else:
-            angle = angle_pre
+            angle = angle
 
         crop = 15
         face_imgcv = face_img[:, :, ::-1]  # rgb to bgr
