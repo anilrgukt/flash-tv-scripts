@@ -68,7 +68,7 @@ class FLASHtv:
             check_faces.append(face)
 
             face, lmarks = self.face_processing.resize_face(face, bbx_)
-            facen = self.face_processing.get_normalized_face(face, lmarks.astype(np.int).reshape(1, 5, 2), face=True)
+            facen = self.face_processing.get_normalized_face(face, lmarks.astype(np.int32).reshape(1, 5, 2), face=True)
 
             cropped_aligned_faces.append(facen)
             cropped_aligned_faces.append(facen[:, ::-1, :])

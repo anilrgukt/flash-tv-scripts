@@ -28,9 +28,9 @@ NEW_FACES_FOLDER_PATH="${FACES_FOLDER_PATH/${old_device_id}/${new_device_id}}"
 mv -v "${FACES_FOLDER_PATH}" "${NEW_FACES_FOLDER_PATH}"
 
 # Replace the old device ID with the new device ID within each face image path (syntax is specific)
-cd "${NEW_FACES_FOLDER_PATH}"
-face_images=$(ls "${NEW_FACES_FOLDER_PATH}")
-for image in ${face_images}; do
+cd "${NEW_FACES_FOLDER_PATH}" || exit 1
+for image in *; do
+  [[ -f "$image" ]] || continue
   new_image="${image/${old_device_id}/${new_device_id}}"
   mv -v "${image}" "${new_image}"
 done

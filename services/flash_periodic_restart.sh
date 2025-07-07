@@ -5,7 +5,7 @@ export username=flashsysXXX
 export LOG_FOLDER_PATH="/home/${username}/data/${participant_id}_data/logs"
 export BACKUP_DIRS="/home/${username}/data /home/${username}/homeassistant-compose/config"
 
-mkdir -p ${LOG_FOLDER_PATH}
+mkdir -p "${LOG_FOLDER_PATH}"
 
 # Activate Python 3.8 virtual environment with libraries set up
 source "/home/${username}/py38/bin/activate"
@@ -33,9 +33,9 @@ sleep "${sleep_interval}";
 # Get the current amount of times the device has rebooted
 REBOOT_INDEX_PATH="/home/${username}/data/${participant_id}_data/${participant_id}_reboot_index.txt"
 
-if [ -e ${REBOOT_INDEX_PATH} ]; then
+if [ -e "${REBOOT_INDEX_PATH}" ]; then
 
-    last_line=$(tail -n 1 ${REBOOT_INDEX_PATH})
+    last_line=$(tail -n 1 "${REBOOT_INDEX_PATH}")
     
     last_index=$(echo "${last_line}" | awk '{print $NF}')
     
@@ -106,7 +106,7 @@ do
 
 
 	
-	borg create --exclude "/home/${username}/data/*.zip" --exclude "/home/${username}/data/*/*face*" "::${participant_id}-FLASH-HA-Data-Backup-${datetime}" ${BACKUP_DIRS}
+	borg create --exclude "/home/${username}/data/*.zip" --exclude "/home/${username}/data/*/*face*" "::${participant_id}-FLASH-HA-Data-Backup-${datetime}" "${BACKUP_DIRS}"
 		
 	echo "USB Backup without Face Folders Created at Time: ${datetime}"
 
