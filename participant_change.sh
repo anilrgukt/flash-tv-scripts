@@ -43,6 +43,9 @@ sleep 1
 bash -x "${HOME}/flash-tv-scripts/setup_scripts/RTC_setup.sh"
 sleep 1
 
+# Copy git config into data folder
+cp "${HOME}/flash-tv-scripts/.git/config" "${HOME}/data/${participant_id}${flash_device_id}_data/git_config.txt"
+
 # Copy modified configuration.yaml with plug ID to Home Assistant folder after updating the family and device IDs as well
 CONFIG_SOURCE="${HOME}/flash-tv-scripts/install_scripts/configuration.yaml"
 CONFIG_DEST="${HOME}/homeassistant-compose/config/configuration.yaml"
@@ -51,13 +54,13 @@ CONFIG_DEST="${HOME}/homeassistant-compose/config/configuration.yaml"
 sed -i "s/123XXX/${participant_id}${flash_device_id}/g" "$CONFIG_SOURCE"
 
 # Force copy with sudo to overwrite root-owned files
-sudo cp "$CONFIG_SOURCE" "$CONFIG_DEST"
-sudo chown $(whoami):$(whoami) "$CONFIG_DEST"
-
-# # Start the Home Assistant Docker compose instance
-# cd "${HOME}/homeassistant-compose/config"
-
-# docker compose up -d
-
-# Copy git config into data folder
-cp "${HOME}/flash-tv-scripts/.git/config" "${HOME}/data/${participant_id}${flash_device_id}_data/git_config.txt"
+if [ -d "${CONFIG_DEST}" ]; then
+	sudo cp "$CONFIG_SOURCE" "$CONFIG_DEST"
+	sudo chown $(whoami):$(whoami) "$CONFIG_DEST"
+    cd "${HOME}/homeassistant-compose/config"
+    docker compose up -d
+    sleep 5
+    firefox http://localhost:8123
+else
+	echo "configuration.yaml folder not created yet, skipping configuration.yaml update"
+fi

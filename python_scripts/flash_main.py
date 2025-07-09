@@ -11,7 +11,6 @@ from flash.face_processing import FaceModelv4 as FaceProcessing
 from flash.face_verification import FLASHFaceVerification
 from flash.gaze_estimation import FLASHGazeEstimator
 
-# from utils.rotate_frame import rotate_frame
 from utils.bbox_utils import Bbox
 from utils.visualizer import draw_gz, draw_rect_det, draw_rect_ver
 
@@ -28,7 +27,6 @@ class FLASHtv:
         self.fd = FlashFaceDetector(det_path_loc)
         self.fv = FLASHFaceVerification(model_path, num_identities=self.ni)
         self.gz = FLASHGazeEstimator(ckpt1_r50, ckpt2_r50reg)
-        # self.rot_frame = rotate_frame()
         self.face_processing = FaceProcessing(
             frame_resolution=[1080, 1920],
             detector_resolution=[342, 608],
@@ -49,7 +47,6 @@ class FLASHtv:
         self.family_id = family_id
         self.data_path = data_path
 
-        # get the GT embedding ...
         self.gt_embedding = self.fv.get_gt_emb(fam_id=self.family_id, path=self.data_path, face_proc=self.face_processing)
 
     def run_detector(self, img_cv1080, now_threshold=None):
@@ -88,11 +85,9 @@ class FLASHtv:
         tc_id = -1
         tc_frame_id = 0
         for img, bbox_ls in zip(frame_ls, frame_bbox_ls):
-            # img_cv1080 = img[:,:,::-1]
-
             tc_frame_id += 1
             for bbx in bbox_ls:
-                if bbx["idx"] == 0:  # target child ID
+                if bbx["idx"] == 0:
                     bbx_ = Bbox(bbx)
                     face, bbx_ = self.gaze_face_processing.crop_face_from_frame(img, bbx_)  # rgb
                     face, lmarks = self.gaze_face_processing.resize_face(face, bbx_)  # rgb
@@ -101,8 +96,6 @@ class FLASHtv:
                     bbx["new_lmrks"] = lmarks
                     # print(bbx_.return_dict())
                     # print(lmarks)
-                    # print(angle)
-                    # tc_faces.append(face_rot)
                     tc_face = face_rot
                     tc_bbx = bbx
 
@@ -112,7 +105,6 @@ class FLASHtv:
 
         tc_present = False
         gz_data = None
-        # tc_boxs = None
 
         if len(tc_imgs) > 0:
             tc_present = True

@@ -10,9 +10,7 @@ def read_errlog(log_path: Path | str) -> None:
     with Path(log_path).open() as fid:
         lines = fid.readlines()
 
-    # Filter out lines that start with "can't get"
     lines = [line for line in lines if not line.strip("\n").startswith("can't get")]
-    # lines = [l for l in lines if not 'Warning' in l]
 
     error_lines = []
     for line in lines:
@@ -21,13 +19,8 @@ def read_errlog(log_path: Path | str) -> None:
             continue
         error_lines.append(line)
 
-    # If there are more than 8 error lines, print a message
     if len(error_lines) > 8:
         print(f"Check the error log for potential errors:\n{log_path}")
-        # print('ERROR LOG lines to potentially check')
-        # for e in error_lines:
-        #    print(e.strip('\n'))
-        # print(error_lines)
 
 
 def main() -> None:
@@ -36,7 +29,6 @@ def main() -> None:
     path = user_home / "data" / f"{participant_id}_data"
     ext = "_flash_logstderr.log"
 
-    # Read the main error log
     read_errlog(path / f"{participant_id}{ext}")
 
     path_logs = path / "logs"
@@ -45,7 +37,6 @@ def main() -> None:
     for dir_name in log_dir_list:
         print(f"Checking the log file: {dir_name}")
         log_path = path_logs / dir_name / f"{participant_id}{ext}"
-        # print(log_path)
         read_errlog(log_path)
 
 
