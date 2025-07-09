@@ -62,11 +62,9 @@ class Bbox:
         l, t, r, b = l - offset_hw[1], t - offset_hw[0], r + offset_hw[1], b + offset_hw[0]
 
         if self.lmarks is not None:
-            # self.lmarks[:,0] # along width
-            # self.lmarks[:,1] # along height
             new_lmarks = np.zeros_like(self.lmarks)
-            new_lmarks[:, 0] = self.lmarks[:, 0] + 0  # offset_hw[1]
-            new_lmarks[:, 1] = self.lmarks[:, 1] + 0  # offset_hw[0]
+            new_lmarks[:, 0] = self.lmarks[:, 0] + 0
+            new_lmarks[:, 1] = self.lmarks[:, 1] + 0
         else:
             new_lmarks = None
 
@@ -82,10 +80,7 @@ class Bbox:
         l, t, r, b = l * scale_hw[1], t * scale_hw[0], r * scale_hw[1], b * scale_hw[0]
         l, t, r, b = [int(l), int(t), int(r), int(b)]
 
-        # new_lmarks = np.zeros_like(self.lmarks)
         if self.lmarks is not None:
-            # self.lmarks[:,0] # along width
-            # self.lmarks[:,1] # along height
             new_lmarks = np.zeros_like(self.lmarks)
             new_lmarks[:, 0] = self.lmarks[:, 0] * scale_hw[1]
             new_lmarks[:, 1] = self.lmarks[:, 1] * scale_hw[0]

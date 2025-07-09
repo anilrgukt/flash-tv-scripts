@@ -68,21 +68,17 @@ def cam_id():
     dev_paths = out.split("\n")
     dev_path = None
 
-    # WEBCAM_NAME = 'HD Pro Webcam C920' # Logitech Webcam C930e
     WEBCAM_NAME1 = "Logitech Webcam C930e"
-    # WEBCAM_NAME2 = 'USB  Live camera: USB  Live cam'
     WEBCAM_NAME2 = "Anker PowerConf C300: Anker Pow"
 
     dev_name = {WEBCAM_NAME1: "C930e", WEBCAM_NAME2: "C300"}
 
     which_webcam = None
     for i in range(len(dev_paths)):
-        # print(i, dev_paths[i])
         if WEBCAM_NAME1 in dev_paths[i]:
             dev_path = dev_paths[i + 1].strip()
             which_webcam = WEBCAM_NAME1
             break
-            # print(dev_path, dev_path[-1])
         elif WEBCAM_NAME2 in dev_paths[i]:
             dev_path = dev_paths[i + 1].strip()
             which_webcam = WEBCAM_NAME2
@@ -103,7 +99,6 @@ def cam_id():
     usb_path = None
     for device in usb_list:
         text = "%s %s %s" % (device["description"], device["manufacturer"], device["device"])
-        # print(text)
         if dev_name[which_webcam] in text:
             print(dev_name[which_webcam], device["path"])
             usb_path = device["path"]
@@ -136,31 +131,15 @@ def check_face_presence(log_file, detector):
     video_reader = WebcamVideoStream()
     video_reader.start(idx, width=608, height=342)
 
-    """
-    cap_yolo = cv2.VideoCapture(idx)
-    cap_yolo.set(3, 608)
-    cap_yolo.set(4, 342)
-    cap_yolo.set(5, 3)
-    """
-
-    # cap.set(5, 15)
-    # fps = int(cap_yolo.get(5))
-    # print('Streaming for Face detection at {}x{} res. for {} FPS'.format(608,342,fps))
-
     frm_counter = log_file[1]
     fname_log = log_file[0]
 
     while face_p_duration < 1:
-        # ret, img_cap = cap_yolo.read()
-        # retr = cap_yolo.grab()
-        # ret, img_cap = cap_yolo.retrieve(retr)
         img_cap = video_reader.read()
         img_cap_time = datetime.now()
 
-        # print('starting face det .... ')
         dboxes = detector(img_cap)  # face detection
 
-        # DELETE very low confidence faces if any
         ndboxes = []
         for b in dboxes:
             if b["prob"] > 0.09:
@@ -169,7 +148,7 @@ def check_face_presence(log_file, detector):
 
         write_line = [img_cap_time, str(frm_counter).zfill(6)]
         write_line = write_line + [str(len(dboxes)), str(0), str(None), str(None), str(None), str(None), str(None), str(None), str(None), str(None)]
-        if len(dboxes) < 1:  # if no faces continue
+        if len(dboxes) < 1:
             print("Face detector LOG ouput", img_cap_time, np.array([None, None]), "No face detected")
             if face_np_duration > 45:
                 face_np_time_delay = 1.03 * face_np_time_delay
@@ -199,14 +178,11 @@ def check_face_presence(log_file, detector):
 
 
 def correct_rotation(a, tc_angle):
-    # s0 = output_varr[i,0]
-    # s1 = output_varr[i,1]
-
     s0 = a[0]
     s1 = a[1]
 
-    x = math.cos(s1) * math.sin(s0)  # -40*
-    y = math.sin(s1)  # -40*
+    x = math.cos(s1) * math.sin(s0)
+    y = math.sin(s1)
     z = -math.cos(s1) * math.cos(s0)
 
     tangle = -(tc_angle / 180) * math.pi
