@@ -5,7 +5,7 @@
 flash_device_id=$(basename "$HOME" | grep -o '[0-9]*$')
 
 # Prompt for participant ID
-participant_id=$(zenity --entry --width 500 --height 100 --text="Enter the participant ID (P1-1[3 digits no brackets] for TECH):")
+participant_id=$(zenity --entry --width 500 --height 100 --text="Enter the participant ID (P1-[4 digits no brackets] for TECH, ES-[4 digits no brackets] for ESS):")
 
 # Set Bluetooth beacon accelerometer MAC address to default (not used)
 bluetooth_beacon_mac_address="Not Needed for this Visit"
@@ -54,13 +54,17 @@ CONFIG_DEST="${HOME}/homeassistant-compose/config/configuration.yaml"
 sed -i "s/123XXX/${participant_id}${flash_device_id}/g" "$CONFIG_SOURCE"
 
 # Force copy with sudo to overwrite root-owned files
-if [ -d "${CONFIG_DEST}" ]; then
+if [ -f "${CONFIG_DEST}" ]; then
 	sudo cp "$CONFIG_SOURCE" "$CONFIG_DEST"
 	sudo chown $(whoami):$(whoami) "$CONFIG_DEST"
-    cd "${HOME}/homeassistant-compose/config"
-    docker compose up -d
-    sleep 5
-    firefox http://localhost:8123
+ 	cd "${HOME}/homeassistant-compose/config"
+  	docker compose up -d
+   	sleep 5
+    	firefox --new-window http://localhost:8123/history >/dev/null 2>&1 &
+     	sleep 1
+     	zenity --info --text="Please look at the History tab of the window that was just opened, and verify that power data is being received once the TV is plugged into the smart plug." --width 500 --height 100
+      	exit 0
 else
-	echo "configuration.yaml folder not created yet, skipping configuration.yaml update"
+	zenity --warning --text=echo "Home Assistant configuration.yaml file not created yet, skipping configuration.yaml update. Set up Home Assistant and either run this again or manually copy the configuration.yaml later."  --width 500 --height 100
+ 	exit 0
 fi
