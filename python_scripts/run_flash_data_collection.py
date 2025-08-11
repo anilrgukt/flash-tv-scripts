@@ -79,6 +79,10 @@ def frame_write(q, frm_count):
             tmp = 10
             print("time for capturing 1000 images:::: ", time.time() - t_st)
             t_st = time.time()
+            
+            # Clear GPU cache periodically during frame capture
+            from utils.gpu_memory_manager import GPUMemoryManager
+            GPUMemoryManager.clear_gpu_cache()
             # break
 
         last_frame_time = frame_time
@@ -168,6 +172,10 @@ while True:
                     print("Time for processing 100 batch7s: ", time.time() - time_batch_start)
                     print("############################################################")
                     time_batch_start = time.time()
+                    
+                    # Memory monitoring every 100 batches
+                    from utils.gpu_memory_manager import GPUMemoryManager
+                    GPUMemoryManager.print_memory_status(f"Batch {batch_count + 1}")
                 batch_write = False
 
             # if no face is detected for 1500 secs () duration then fall back to stand by mode
