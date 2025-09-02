@@ -83,11 +83,12 @@ class POVPictureStep(WizardStep):
         )
 
         instructions = self.ui_factory.create_label(
-            "1. Have the target child sit in their usual TV viewing position\n"
-            "2. Turn on the TV to typical viewing content\n"
-            "3. Take a picture FROM THE CAMERA'S POSITION\n"
-            "4. The picture should show what the camera sees\n"
-            "5. Include: TV screen, child's seating area, room lighting"
+            "1. Make sure NO PEOPLE are in the room at all\n"
+            "2. Take a picture FROM THE TV'S PERSPECTIVE\n"
+            "3. Picture shows what the TV 'sees' - the room/couch area\n"
+            "4. The child's face should NOT be visible\n"
+            "5. The TV screen should NOT be in the picture\n"
+            "6. Shows the viewing area from TV's point of view"
         )
         instructions_layout.addWidget(instructions)
         instructions_layout.addStretch()
@@ -112,13 +113,13 @@ class POVPictureStep(WizardStep):
         or_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         actions_layout.addWidget(or_label)
 
-        self.use_phone_button = self.ui_factory.create_action_button(
-            "📱 I'll Use My Phone Camera",
-            callback=self._use_phone_camera,
+        self.use_ipad_button = self.ui_factory.create_action_button(
+            "📱 I'll Use My iPad Camera",
+            callback=self._use_ipad_camera,
             style=ButtonStyle.SECONDARY,
             height=40,
         )
-        actions_layout.addWidget(self.use_phone_button)
+        actions_layout.addWidget(self.use_ipad_button)
 
         actions_layout.addStretch()
 
@@ -170,10 +171,10 @@ class POVPictureStep(WizardStep):
         )
 
         guidelines_text = self.ui_factory.create_label(
-            "✓ Child's face is visible in typical viewing position\n"
-            "✓ TV screen is in frame\n"
-            "✓ Lighting conditions represent typical viewing\n"
-            "✓ No major obstructions between camera and child\n"
+            "✓ NO PEOPLE are visible anywhere in the picture\n"
+            "✓ Child's face is NOT visible\n"
+            "✓ TV screen is NOT in the picture\n"
+            "✓ Shows room/couch area from TV's perspective\n"
             "✓ Picture is clear and not blurry"
         )
         guidelines_layout.addWidget(guidelines_text)
@@ -204,8 +205,8 @@ class POVPictureStep(WizardStep):
         try:
             self.logger.info("Launching camera application for POV picture")
 
-            # Launch camera using process runner
-            result = self.process_runner.run_command(["cheese"], timeout_ms=5000)
+            # Launch camera using process runner (no timeout for GUI app)
+            result = self.process_runner.run_command(["cheese"])
 
             if result and result.returncode == 0:
                 self.logger.info("Camera application launched successfully")
@@ -213,10 +214,13 @@ class POVPictureStep(WizardStep):
                     self,
                     "Camera Launched",
                     "Camera application launched.\n\n"
-                    "1. Position yourself at the camera location\n"
-                    "2. Take a picture of the viewing area\n"
-                    "3. Save the picture\n"
-                    "4. Click 'Select POV Picture File' to choose it",
+                    "1. Position yourself at the TV location\n"
+                    "2. Make sure NO PEOPLE are in the room at all\n"
+                    "3. Take picture FROM TV's perspective of the room\n"
+                    "4. Child's face should NOT be visible\n"
+                    "5. TV screen should NOT be in the picture\n"
+                    "6. Save the picture\n"
+                    "7. Click 'Select POV Picture File' to choose it",
                 )
             else:
                 error_msg = result.stderr if result else "Command failed"
@@ -224,7 +228,7 @@ class POVPictureStep(WizardStep):
                 raise FlashTVError(
                     f"Camera application launch failed: {error_msg}",
                     ErrorType.PROCESS_ERROR,
-                    recovery_action="Try using phone camera instead",
+                    recovery_action="Try using iPad camera instead",
                 )
 
         except Exception as e:
@@ -238,27 +242,30 @@ class POVPictureStep(WizardStep):
             raise
 
     @handle_step_error
-    def _use_phone_camera(self, checked: bool = False) -> None:
-        """Instructions for using phone camera with logging."""
+    def _use_ipad_camera(self, checked: bool = False) -> None:
+        """Instructions for using iPad camera with logging."""
         try:
-            self.logger.info("User chose to use phone camera for POV picture")
+            self.logger.info("User chose to use iPad camera for POV picture")
 
             QMessageBox.information(
                 self,
-                "Using Phone Camera",
-                "To use your phone camera:\n\n"
-                "1. Stand at the FLASH-TV camera position\n"
-                "2. Hold phone at same height/angle as camera\n"
-                "3. Take picture showing child's viewing area\n"
-                "4. Transfer picture to this computer\n"
-                "5. Click 'Select POV Picture File' to choose it\n\n"
+                "Using iPad Camera",
+                "To use your iPad camera:\n\n"
+                "1. Stand at the TV's position (NOT the camera)\n"
+                "2. Make sure NO PEOPLE are in the room at all\n"
+                "3. Take picture FROM TV's perspective of the room\n"
+                "4. Child's face should NOT be visible\n"
+                "5. TV screen should NOT be in the picture\n"
+                "6. Shows what the TV 'sees' - empty room/couch area\n"
+                "7. Transfer picture to this computer\n"
+                "8. Click 'Select POV Picture File' to choose it\n\n"
                 "Tip: Email or USB transfer work well",
             )
 
         except Exception as e:
-            self.logger.error(f"Error showing phone camera instructions: {e}")
+            self.logger.error(f"Error showing iPad camera instructions: {e}")
             raise FlashTVError(
-                f"Failed to show phone camera instructions: {e}",
+                f"Failed to show iPad camera instructions: {e}",
                 ErrorType.UI_ERROR,
                 recovery_action="Try using the camera application instead",
             )
@@ -371,10 +378,10 @@ class POVPictureStep(WizardStep):
                 self,
                 "Verify POV Picture",
                 "Please confirm the POV picture meets these criteria:\n\n"
-                "✓ Shows child's typical viewing position\n"
-                "✓ TV screen is visible in frame\n"
-                "✓ Adequate lighting to see faces\n"
-                "✓ Camera view is unobstructed\n"
+                "✓ NO PEOPLE are visible anywhere\n"
+                "✓ Child's face is NOT visible\n"
+                "✓ TV screen is NOT in the picture\n"
+                "✓ Shows room/couch area from TV's perspective\n"
                 "✓ Picture quality is clear\n\n"
                 "Does the picture meet all criteria?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -420,24 +427,30 @@ class POVPictureStep(WizardStep):
 
             help_text = """POV Picture Guidelines:
 
-Purpose: Documents what the FLASH-TV camera sees during operation
+Purpose: Documents what the TV 'sees' when looking at the viewing area
 
 Key Requirements:
-• Take picture FROM the camera's mounted position
-• Include the target child's typical viewing area
-• Show typical TV viewing conditions
+• Take picture FROM the TV's position (NOT the camera!)
+• NO PEOPLE should be visible anywhere in the picture
+• Child's face must NOT be in the picture
+• TV screen should NOT be in the picture  
+• Shows the empty room/couch area from TV's perspective
+• Picture is FROM TV looking at where people sit
+
+CRITICAL: The room must be completely empty of people!
 
 Common Issues:
-• Taking picture from wrong angle - stand at camera!
+• Taking picture from wrong location - stand at TV, not camera!
+• Including people in the picture - room must be completely empty
+• Showing child's face - this violates privacy requirements  
+• Including TV screen - picture is FROM TV looking out at room
 • Too dark - turn on typical room lighting
-• Child not in frame - have them sit normally
-• TV not visible - adjust camera angle if needed
 
 The POV picture helps researchers understand:
-• Camera coverage of viewing area
-• Typical viewing distances
+• What the TV 'sees' when looking at the empty viewing area
+• Room layout and seating arrangements (without people)
 • Lighting conditions
-• Potential obstructions"""
+• Viewing area setup from TV's perspective"""
 
             QMessageBox.information(self, "POV Picture Help", help_text)
 

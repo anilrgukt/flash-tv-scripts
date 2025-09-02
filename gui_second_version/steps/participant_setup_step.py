@@ -2,7 +2,13 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QWidget, QFileDialog
+import os
+import glob
+import re
+from typing import Tuple, Optional
+
+from PyQt6.QtWidgets import QWidget
+from PyQt6.QtCore import pyqtSignal
 
 from constants import Templates, Messages, Patterns
 from core import WizardStep
@@ -11,10 +17,123 @@ from models import StepStatus
 
 
 class ParticipantSetupStep(WizardStep):
-    """Step 1: Participant and Device Setup using new framework patterns."""
+    """Step 1: Participant and Device Setup with auto-detection.
+    
+    This step simplifies the setup process by:
+    1. Auto-detecting device ID and username from /home/flashsysXXX folders
+    2. Only requiring user to input participant ID (P1-XXXX or ES-XXXX format)
+    3. Auto-generating data path as /home/{username}/data/{participant_id}_data
+    4. Validating participant ID format and auto-detection success
+    
+    The UI shows:
+    - Single participant ID input field (only user input needed)
+    - Read-only auto-detected device information display
+    - Dynamic data path preview that updates with participant ID input
+    - Error messages if auto-detection fails
+    """
+
+    # Signal emitted when device detection completes
+    device_detected = pyqtSignal(str, str, str)  # device_id, username, data_path
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
+        
+        # Auto-detected values
+        self._device_id: Optional[str] = None
+        self._username: Optional[str] = None
+        self._detection_error: Optional[str] = None
+        
+        # Perform auto-detection on initialization
+        self._auto_detect_device_info()
+
+    def _auto_detect_device_info(self) -> None:
+        """Auto-detect device ID and username.
+        
+        Scans for /home/flashsysXXX folders using glob, extracts device ID (XXX) and username (flashsysXXX),
+        checks $USER environment variable as validation, returns tuple of (device_id, username, success).
+        """
+        try:
+            # Method 1: Scan for /home/flashsysXXX folders using glob
+            flashsys_pattern = "/home/flashsys[0-9]*"
+            matching_folders = glob.glob(flashsys_pattern)
+            
+            # Filter to only valid flashsys directories with numeric suffixes
+            valid_folders = []
+            for folder_path in matching_folders:
+                if os.path.isdir(folder_path):
+                    basename = os.path.basename(folder_path)
+                    # Match exactly flashsys followed by digits
+                    if re.match(r'^flashsys\d+$', basename):
+                        valid_folders.append(folder_path)
+            
+            detected_from_folders = None
+            if valid_folders:
+                # Use the first valid folder found
+                folder_path = valid_folders[0]
+                username_from_folder = os.path.basename(folder_path)
+                # Extract device ID (digits after 'flashsys')
+                device_id_match = re.search(r'^flashsys(\d+)$', username_from_folder)
+                if device_id_match:
+                    device_id = device_id_match.group(1)
+                    detected_from_folders = (device_id, username_from_folder)
+                    self.logger.info(f"Auto-detected from folder scan: device_id={device_id}, username={username_from_folder}")
+            
+            # Method 2: Check $USER environment variable as validation
+            current_user = os.environ.get("USER", "")
+            detected_from_user = None
+            
+            if current_user and current_user != "root":
+                # Check if current user matches flashsysXXX pattern
+                user_match = re.match(r'^flashsys(\d+)$', current_user)
+                if user_match:
+                    device_id = user_match.group(1)
+                    detected_from_user = (device_id, current_user)
+                    self.logger.info(f"Validated from $USER environment: device_id={device_id}, username={current_user}")
+            
+            # Choose detection method with validation
+            if detected_from_folders and detected_from_user:
+                # Both methods worked - validate they match
+                folder_device_id, folder_username = detected_from_folders
+                user_device_id, user_username = detected_from_user
+                
+                if folder_device_id == user_device_id and folder_username == user_username:
+                    self._device_id = folder_device_id
+                    self._username = folder_username
+                    self.logger.info(f"Auto-detection successful: Both methods agree on device_id={self._device_id}, username={self._username}")
+                else:
+                    self.logger.warning(f"Detection methods disagree - folder: {detected_from_folders}, $USER: {detected_from_user}")
+                    # Use folder method as primary since it scans actual filesystem
+                    self._device_id, self._username = detected_from_folders
+                    self.logger.info(f"Using folder detection as primary: device_id={self._device_id}, username={self._username}")
+                    
+            elif detected_from_folders:
+                # Only folder scanning worked (most reliable method)
+                self._device_id, self._username = detected_from_folders
+                self.logger.info(f"Auto-detection via folder scan: device_id={self._device_id}, username={self._username}")
+                
+            elif detected_from_user:
+                # Only user environment worked (verify home directory exists)
+                device_id, username = detected_from_user
+                expected_home = f"/home/{username}"
+                if os.path.isdir(expected_home):
+                    self._device_id, self._username = detected_from_user
+                    self.logger.info(f"Auto-detection via $USER (verified home exists): device_id={self._device_id}, username={self._username}")
+                else:
+                    self._detection_error = f"$USER is {username} but /home/{username} directory does not exist"
+                    self.logger.error(self._detection_error)
+                    
+            else:
+                # No detection method succeeded
+                self._detection_error = (
+                    "Could not auto-detect device information. "
+                    "No /home/flashsysXXX folders found and $USER is not in flashsysXXX format. "
+                    "Expected format: flashsys followed by digits (e.g., flashsys001, flashsys123)"
+                )
+                self.logger.error(self._detection_error)
+                
+        except Exception as e:
+            self._detection_error = f"Error during auto-detection: {e}"
+            self.logger.error(f"Auto-detection failed with exception: {e}", exc_info=True)
 
     def create_content_widget(self) -> QWidget:
         """Create the participant setup UI using UI factory."""
@@ -26,10 +145,10 @@ class ParticipantSetupStep(WizardStep):
 
         # Create main sections using horizontal layout factory method
         participant_section = self._create_participant_info_section()
-        data_section = self._create_data_storage_section()
+        detection_section = self._create_detection_info_section()
 
         sections_layout = self.ui_factory.create_horizontal_section(
-            participant_section, data_section, spacing=12
+            participant_section, detection_section, spacing=12
         )
         main_layout.addLayout(sections_layout)
 
@@ -48,103 +167,104 @@ class ParticipantSetupStep(WizardStep):
         return content
 
     def _create_participant_info_section(self) -> QWidget:
-        """Create the participant information section using UI factory."""
+        """Create the participant information section - only requires participant ID input.
+        
+        This section is simplified to only collect the participant ID, as device_id and username
+        are now auto-detected. The UI shows only the single required input field.
+        """
         # Use UI factory to create group box
         participant_group, participant_layout = self.ui_factory.create_group_box(
             "Participant Information"
         )
 
-        # Participant ID input with validation
-        participant_layout.addWidget(self.ui_factory.create_label("Participant ID:"))
+        # Add instruction text
+        instruction_label = self.ui_factory.create_label(
+            "Enter the participant ID. Device information will be auto-detected."
+        )
+        instruction_label.setStyleSheet("color: #666; font-size: 12px; margin-bottom: 8px;")
+        participant_layout.addWidget(instruction_label)
 
-        # Create validator for participant ID
+        # Participant ID label and input (only user input field needed)
+        participant_id_label = self.ui_factory.create_label("Participant ID:")
+        participant_id_label.setStyleSheet("font-weight: bold; margin-top: 8px;")
+        participant_layout.addWidget(participant_id_label)
+
+        # Create validator for participant ID format (P1-XXXX or ES-XXXX)
         def validate_participant_id(text: str) -> tuple[bool, str]:
             if not text.strip():
                 return False, "Participant ID is required"
-            import re
-
+            
             if not re.match(Patterns.PARTICIPANT_ID, text):
-                return False, "Format: P1-XXXX or ES-XXXX"
+                return False, "Format must be P1-XXXX or ES-XXXX (e.g., P1-0123, ES-0456)"
             return True, ""
 
+        # Create participant ID input field
         self.participant_id_input = self.ui_factory.create_input_field(
             Templates.PARTICIPANT_ID_PLACEHOLDER, validator=validate_participant_id
         )
         self.participant_id_input.textChanged.connect(self._on_participant_id_changed)
+        self.participant_id_input.setStyleSheet("padding: 8px; font-size: 14px;")
         participant_layout.addWidget(self.participant_id_input)
 
-        # Device ID input
-        participant_layout.addWidget(self.ui_factory.create_label("Device ID:"))
-
-        def validate_device_id(text: str) -> tuple[bool, str]:
-            if not text.strip():
-                return False, "Device ID is required"
-            if len(text.strip()) < 3:
-                return False, "Device ID must be at least 3 characters"
-            return True, ""
-
-        self.device_id_input = self.ui_factory.create_input_field(
-            Templates.DEVICE_ID_PLACEHOLDER, validator=validate_device_id
-        )
-        self.device_id_input.textChanged.connect(self._on_device_id_changed)
-        participant_layout.addWidget(self.device_id_input)
-
-        # Username input
-        participant_layout.addWidget(self.ui_factory.create_label("Username:"))
-
-        def validate_username(text: str) -> tuple[bool, str]:
-            if not text.strip():
-                return False, "Username is required"
-            if len(text.strip()) < 2:
-                return False, "Username must be at least 2 characters"
-            return True, ""
-
-        self.username_input = self.ui_factory.create_input_field(
-            Templates.USERNAME_PLACEHOLDER, validator=validate_username
-        )
-        self.username_input.textChanged.connect(self._on_username_changed)
-        participant_layout.addWidget(self.username_input)
+        # Add spacing
+        participant_layout.addStretch()
 
         return participant_group
 
-    def _create_data_storage_section(self) -> QWidget:
-        """Create the data storage section using UI factory."""
+    def _create_detection_info_section(self) -> QWidget:
+        """Create the auto-detection information section showing read-only detected values."""
         # Use UI factory to create group box
-        data_group, data_layout = self.ui_factory.create_group_box("Data Storage")
+        detection_group, detection_layout = self.ui_factory.create_group_box("Auto-Detected System Information")
 
-        # Create horizontal layout for path selection
-        path_layout = self.ui_factory.create_horizontal_layout()
+        if self._detection_error:
+            # Show detection error with detailed message
+            error_label = self.ui_factory.create_status_label(
+                f"❌ Auto-Detection Failed", status_type="error"
+            )
+            error_label.setStyleSheet("font-weight: bold; color: #c62828; margin-bottom: 8px;")
+            detection_layout.addWidget(error_label)
+            
+            # Show detailed error message
+            error_detail = self.ui_factory.create_label(self._detection_error)
+            error_detail.setStyleSheet("color: #666; font-size: 12px; padding: 8px; background-color: #ffebee; border-radius: 4px;")
+            error_detail.setWordWrap(True)
+            detection_layout.addWidget(error_detail)
+        else:
+            # Show auto-detection success header
+            success_header = self.ui_factory.create_status_label(
+                "✅ Auto-Detection Successful", status_type="success"
+            )
+            success_header.setStyleSheet("font-weight: bold; color: #2e7d32; margin-bottom: 12px;")
+            detection_layout.addWidget(success_header)
+            
+            # Show detected values in read-only labels
+            device_id_label = self.ui_factory.create_label(f"Device ID: {self._device_id}")
+            device_id_label.setStyleSheet("font-weight: bold; color: #2e7d32; padding: 4px; background-color: #e8f5e8; border-radius: 4px;")
+            detection_layout.addWidget(device_id_label)
 
-        # Path label
-        path_label = self.ui_factory.create_label("Data Path:")
-        path_label.setMinimumWidth(80)
-        path_layout.addWidget(path_label)
+            username_label = self.ui_factory.create_label(f"Username: {self._username}")
+            username_label.setStyleSheet("font-weight: bold; color: #2e7d32; padding: 4px; background-color: #e8f5e8; border-radius: 4px;")
+            detection_layout.addWidget(username_label)
 
-        # Path input with validation
-        def validate_data_path(text: str) -> tuple[bool, str]:
-            if not text.strip():
-                return False, "Data path is required"
-            import os
+            # Show auto-generated data path (dynamic based on participant ID)
+            if self._device_id and self._username:
+                # Generate data path preview (updates when participant ID changes)
+                participant_id = self.state.get_user_input("participant_id", "").strip()
+                if participant_id:
+                    data_path = f"/home/{self._username}/data/{participant_id}_data"
+                else:
+                    data_path = f"/home/{self._username}/data/[PARTICIPANT_ID]_data"
+                
+                self.data_path_label = self.ui_factory.create_label(f"Data Path: {data_path}")
+                self.data_path_label.setStyleSheet("font-weight: bold; color: #1976d2; padding: 4px; background-color: #e3f2fd; border-radius: 4px;")
+                detection_layout.addWidget(self.data_path_label)
+                
+                # Add informational note
+                info_note = self.ui_factory.create_label("* Data path will be auto-generated when participant ID is entered")
+                info_note.setStyleSheet("color: #666; font-size: 11px; font-style: italic; margin-top: 8px;")
+                detection_layout.addWidget(info_note)
 
-            if not os.path.isabs(text):
-                return False, "Path must be absolute"
-            return True, ""
-
-        self.data_path_input = self.ui_factory.create_input_field(
-            Templates.DATA_PATH_PLACEHOLDER, validator=validate_data_path
-        )
-        self.data_path_input.textChanged.connect(self._on_data_path_changed)
-        path_layout.addWidget(self.data_path_input, stretch=1)
-
-        # Browse button using UI factory
-        self.browse_button = self.ui_factory.create_standard_button(
-            "Browse...", callback=self._browse_data_path
-        )
-        self.browse_button.setMinimumWidth(80)
-        path_layout.addWidget(self.browse_button)
-
-        data_layout.addLayout(path_layout)
-        return data_group
+        return detection_group
 
     def _create_validation_section(self, layout) -> None:
         """Create the validation feedback section using UI factory."""
@@ -171,12 +291,21 @@ class ParticipantSetupStep(WizardStep):
     def _load_existing_values(self) -> None:
         """Load existing values from state with error handling."""
         try:
+            # Only load participant ID from state - device info is auto-detected
             self.participant_id_input.setText(
                 self.state.get_user_input("participant_id", "")
             )
-            self.device_id_input.setText(self.state.get_user_input("device_id", ""))
-            self.username_input.setText(self.state.get_user_input("username", ""))
-            self.data_path_input.setText(self.state.get_user_input("data_path", ""))
+
+            # Set auto-detected values in state if available
+            if self._device_id and self._username and not self._detection_error:
+                self.state.set_user_input("device_id", self._device_id)
+                self.state.set_user_input("username", self._username)
+                
+                # Update data path if participant ID is available
+                participant_id = self.state.get_user_input("participant_id", "")
+                if participant_id:
+                    data_path = f"/home/{self._username}/data/{participant_id}_data"
+                    self.state.set_user_input("data_path", data_path)
 
             self.logger.info("Loaded existing values from state")
 
@@ -190,84 +319,88 @@ class ParticipantSetupStep(WizardStep):
 
     @handle_step_error
     def _on_participant_id_changed(self, text: str) -> None:
-        """Handle participant ID input changes with state persistence."""
-        self.state.set_user_input("participant_id", text)
+        """Handle participant ID input changes with automatic data path generation.
+        
+        Updates the auto-generated data path dynamically as user types participant ID.
+        Format: /home/{username}/data/{participant_id}_data
+        """
+        # Store participant ID in state
+        participant_id = text.strip()
+        self.state.set_user_input("participant_id", participant_id)
+        
+        # Auto-generate and update data path if detection succeeded
+        if self._device_id and self._username and not self._detection_error:
+            if participant_id:
+                # Generate complete data path
+                data_path = f"/home/{self._username}/data/{participant_id}_data"
+                self.state.set_user_input("data_path", data_path)
+                
+                # Update the data path display label
+                if hasattr(self, 'data_path_label'):
+                    self.data_path_label.setText(f"Data Path: {data_path}")
+                    self.data_path_label.setStyleSheet(
+                        "font-weight: bold; color: #1976d2; padding: 4px; "
+                        "background-color: #e3f2fd; border-radius: 4px;"
+                    )
+            else:
+                # Show placeholder when participant ID is empty
+                placeholder_path = f"/home/{self._username}/data/[PARTICIPANT_ID]_data"
+                if hasattr(self, 'data_path_label'):
+                    self.data_path_label.setText(f"Data Path: {placeholder_path}")
+                    self.data_path_label.setStyleSheet(
+                        "font-weight: normal; color: #666; padding: 4px; "
+                        "background-color: #f5f5f5; border-radius: 4px; font-style: italic;"
+                    )
+                # Clear data_path from state when participant_id is empty
+                self.state.set_user_input("data_path", "")
+        
+        # Persist state and update validation
         if self.state_manager:
             self.state_manager.save_state(self.state)
         self._validate_and_update_ui()
-
-    @handle_step_error
-    def _on_device_id_changed(self, text: str) -> None:
-        """Handle device ID input changes with state persistence."""
-        self.state.set_user_input("device_id", text)
-        if self.state_manager:
-            self.state_manager.save_state(self.state)
-        self._validate_and_update_ui()
-
-    @handle_step_error
-    def _on_username_changed(self, text: str) -> None:
-        """Handle username input changes with state persistence."""
-        self.state.set_user_input("username", text)
-        if self.state_manager:
-            self.state_manager.save_state(self.state)
-        self._validate_and_update_ui()
-
-    @handle_step_error
-    def _on_data_path_changed(self, text: str) -> None:
-        """Handle data path input changes with state persistence."""
-        self.state.set_user_input("data_path", text)
-        if self.state_manager:
-            self.state_manager.save_state(self.state)
-        self._validate_and_update_ui()
-
-    @handle_step_error
-    def _browse_data_path(self, checked: bool = False) -> None:
-        """Open file dialog to select data path with error handling."""
-        try:
-            current_path = self.data_path_input.text()
-            directory = QFileDialog.getExistingDirectory(
-                self, Messages.SELECT_DATA_DIRECTORY, current_path
-            )
-
-            if directory:
-                self.data_path_input.setText(directory)
-                self.logger.info(f"Selected data directory: {directory}")
-
-        except Exception as e:
-            self.logger.error(f"Error browsing for data path: {e}")
-            raise FlashTVError(
-                f"Failed to browse for data path: {e}",
-                ErrorType.UI_ERROR,
-                recovery_action="Try typing the path manually",
-            )
 
     @handle_step_error
     def _validate_and_update_ui(self) -> None:
-        """Validate inputs and update UI state with comprehensive validation."""
+        """Validate inputs and update UI state.
+        
+        Simplified validation focusing on:
+        - Participant ID format validation
+        - Auto-detection success
+        """
         try:
+            # Run validation
             is_valid, errors = self.validate_inputs()
-            required_fields = ["participant_id", "device_id", "username", "data_path"]
-            all_filled = all(
-                self.state.get_user_input(field, "").strip()
-                for field in required_fields
-            )
+            
+            # Check requirements: participant_id format and auto-detection success
+            participant_id = self.state.get_user_input("participant_id", "").strip()
+            has_detection = self._device_id and self._username and not self._detection_error
+            
+            # All requirements met
+            all_requirements_met = bool(participant_id and has_detection and is_valid)
 
+            # Display validation results
             if errors:
-                self._show_validation_error("\n".join(errors))
-                self.logger.warning(f"Validation errors: {errors}")
-            elif not all_filled:
-                self._show_validation_error(Messages.FILL_ALL_FIELDS)
+                error_message = "\n".join(errors)
+                self._show_validation_error(error_message)
+                self.logger.warning(f"Validation failed: {errors}")
             else:
                 self._hide_validation_error()
-                self.logger.info("All fields validated successfully")
+                if all_requirements_met:
+                    self.logger.info(f"Validation successful - Participant: {participant_id}, Device: {self._device_id}, User: {self._username}")
 
-            self._update_continue_button(is_valid and all_filled)
-            self.update_status(StepStatus.USER_ACTION_REQUIRED)
+            # Update continue button and step status
+            self._update_continue_button(all_requirements_met)
+            
+            if all_requirements_met:
+                self.update_status(StepStatus.COMPLETED)
+            else:
+                self.update_status(StepStatus.USER_ACTION_REQUIRED)
 
         except Exception as e:
-            self.logger.error(f"Error during validation: {e}")
+            self.logger.error(f"Error during validation and UI update: {e}", exc_info=True)
             self._show_validation_error(f"Validation error: {e}")
             self._update_continue_button(False)
+            self.update_status(StepStatus.FAILED)
 
     def _show_validation_error(self, message: str) -> None:
         """Show validation error message using status label."""
@@ -288,11 +421,21 @@ class ParticipantSetupStep(WizardStep):
         """Handle continue button click with comprehensive validation."""
         try:
             is_valid, errors = self.validate_inputs()
+            participant_id = self.state.get_user_input("participant_id", "").strip()
 
-            if is_valid and self.next_button.isEnabled():
+            if is_valid and self.next_button.isEnabled() and participant_id and self._device_id and self._username:
+                # Generate final data path
+                data_path = f"/home/{self._username}/data/{participant_id}_data"
+                self.state.set_user_input("data_path", data_path)
+                
+                # Emit detection signal
+                self.device_detected.emit(self._device_id, self._username, data_path)
+                
                 # Log completion
                 self.logger.info(
-                    f"Participant setup completed for ID: {self.state.get_user_input('participant_id')}"
+                    f"Participant setup completed - ID: {participant_id}, "
+                    f"Device: {self._device_id}, Username: {self._username}, "
+                    f"Data Path: {data_path}"
                 )
 
                 # Update status to completed
@@ -317,6 +460,45 @@ class ParticipantSetupStep(WizardStep):
                 recovery_action="Check all fields and try again",
             )
 
+    def validate_inputs(self) -> Tuple[bool, list[str]]:
+        """Validate participant_id format and auto-detection success.
+        
+        Only validates:
+        1. Participant ID format (P1-XXXX or ES-XXXX)
+        2. Auto-detection succeeded (device_id and username available)
+        
+        Returns:
+            tuple: (is_valid, list_of_error_messages)
+        """
+        errors = []
+        
+        try:
+            # 1. Validate participant ID format
+            participant_id = self.state.get_user_input("participant_id", "").strip()
+            if not participant_id:
+                errors.append("Participant ID is required")
+            elif not re.match(Patterns.PARTICIPANT_ID, participant_id):
+                errors.append("Participant ID must be in format P1-XXXX or ES-XXXX (e.g., P1-0123, ES-0456)")
+            
+            # 2. Ensure auto-detection succeeded
+            if self._detection_error:
+                errors.append(f"Auto-detection failed: {self._detection_error}")
+            elif not (self._device_id and self._username):
+                errors.append("Device information could not be auto-detected")
+            
+            # Optional: Validate that the detected username home directory exists
+            if self._username and not self._detection_error:
+                home_path = f"/home/{self._username}"
+                if not os.path.isdir(home_path):
+                    errors.append(f"Auto-detected home directory does not exist: {home_path}")
+                    
+        except Exception as e:
+            errors.append(f"Validation error: {e}")
+            self.logger.error(f"Exception during input validation: {e}", exc_info=True)
+        
+        is_valid = len(errors) == 0
+        return is_valid, errors
+
     @handle_step_error
     def activate_step(self) -> None:
         """Activate the participant setup step with enhanced logic."""
@@ -325,25 +507,12 @@ class ParticipantSetupStep(WizardStep):
         # Validate and update UI
         self._validate_and_update_ui()
 
-        # Focus first empty field for better UX
-        self._focus_first_empty_field()
+        # Focus on participant ID input (only user-editable field)
+        if hasattr(self, 'participant_id_input'):
+            self.participant_id_input.setFocus()
+            self.logger.debug("Focused on participant ID input")
 
         self.logger.info("Participant setup step activated")
-
-    def _focus_first_empty_field(self) -> None:
-        """Focus on the first empty required field with logging."""
-        input_fields = [
-            (self.participant_id_input, "participant_id"),
-            (self.device_id_input, "device_id"),
-            (self.username_input, "username"),
-            (self.data_path_input, "data_path"),
-        ]
-
-        for field_input, field_name in input_fields:
-            if not field_input.text().strip():
-                field_input.setFocus()
-                self.logger.debug(f"Focused on empty field: {field_name}")
-                break
 
     def update_ui(self) -> None:
         """Update UI elements periodically with framework integration."""
@@ -368,3 +537,42 @@ class ParticipantSetupStep(WizardStep):
 
         except Exception as e:
             self.logger.error(f"Error during step cleanup: {e}")
+
+    def get_device_info(self) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """Get the auto-detected device information.
+        
+        Returns:
+            tuple: (device_id, username, detection_error)
+                - device_id: Detected device ID (e.g., '001', '123') or None
+                - username: Detected username (e.g., 'flashsys001') or None  
+                - detection_error: Error message if detection failed, None if successful
+        """
+        return self._device_id, self._username, self._detection_error
+    
+    def is_auto_detection_successful(self) -> bool:
+        """Check if auto-detection was successful.
+        
+        Returns:
+            bool: True if device_id and username were successfully detected, False otherwise
+        """
+        return bool(self._device_id and self._username and not self._detection_error)
+        
+    def get_generated_data_path(self, participant_id: str = None) -> str:
+        """Get the auto-generated data path for a participant.
+        
+        Args:
+            participant_id: Participant ID to use, or None to use current state value
+            
+        Returns:
+            str: Generated data path or empty string if auto-detection failed
+        """
+        if not self.is_auto_detection_successful():
+            return ""
+            
+        if participant_id is None:
+            participant_id = self.state.get_user_input("participant_id", "").strip()
+            
+        if not participant_id:
+            return ""
+            
+        return f"/home/{self._username}/data/{participant_id}_data"

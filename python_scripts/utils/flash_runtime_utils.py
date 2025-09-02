@@ -62,6 +62,24 @@ def reset_usb_device(dev_path):
 
 
 def cam_id():
+    """
+    Improved camera identification that handles duplicate video devices properly.
+    Compatible with existing FLASH-TV system usage.
+    """
+    try:
+        # Try to use the improved camera detection utils
+        from utils.camera_detection_utils import improved_cam_id
+        return improved_cam_id()
+    except ImportError:
+        # Fallback to original implementation if utils not available
+        print("Warning: Using fallback camera detection")
+        return _original_cam_id()
+
+
+def _original_cam_id():
+    """
+    Original cam_id implementation kept as fallback.
+    """
     dev_list = subprocess.Popen("v4l2-ctl --list-devices".split(), shell=False, stdout=subprocess.PIPE)
     out, err = dev_list.communicate()
     out = out.decode()
@@ -91,22 +109,24 @@ def cam_id():
 
     print("CAMERA identified at: ", cam_idx)
 
-    if dev_name[which_webcam] == "C300":
+    if which_webcam and dev_name[which_webcam] == "C300":
         print("Do not reset the Anker 120 degree FoV camera.")
         return cam_idx
 
-    usb_list = create_usb_list()
-    usb_path = None
-    for device in usb_list:
-        text = "%s %s %s" % (device["description"], device["manufacturer"], device["device"])
-        if dev_name[which_webcam] in text:
-            print(dev_name[which_webcam], device["path"])
-            usb_path = device["path"]
-            reset_usb_device(device["path"])
-            time.sleep(3)
+    # USB reset logic for C930e camera
+    if which_webcam and dev_name[which_webcam] == "C930e":
+        usb_list = create_usb_list()
+        usb_path = None
+        for device in usb_list:
+            text = "%s %s %s" % (device["description"], device["manufacturer"], device["device"])
+            if dev_name[which_webcam] in text:
+                print(dev_name[which_webcam], device["path"])
+                usb_path = device["path"]
+                reset_usb_device(device["path"])
+                time.sleep(3)
 
-    if usb_path is None:
-        print("Failed to find the the usb path for the camera!", dev_name[which_webcam])
+        if usb_path is None:
+            print("Failed to find the the usb path for the camera!", dev_name[which_webcam])
 
     return cam_idx
 

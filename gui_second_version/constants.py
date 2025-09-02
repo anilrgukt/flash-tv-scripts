@@ -293,6 +293,25 @@ class Messages:
     FAILED_TO_SET_TIME = "Failed to set time: {error}"
     TIME_SET_SUCCESSFULLY = "Time set successfully!"
 
+    # RTC (Real-Time Clock) messages
+    RTC_STATUS_CHECKING = "Checking RTC status..."
+    EXTERNAL_RTC_CHECKING = "External RTC (DS3231): Checking..."
+    INTERNAL_RTC0_CHECKING = "Internal RTC rtc0 (PSEQ_RTC): Checking..."
+    INTERNAL_RTC1_CHECKING = "Internal RTC rtc1 (tegra-RTC): Checking..."
+    RTC_CHECK_SUCCESSFUL = "RTC status check completed successfully"
+    RTC_CHECK_FAILED = "RTC status check failed: {error}"
+    SYNC_FROM_EXTERNAL_RTC = "Sync from External RTC"
+    SYNC_FROM_EXTERNAL_RTC_CONFIRMATION = "This will set the system time from the external RTC (DS3231).\n\nContinue?"
+    EXTERNAL_RTC_SYNC_SUCCESS = "System time synchronized from external RTC!"
+    EXTERNAL_RTC_SYNC_FAILED = "Failed to sync from external RTC: {error}"
+    SET_EXTERNAL_RTC = "Set External RTC"
+    SET_EXTERNAL_RTC_CONFIRMATION = "This will set the external RTC (DS3231) to the current system time.\n\nContinue?"
+    EXTERNAL_RTC_SET_SUCCESS = "External RTC has been set to current system time!"
+    EXTERNAL_RTC_SET_FAILED = "Failed to set external RTC: {error}"
+    RTC_TIME_AVAILABLE = "Time Status: ✅ RTC time available"
+    RTC_SYNC_RECOMMENDED = "Time Status: ⚠️ RTC synchronization recommended"
+    NTP_SYNC_REQUIRES_INTERNET = "This will enable NTP time synchronization (requires internet connection).\n\nContinue?"
+
     # Home Assistant messages
     HOME_ASSISTANT_OVERVIEW = """Home Assistant integration allows FLASH-TV to:
 

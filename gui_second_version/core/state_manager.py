@@ -75,9 +75,25 @@ class StateManager:
     def _prepare_state_data(self, state: WizardState) -> dict[str, Any]:
         """Prepare state data with metadata."""
         state_data = state.to_dict()
+        current_time = datetime.now().isoformat()
+        
+        # Check if this is a new state file (first save) or existing
+        created_at = current_time
+        if self.state_file_path.exists():
+            # If file exists, try to preserve the original created_at timestamp
+            try:
+                with self.state_file_path.open("r", encoding="utf-8") as f:
+                    existing_data = json.load(f)
+                    created_at = existing_data.get("created_at", current_time)
+            except (json.JSONDecodeError, OSError):
+                # If we can't read the existing file, use current time
+                pass
+        
         state_data.update(
             {
-                "last_saved": datetime.now().isoformat(),
+                "created_at": created_at,
+                "modified_at": current_time,
+                "last_saved": current_time,
                 "version": "2.0.0",  # State schema version
                 "total_steps": self.config.min_window_width
                 // 100,  # Avoid hardcoded value
@@ -136,9 +152,8 @@ class StateManager:
             if not self._validate_state_data(data):
                 raise ValueError("Invalid state data structure")
 
-            # Create state object
-            state = WizardState()
-            state.from_dict(data)
+            # Create state object from data
+            state = WizardState.from_dict(data)
 
             return state
 
@@ -237,13 +252,20 @@ class StateManager:
             state_info = self.get_state_info()
             created_at = state_info.get("created_at", "Unknown")
             modified_at = state_info.get("modified_at", "Unknown")
+            
+            # Try to get additional information from the saved state file
+            session_info = self._get_detailed_session_info()
+            current_step = session_info.get("current_step", "Unknown")
+            completed_steps = session_info.get("completed_steps_count", "Unknown")
 
             reply = QMessageBox.question(
                 parent,
                 "Recover Previous Session",
                 f"An incomplete FLASH-TV setup session was found:\n\n"
                 f"Created: {created_at}\n"
-                f"Last Modified: {modified_at}\n\n"
+                f"Last Modified: {modified_at}\n"
+                f"Current Step: {current_step}\n"
+                f"Steps Completed: {completed_steps}\n\n"
                 f"Would you like to continue from where you left off?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.Yes,
@@ -284,6 +306,8 @@ class StateManager:
                 "exists": self.state_file_path.exists(),
                 "backup_exists": self.backup_file_path.exists(),
                 "size": 0,
+                "created_at": "Unknown",
+                "modified_at": "Unknown",
                 "last_modified": None,
             }
 
@@ -293,8 +317,72 @@ class StateManager:
                 info["last_modified"] = datetime.fromtimestamp(
                     stat.st_mtime
                 ).isoformat()
+                
+                # Try to get timestamps from saved JSON data first (more accurate)
+                try:
+                    with self.state_file_path.open("r", encoding="utf-8") as f:
+                        data = json.load(f)
+                    
+                    created_at_json = data.get("created_at")
+                    modified_at_json = data.get("modified_at")
+                    
+                    if created_at_json:
+                        # Try to parse ISO format and reformat for display
+                        try:
+                            created_dt = datetime.fromisoformat(created_at_json.replace('Z', '+00:00'))
+                            info["created_at"] = created_dt.strftime("%Y-%m-%d %H:%M:%S")
+                        except ValueError:
+                            # If not in ISO format, assume it's already formatted
+                            info["created_at"] = str(created_at_json)
+                    
+                    if modified_at_json:
+                        try:
+                            modified_dt = datetime.fromisoformat(modified_at_json.replace('Z', '+00:00'))
+                            info["modified_at"] = modified_dt.strftime("%Y-%m-%d %H:%M:%S")
+                        except ValueError:
+                            info["modified_at"] = str(modified_at_json)
+                            
+                except (json.JSONDecodeError, OSError):
+                    # Fall back to file system timestamps if JSON reading fails
+                    created_dt = datetime.fromtimestamp(stat.st_ctime)
+                    modified_dt = datetime.fromtimestamp(stat.st_mtime)
+                    
+                    info["created_at"] = created_dt.strftime("%Y-%m-%d %H:%M:%S")
+                    info["modified_at"] = modified_dt.strftime("%Y-%m-%d %H:%M:%S")
+                
+                # If we still don't have timestamps, use file system as last resort
+                if info["created_at"] == "Unknown" or info["modified_at"] == "Unknown":
+                    created_dt = datetime.fromtimestamp(stat.st_ctime)
+                    modified_dt = datetime.fromtimestamp(stat.st_mtime)
+                    
+                    if info["created_at"] == "Unknown":
+                        info["created_at"] = created_dt.strftime("%Y-%m-%d %H:%M:%S")
+                    if info["modified_at"] == "Unknown":
+                        info["modified_at"] = modified_dt.strftime("%Y-%m-%d %H:%M:%S")
 
             return info
+
+    def _get_detailed_session_info(self) -> dict[str, Any]:
+        """Get detailed information from the saved state data."""
+        info = {
+            "current_step": "Unknown",
+            "completed_steps_count": "Unknown",
+        }
+        
+        try:
+            if self.state_file_path.exists():
+                with self.state_file_path.open("r", encoding="utf-8") as f:
+                    data = json.load(f)
+                
+                info["current_step"] = data.get("current_step", "Unknown")
+                completed_steps = data.get("completed_steps", [])
+                info["completed_steps_count"] = len(completed_steps) if isinstance(completed_steps, list) else "Unknown"
+                
+        except (json.JSONDecodeError, OSError):
+            # If we can't read the file, return default values
+            pass
+            
+        return info
 
     def create_state_checkpoint(self, state: WizardState, checkpoint_name: str) -> None:
         """Create a named checkpoint of the current state."""

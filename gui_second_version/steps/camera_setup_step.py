@@ -107,79 +107,56 @@ class CameraSetupStep(WizardStep):
 
     @handle_step_error
     def _detect_cameras(self, checked: bool = False) -> None:
-        """Detect available cameras with comprehensive error handling."""
+        """Detect available cameras with comprehensive error handling and duplicate filtering."""
         try:
             self.logger.info("Starting camera detection")
             self.update_status(StepStatus.AUTOMATION_RUNNING)
             self.detect_button.setEnabled(False)
             self.camera_list.clear()
             self.test_output.clear()
-            self.test_output.append("🔍 Scanning for cameras...")
+            self.test_output.append("🔍 Scanning for unique cameras...")
 
-            # Check for video devices
-            video_devices = []
-            video_dir = Path("/dev")
+            # Import the improved camera detection utility
+            import sys
+            import os
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'python_scripts'))
+            
+            try:
+                from utils.camera_detection_utils import get_unique_cameras
+                
+                # Use improved camera detection that filters duplicates
+                unique_cameras = get_unique_cameras()
+                video_devices = []
+                
+                for camera in unique_cameras:
+                    video_devices.append({
+                        "path": camera['path'],
+                        "name": camera['name'],
+                        "number": camera['number'],
+                        "capabilities": camera.get('capabilities', 'unknown'),
+                        "is_capture_device": camera.get('is_capture_device', True)
+                    })
+                    self.logger.debug(
+                        f"Detected unique camera: {camera['name']} at {camera['path']} "
+                        f"(capabilities: {camera.get('capabilities', 'unknown')})"
+                    )
+                
+                self.logger.info(f"Found {len(video_devices)} unique cameras (duplicates filtered)")
+                
+            except ImportError as e:
+                self.logger.warning(f"Could not import improved camera detection: {e}")
+                self.test_output.append("⚠️ Using fallback detection method...")
+                
+                # Simple fallback using basic v4l2-ctl --list-devices approach
+                video_devices = self._fallback_camera_detection()
 
-            for device in video_dir.glob("video*"):
-                if device.is_char_device():
-                    device_num = device.name.replace("video", "")
-                    try:
-                        # Try to get device info using process runner
-                        result = self.process_runner.run_command(
-                            ["v4l2-ctl", "--device", str(device), "--info"],
-                            timeout_ms=5000,
-                        )
-
-                        if result and result.returncode == 0:
-                            # Parse device info
-                            info_lines = result.stdout.strip().split("\n")
-                            device_name = Messages.UNKNOWN_CAMERA
-                            for line in info_lines:
-                                if "Card type" in line:
-                                    device_name = line.split(":", 1)[1].strip()
-                                    break
-
-                            video_devices.append(
-                                {
-                                    "path": str(device),
-                                    "name": device_name,
-                                    "number": device_num,
-                                }
-                            )
-                            self.logger.debug(
-                                f"Detected camera: {device_name} at {device}"
-                            )
-                        else:
-                            # Add device with basic info if command failed
-                            device_name = Messages.CAMERA_NUMBER.format(
-                                number=device_num
-                            )
-                            video_devices.append(
-                                {
-                                    "path": str(device),
-                                    "name": device_name,
-                                    "number": device_num,
-                                }
-                            )
-                            self.logger.warning(
-                                f"Could not get info for camera at {device}"
-                            )
-
-                    except Exception as e:
-                        # Add device anyway, just with less info
-                        device_name = Messages.CAMERA_NUMBER.format(number=device_num)
-                        video_devices.append(
-                            {
-                                "path": str(device),
-                                "name": device_name,
-                                "number": device_num,
-                            }
-                        )
-                        self.logger.warning(f"Error querying camera {device}: {e}")
-
-            # Populate camera list
+            # Populate camera list with enhanced information
             for camera in video_devices:
-                item = QListWidgetItem(f"{camera['name']} ({camera['path']})")
+                display_text = f"{camera['name']} ({camera['path']})"
+                if camera.get('capabilities') and camera['capabilities'] != 'unknown':
+                    display_text += f" - {camera['capabilities']}"
+                
+                item = QListWidgetItem(display_text)
                 item.setData(32, camera)  # Store camera data
                 self.camera_list.addItem(item)
 
@@ -330,6 +307,86 @@ class CameraSetupStep(WizardStep):
 
         finally:
             self.test_button.setEnabled(True)
+
+    def _fallback_camera_detection(self) -> List[Dict[str, str]]:
+        """Fallback camera detection method when improved detection fails."""
+        video_devices = []
+        
+        try:
+            # Try v4l2-ctl --list-devices first
+            result = self.process_runner.run_command(
+                ["v4l2-ctl", "--list-devices"],
+                timeout_ms=5000,
+            )
+            
+            if result and result.returncode == 0:
+                # Basic parsing to group devices and filter duplicates
+                camera_groups = {}
+                current_camera = None
+                
+                for line in result.stdout.strip().split('\n'):
+                    line = line.strip()
+                    if not line:
+                        continue
+                        
+                    if line.endswith(':'):
+                        # Camera name line
+                        import re
+                        camera_name = re.sub(r'\s*\([^)]*\):?$', '', line).strip()
+                        current_camera = camera_name
+                        camera_groups[current_camera] = []
+                    elif line.startswith('/dev/video') and current_camera:
+                        camera_groups[current_camera].append(line)
+                
+                # For each camera group, keep only the first device (main capture)
+                for camera_name, device_paths in camera_groups.items():
+                    if device_paths:
+                        # Sort and pick the first device (typically the main capture device)
+                        device_path = sorted(device_paths)[0]
+                        device_num = device_path.replace('/dev/video', '')
+                        
+                        video_devices.append({
+                            "path": device_path,
+                            "name": camera_name,
+                            "number": device_num,
+                            "capabilities": "unknown",
+                            "is_capture_device": True
+                        })
+                        
+                        self.logger.debug(f"Fallback detected: {camera_name} at {device_path}")
+                        
+            else:
+                # Final fallback: just scan /dev/video* devices
+                self._basic_device_scan(video_devices)
+                
+        except Exception as e:
+            self.logger.warning(f"Fallback v4l2-ctl failed: {e}")
+            self._basic_device_scan(video_devices)
+        
+        return video_devices
+    
+    def _basic_device_scan(self, video_devices: List[Dict[str, str]]) -> None:
+        """Most basic device scanning as final fallback."""
+        video_dir = Path("/dev")
+        
+        for device in video_dir.glob("video*"):
+            if device.is_char_device():
+                device_num = device.name.replace("video", "")
+                try:
+                    # Simple even-number heuristic to avoid metadata devices
+                    if int(device_num) % 2 == 0:
+                        device_name = f"Camera {device_num}"
+                        video_devices.append({
+                            "path": str(device),
+                            "name": device_name,
+                            "number": device_num,
+                            "capabilities": "unknown",
+                            "is_capture_device": True
+                        })
+                        self.logger.debug(f"Basic scan found: {device_name} at {device}")
+                except ValueError:
+                    # Skip devices with non-numeric suffixes
+                    pass
 
     @handle_step_error
     def _on_continue_clicked(self, checked: bool = False) -> None:

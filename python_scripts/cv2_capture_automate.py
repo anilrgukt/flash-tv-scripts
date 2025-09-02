@@ -444,6 +444,24 @@ def get_face(detface):
 
 
 def cam_id():
+    """
+    Improved camera identification that handles duplicate video devices properly.
+    Compatible with existing cv2_capture_automate usage.
+    """
+    try:
+        # Try to use the improved camera detection utils
+        from utils.camera_detection_utils import improved_cam_id
+        return improved_cam_id()
+    except ImportError:
+        # Fallback to original implementation if utils not available
+        print("Warning: Using fallback camera detection")
+        return _original_cam_id_cv2()
+
+
+def _original_cam_id_cv2():
+    """
+    Original cam_id implementation for cv2_capture_automate kept as fallback.
+    """
     dev_list = subprocess.Popen("v4l2-ctl --list-devices".split(), shell=False, stdout=subprocess.PIPE)
     out, err = dev_list.communicate()
     out = out.decode()
