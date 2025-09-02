@@ -1,11 +1,5 @@
 from __future__ import annotations
 
-# Initialize GPU memory management BEFORE any model imports
-import sys
-sys.path.append('/mnt/d/Scripts/flash-tv-scripts/python_scripts')
-from utils.gpu_memory_manager import initialize_flash_tv_memory
-initialize_flash_tv_memory()
-
 import os
 import pickle
 import time
@@ -22,7 +16,6 @@ from flash.gaze_estimation import FLASHGazeEstimator, eval_thrshld, get_lims, lo
 from utils.bbox_utils import Bbox
 from utils.stream import WebcamVideoStream
 from utils.visualizer import draw_gz, draw_rect_det, draw_rect_ver, get_xticks, num2ts, ts2num
-from utils.gpu_memory_manager import GPUMemoryManager
 
 plot_data = True
 if plot_data:
@@ -59,34 +52,14 @@ ckpt2_r50reg = "/home/" + username + "/gaze_models/model_v3_best_Gaze360ETHXrtGe
 model_path = "/home/" + username + "/Desktop/FLASH_TV_v3/AdaFace/pretrained/adaface_ir101_webface12m.ckpt"
 det_path_loc = "/home/" + username + "/insightface/detection/RetinaFace"
 
-# Load models with memory monitoring
-print("\nInitializing Demo Models with GPU Memory Management...")
-
-fd = GPUMemoryManager.monitor_model_loading(
-    "RetinaFace Detector",
-    lambda: FlashFaceDetector(det_path_loc),
-    None
-)
-
-fv = GPUMemoryManager.monitor_model_loading(
-    "AdaFace Verification",
-    lambda: FLASHFaceVerification(model_path, num_identities=4),
-    None
-)
-
-gz = GPUMemoryManager.monitor_model_loading(
-    "Gaze Estimation Models", 
-    lambda: FLASHGazeEstimator(ckpt1_r50, ckpt2_r50reg),
-    None
-)
+fd = FlashFaceDetector(det_path_loc)  # detector_hw=[480,860]) #detector_hw=[720,1280]) #detector_hw=[480,860])
+fv = FLASHFaceVerification(model_path, num_identities=4)  # verification_threshold=0.516)
+gz = FLASHGazeEstimator(ckpt1_r50, ckpt2_r50reg)
 
 face_processing = FaceProcessing(
     frame_resolution=[1080, 1920], detector_resolution=[342, 608], face_size=112, face_crop_offset=16, small_face_padding=7, small_face_size=65
 )
 gt_embedding = fv.get_gt_emb(fam_id="123", path=data_path, face_proc=face_processing)
-
-# Print final memory status
-GPUMemoryManager.print_memory_status("Demo Models Loaded")
 
 gaze_face_processing = FaceProcessing(
     frame_resolution=[1080, 1920], detector_resolution=[342, 608], face_size=160, face_crop_offset=45, small_face_padding=3, small_face_size=65

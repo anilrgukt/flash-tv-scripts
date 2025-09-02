@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-# Initialize GPU memory management BEFORE any model imports
-from utils.gpu_memory_manager import initialize_flash_tv_memory
-initialize_flash_tv_memory()
-
 import os
 import pickle
 import time
@@ -17,7 +13,6 @@ from flash.gaze_estimation import FLASHGazeEstimator
 
 from utils.bbox_utils import Bbox
 from utils.visualizer import draw_gz, draw_rect_det, draw_rect_ver
-from utils.gpu_memory_manager import GPUMemoryManager
 
 
 class FLASHtv:
@@ -29,30 +24,9 @@ class FLASHtv:
         det_path_loc = "/home/" + username + "/insightface/detection/RetinaFace"
 
         self.ni = num_identities
-        
-        # Load models with memory monitoring
-        print("\nInitializing FLASH-TV Models with GPU Memory Management...")
-        
-        # 1. Load RetinaFace (uses MXNet memory pool)
-        self.fd = GPUMemoryManager.monitor_model_loading(
-            "RetinaFace Detector",
-            lambda: FlashFaceDetector(det_path_loc),
-            None
-        )
-        
-        # 2. Load AdaFace (largest PyTorch model)
-        self.fv = GPUMemoryManager.monitor_model_loading(
-            "AdaFace Verification", 
-            lambda: FLASHFaceVerification(model_path, num_identities=self.ni),
-            None
-        )
-        
-        # 3. Load Gaze Estimator (dual ResNet models)
-        self.gz = GPUMemoryManager.monitor_model_loading(
-            "Gaze Estimation Models",
-            lambda: FLASHGazeEstimator(ckpt1_r50, ckpt2_r50reg),
-            None
-        )
+        self.fd = FlashFaceDetector(det_path_loc)
+        self.fv = FLASHFaceVerification(model_path, num_identities=self.ni)
+        self.gz = FLASHGazeEstimator(ckpt1_r50, ckpt2_r50reg)
         self.face_processing = FaceProcessing(
             frame_resolution=[1080, 1920],
             detector_resolution=[342, 608],
@@ -74,9 +48,6 @@ class FLASHtv:
         self.data_path = data_path
 
         self.gt_embedding = self.fv.get_gt_emb(fam_id=self.family_id, path=self.data_path, face_proc=self.face_processing)
-        
-        # Final memory status after all models loaded
-        GPUMemoryManager.print_memory_status("All Models Loaded")
 
     def run_detector(self, img_cv1080, now_threshold=None):
         faces, lmarks = self.fd.face_detect(img_cv1080, now_threshold)
