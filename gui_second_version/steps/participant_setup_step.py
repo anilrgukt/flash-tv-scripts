@@ -36,15 +36,17 @@ class ParticipantSetupStep(WizardStep):
     device_detected = pyqtSignal(str, str, str)  # device_id, username, data_path
 
     def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        
-        # Auto-detected values
+        # Initialize auto-detected values BEFORE calling super().__init__()
+        # because parent's __init__ calls _setup_ui() which calls create_content_widget()
         self._device_id: Optional[str] = None
         self._username: Optional[str] = None
         self._detection_error: Optional[str] = None
         
-        # Perform auto-detection on initialization
+        # Perform auto-detection BEFORE parent initialization
         self._auto_detect_device_info()
+        
+        # Now call parent's __init__ which will set up the UI
+        super().__init__(*args, **kwargs)
 
     def _auto_detect_device_info(self) -> None:
         """Auto-detect device ID and username.
@@ -76,7 +78,8 @@ class ParticipantSetupStep(WizardStep):
                 if device_id_match:
                     device_id = device_id_match.group(1)
                     detected_from_folders = (device_id, username_from_folder)
-                    self.logger.info(f"Auto-detected from folder scan: device_id={device_id}, username={username_from_folder}")
+                    # Can't use self.logger here as it's not initialized yet
+                    print(f"Auto-detected from folder scan: device_id={device_id}, username={username_from_folder}")
             
             # Method 2: Check $USER environment variable as validation
             current_user = os.environ.get("USER", "")
@@ -88,7 +91,8 @@ class ParticipantSetupStep(WizardStep):
                 if user_match:
                     device_id = user_match.group(1)
                     detected_from_user = (device_id, current_user)
-                    self.logger.info(f"Validated from $USER environment: device_id={device_id}, username={current_user}")
+                    # Can't use self.logger here as it's not initialized yet
+                    print(f"Validated from $USER environment: device_id={device_id}, username={current_user}")
             
             # Choose detection method with validation
             if detected_from_folders and detected_from_user:
@@ -99,17 +103,17 @@ class ParticipantSetupStep(WizardStep):
                 if folder_device_id == user_device_id and folder_username == user_username:
                     self._device_id = folder_device_id
                     self._username = folder_username
-                    self.logger.info(f"Auto-detection successful: Both methods agree on device_id={self._device_id}, username={self._username}")
+                    print(f"Auto-detection successful: Both methods agree on device_id={self._device_id}, username={self._username}")
                 else:
-                    self.logger.warning(f"Detection methods disagree - folder: {detected_from_folders}, $USER: {detected_from_user}")
+                    print(f"WARNING: Detection methods disagree - folder: {detected_from_folders}, $USER: {detected_from_user}")
                     # Use folder method as primary since it scans actual filesystem
                     self._device_id, self._username = detected_from_folders
-                    self.logger.info(f"Using folder detection as primary: device_id={self._device_id}, username={self._username}")
+                    print(f"Using folder detection as primary: device_id={self._device_id}, username={self._username}")
                     
             elif detected_from_folders:
                 # Only folder scanning worked (most reliable method)
                 self._device_id, self._username = detected_from_folders
-                self.logger.info(f"Auto-detection via folder scan: device_id={self._device_id}, username={self._username}")
+                print(f"Auto-detection via folder scan: device_id={self._device_id}, username={self._username}")
                 
             elif detected_from_user:
                 # Only user environment worked (verify home directory exists)
@@ -117,10 +121,10 @@ class ParticipantSetupStep(WizardStep):
                 expected_home = f"/home/{username}"
                 if os.path.isdir(expected_home):
                     self._device_id, self._username = detected_from_user
-                    self.logger.info(f"Auto-detection via $USER (verified home exists): device_id={self._device_id}, username={self._username}")
+                    print(f"Auto-detection via $USER (verified home exists): device_id={self._device_id}, username={self._username}")
                 else:
                     self._detection_error = f"$USER is {username} but /home/{username} directory does not exist"
-                    self.logger.error(self._detection_error)
+                    print(f"ERROR: {self._detection_error}")
                     
             else:
                 # No detection method succeeded
@@ -129,11 +133,11 @@ class ParticipantSetupStep(WizardStep):
                     "No /home/flashsysXXX folders found and $USER is not in flashsysXXX format. "
                     "Expected format: flashsys followed by digits (e.g., flashsys001, flashsys123)"
                 )
-                self.logger.error(self._detection_error)
+                print(f"ERROR: {self._detection_error}")
                 
         except Exception as e:
             self._detection_error = f"Error during auto-detection: {e}"
-            self.logger.error(f"Auto-detection failed with exception: {e}", exc_info=True)
+            print(f"ERROR: Auto-detection failed with exception: {e}")
 
     def create_content_widget(self) -> QWidget:
         """Create the participant setup UI using UI factory."""
