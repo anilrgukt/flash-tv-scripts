@@ -1,9 +1,21 @@
 #!/bin/bash
 
-# Data details
-participant_id=123XXX
-username=flashsysXXX
-DATA_FOLDER_PATH="/home/${username}/data/${participant_id}_data"
+# Check if required arguments are provided
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 <participant_id> <username> <data_folder_path>"
+    echo "Example: $0 123 flashsys001 /home/flashsys001/data/123001_data"
+    exit 1
+fi
+
+# Get arguments from command line
+participant_id="$1"
+username="$2"
+DATA_FOLDER_PATH="$3"
+
+echo "Creating faces folder with:"
+echo "  Participant ID: ${participant_id}"
+echo "  Username: ${username}"
+echo "  Data Path: ${DATA_FOLDER_PATH}"
 
 # Verify the data details
 zenity --question --title="Verifying Data Details" --width 500 --height 100 --text="Please verify the following data details\nParticipant ID: ${participant_id}\nUsername: ${username}\nData Folder Path: ${DATA_FOLDER_PATH}" --no-wrap

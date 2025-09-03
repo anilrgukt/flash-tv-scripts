@@ -1,18 +1,28 @@
 #!/bin/bash
 
-# Data details
-participant_id=123XXX
-username=flashsysXXX
-DATA_FOLDER_PATH="/home/${username}/data/${participant_id}_data"
+# Check if required arguments are provided
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 <participant_id> <username> <data_folder_path> [old_device_id] [new_device_id]"
+    echo "Example: $0 123 flashsys001 /home/flashsys001/data/123001_data"
+    echo "Optional: $0 123 flashsys001 /home/flashsys001/data/123001_data 001 002"
+    exit 1
+fi
 
-# If there aren't exactly 2 command line arguments, prompt the user for the old device ID and the new device ID
-if [ "$#" -ne 2 ]; then
-  echo "Command Line Usage: $0 (ID of Device You are Transferring Faces FROM) (ID of Device You are Transferring Faces TO)"
+# Get arguments from command line
+participant_id="$1"
+username="$2"
+DATA_FOLDER_PATH="$3"
+
+# If device IDs aren't provided as arguments 4 and 5, prompt the user
+if [ "$#" -eq 5 ]; then
+  old_device_id=$4
+  new_device_id=$5
+elif [ "$#" -eq 3 ]; then
   read -rp 'Enter the ID of the device you are transferring faces FROM (3 digits): ' old_device_id
   read -rp 'Enter the ID of the device you are transferring faces TO (3 digits): ' new_device_id
 else
-  old_device_id=$1
-  new_device_id=$2
+  echo "Invalid number of arguments. Either provide 3 (participant, username, data_path) or 5 (+ old_device, new_device)"
+  exit 1
 fi
 
 # Find the faces folder within the data folder

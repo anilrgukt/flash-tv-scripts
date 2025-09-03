@@ -230,29 +230,26 @@ class GalleryCreationStep(WizardStep):
                 Messages.GALLERY_LOCATION.format(path=gallery_path)
             )
 
-            # Run gallery creation script using process runner
-            # Get the script path relative to user's home directory
+            # Run gallery creation script with command-line arguments
             script_path = os.path.expanduser("~/flash-tv-scripts/runtime_scripts/build_gallery.sh")
-            command = ["bash", script_path]
-
-            # Set up environment for script with proper variable substitution
-            env = {
-                "PARTICIPANT_ID": participant_id,
-                "DATA_PATH": data_path,
-                "USERNAME": username,
-                "DATA_FOLDER_PATH": f"/home/{username}/data/{participant_id}_data"
-            }
-
-            self.gallery_output.append(f"📋 Starting automated gallery creation...")
-            self.gallery_output.append(f"📂 Script: {script_path}")
+            
+            self.gallery_output.append(f"📋 Starting gallery creation...")
             self.gallery_output.append(f"👤 Participant: {participant_id}")
             self.gallery_output.append(f"💾 Data path: {data_path}")
+            
+            # Pass arguments directly to the script
+            command = [
+                "bash", 
+                script_path,
+                participant_id,
+                username,
+                data_path
+            ]
             
             process_info = self.process_runner.run_script(
                 command=command,
                 description=f"Creating face gallery for {participant_id}",
                 working_dir=os.path.expanduser("~/flash-tv-scripts/runtime_scripts"),
-                env=env,
                 process_name="gallery_creation",
             )
 

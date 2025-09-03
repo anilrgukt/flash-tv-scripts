@@ -215,28 +215,46 @@ class POVPictureStep(WizardStep):
         try:
             self.logger.info("Launching camera application for POV picture")
 
-            # Launch camera using process runner (no timeout for GUI app)
-            result = self.process_runner.run_command(["cheese"])
-
-            if result and result.returncode == 0:
+            # Show instructions FIRST, before launching cheese
+            QMessageBox.information(
+                self,
+                "Taking POV Picture",
+                "Camera will launch after you click OK.\n\n"
+                "IMPORTANT INSTRUCTIONS:\n"
+                "1. Position yourself at the TV location\n"
+                "2. Make sure NO PEOPLE are in the room at all\n"
+                "3. Take picture FROM TV's perspective of the room\n"
+                "4. Child's face should NOT be visible\n"
+                "5. TV screen should NOT be in the picture\n"
+                "6. Save the picture\n"
+                "7. After closing camera, click 'Select POV Picture File' to choose it",
+            )
+            
+            # Now launch camera in background (non-blocking)
+            import subprocess
+            try:
+                subprocess.Popen(["cheese"], 
+                                stdout=subprocess.DEVNULL, 
+                                stderr=subprocess.DEVNULL)
                 self.logger.info("Camera application launched successfully")
-                QMessageBox.information(
-                    self,
-                    "Camera Launched",
-                    "Camera application launched.\n\n"
-                    "1. Position yourself at the TV location\n"
-                    "2. Make sure NO PEOPLE are in the room at all\n"
-                    "3. Take picture FROM TV's perspective of the room\n"
-                    "4. Child's face should NOT be visible\n"
-                    "5. TV screen should NOT be in the picture\n"
-                    "6. Save the picture\n"
-                    "7. Click 'Select POV Picture File' to choose it",
+                
+                # Show a non-blocking status update
+                self.picture_status_label.setText("📷 Camera app is running...")
+                self.picture_status_label.setStyleSheet(
+                    f"color: {self.config.info_color}; font-weight: bold; padding: 10px;"
                 )
-            else:
-                error_msg = result.stderr if result else "Command failed"
-                self.logger.error(f"Camera app launch failed: {error_msg}")
+                
+            except FileNotFoundError:
+                self.logger.error("cheese command not found")
                 raise FlashTVError(
-                    f"Camera application launch failed: {error_msg}",
+                    "Camera application 'cheese' not found",
+                    ErrorType.PROCESS_ERROR,
+                    recovery_action="Install cheese with: sudo apt-get install cheese",
+                )
+            except Exception as e:
+                self.logger.error(f"Failed to launch camera: {e}")
+                raise FlashTVError(
+                    f"Camera application launch failed: {e}",
                     ErrorType.PROCESS_ERROR,
                     recovery_action="Try using iPad camera instead",
                 )

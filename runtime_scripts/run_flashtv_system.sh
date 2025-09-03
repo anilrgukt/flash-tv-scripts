@@ -1,9 +1,21 @@
 #!/bin/bash
 
-# Data details
-participant_id=123XXX
-username=flashsysXXX
-DATA_FOLDER_PATH="/home/${username}/data/${participant_id}_data"
+# Check if required arguments are provided
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 <participant_id> <username> <data_folder_path>"
+    echo "Example: $0 123 flashsys001 /home/flashsys001/data/123001_data"
+    exit 1
+fi
+
+# Get arguments from command line
+participant_id="$1"
+username="$2"
+DATA_FOLDER_PATH="$3"
+
+echo "Starting FLASH-TV system with:"
+echo "  Participant ID: ${participant_id}"
+echo "  Username: ${username}"
+echo "  Data Path: ${DATA_FOLDER_PATH}"
 
 # Check whether or not the available camera(s) is/are being used by other programs
 video_device_list=$(ls /dev/video*)
