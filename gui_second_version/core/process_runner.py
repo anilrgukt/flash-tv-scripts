@@ -117,26 +117,35 @@ class ProcessRunner:
             process_env.update(env)
 
         try:
-            with self._managed_process(
-                command, cwd=working_dir, env=process_env
-            ) as process:
-                # Create ProcessInfo with proper tracking
-                process_info = ProcessInfo(
-                    name=process_name,
-                    process=process,
-                    command=command,
-                    description=description,
-                    start_time=datetime.now(),
-                    cleanup_handler=cleanup_handler,
-                )
+            # Start process WITHOUT the context manager so it doesn't get terminated
+            process = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,  # Line buffered
+                cwd=working_dir,
+                env=process_env,
+            )
+            
+            # Create ProcessInfo with proper tracking
+            process_info = ProcessInfo(
+                name=process_name,
+                process=process,
+                command=command,
+                description=description,
+                start_time=datetime.now(),
+                cleanup_handler=cleanup_handler,
+            )
 
-                # Thread-safe process tracking
-                with self._processes_lock:
-                    self._active_processes[process_name] = process_info
-                    self.state.add_process(process_name, process_info)
+            # Thread-safe process tracking
+            with self._processes_lock:
+                self._active_processes[process_name] = process_info
+                self.state.add_process(process_name, process_info)
 
-                self.logger.info(f"Started process {process_name}: {' '.join(command)}")
-                return process_info
+            self.logger.info(f"Started process {process_name}: {' '.join(command)}")
+            return process_info
 
         except Exception as e:
             log_error(f"Failed to start process {process_name}", str(e))

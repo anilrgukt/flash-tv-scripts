@@ -215,8 +215,16 @@ class TimeSyncStep(WizardStep):
             # Get the script path relative to user's home directory
             rtc_check_script = os.path.expanduser("~/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py")
             
+            # Get the data path for start_date.txt
+            data_path = self.state.get_user_input("data_path", "")
+            if not data_path:
+                # If no data path, use a temporary placeholder
+                start_date_file = "/tmp/start_date.txt"
+            else:
+                start_date_file = os.path.join(data_path, "start_date.txt")
+            
             result = self.process_runner.run_command(
-                ["sudo", python_path, rtc_check_script, "check"], timeout_ms=15000
+                ["sudo", python_path, rtc_check_script, "check", start_date_file], timeout_ms=15000
             )
             
             if result and result.returncode == 0:
@@ -292,26 +300,42 @@ class TimeSyncStep(WizardStep):
             # Get the script path relative to user's home directory
             rtc_sync_script = os.path.expanduser("~/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py")
             
-            process_info = self.process_runner.run_script(
-                command=["sudo", python_path, rtc_sync_script, "sync"],
-                description="Syncing system time from external RTC",
-                working_dir=os.path.expanduser("~/flash-tv-scripts/python_scripts"),
-                process_name="rtc_sync",
-            )
-            
-            if process_info:
-                self.details_text.append("🚀 RTC sync process started...")
-                self.logger.info("RTC sync script started successfully")
-                
-                # Will verify time after process completes
-            else:
-                self.logger.error("Failed to start RTC sync script")
+            # Get the data path for start_date.txt
+            data_path = self.state.get_user_input("data_path", "")
+            if not data_path:
+                self.logger.error("Data path not available for RTC sync")
                 self.update_status(StepStatus.FAILED)
                 raise FlashTVError(
-                    "Failed to start RTC sync script",
+                    "Data path not available for RTC sync",
+                    ErrorType.VALIDATION_ERROR,
+                    recovery_action="Complete participant setup first",
+                )
+            
+            start_date_file = os.path.join(data_path, "start_date.txt")
+            
+            # Use run_sudo_command for immediate execution
+            result, error = self.process_runner.run_sudo_command(
+                [python_path, rtc_sync_script, "update", start_date_file],
+                "sync system time from external RTC"
+            )
+            
+            if error:
+                self.logger.error(f"Failed to sync from RTC: {error}")
+                self.details_text.append(f"❌ Failed to sync from RTC: {error}")
+                self.update_status(StepStatus.FAILED)
+                raise FlashTVError(
+                    f"Failed to sync from external RTC: {error}",
                     ErrorType.PROCESS_ERROR,
                     recovery_action="Check script permissions and RTC hardware",
                 )
+            else:
+                self.details_text.append("✅ System time synced from external RTC!")
+                self.logger.info("RTC sync completed successfully")
+                
+                # Check time status and show verification
+                self._check_time_status()
+                self._verify_time_manually()
+                self.update_status(StepStatus.USER_ACTION_REQUIRED)
                 
         except Exception as e:
             self.logger.error(f"Error during RTC sync: {e}")
@@ -360,16 +384,25 @@ class TimeSyncStep(WizardStep):
             
             start_date_file = os.path.join(data_path, "start_date.txt")
             
-            process_info = self.process_runner.run_script(
-                command=["sudo", python_path, rtc_set_script, start_date_file],
-                description="Setting external RTC to system time",
-                working_dir=os.path.expanduser("~/flash-tv-scripts/python_scripts"),
-                process_name="rtc_set",
+            # Use run_sudo_command for immediate execution instead of run_script
+            # This avoids the process being terminated prematurely
+            result, error = self.process_runner.run_sudo_command(
+                [python_path, rtc_set_script, start_date_file],
+                "set external RTC to system time"
             )
             
-            if process_info:
-                self.details_text.append("🚀 Setting external RTC...")
-                self.logger.info("RTC set script started successfully")
+            if error:
+                self.logger.error(f"Failed to set RTC: {error}")
+                self.details_text.append(f"❌ Failed to set external RTC: {error}")
+                self.update_status(StepStatus.FAILED)
+                raise FlashTVError(
+                    f"Failed to set external RTC: {error}",
+                    ErrorType.PROCESS_ERROR,
+                    recovery_action="Check script permissions and RTC hardware",
+                )
+            else:
+                self.details_text.append("✅ External RTC has been set to system time!")
+                self.logger.info("RTC set script completed successfully")
                 
                 # Disable NTP after setting RTC
                 self.details_text.append("📡 Disabling NTP to preserve RTC time...")
@@ -381,14 +414,10 @@ class TimeSyncStep(WizardStep):
                     self.details_text.append(f"⚠️ Warning: Could not disable NTP: {ntp_error}")
                 else:
                     self.details_text.append("✅ NTP disabled - system will use RTC time")
-            else:
-                self.logger.error("Failed to start RTC set script")
-                self.update_status(StepStatus.FAILED)
-                raise FlashTVError(
-                    "Failed to start RTC set script",
-                    ErrorType.PROCESS_ERROR,
-                    recovery_action="Check script permissions and RTC hardware",
-                )
+                
+                # Now check RTC status to verify it was set
+                self._check_rtc_status()
+                self.update_status(StepStatus.USER_ACTION_REQUIRED)
                 
         except Exception as e:
             self.logger.error(f"Error during RTC set: {e}")
@@ -694,43 +723,7 @@ class TimeSyncStep(WizardStep):
     def update_ui(self) -> None:
         """Update UI elements periodically with framework integration."""
         super().update_ui()
-
-        # Check RTC sync process status
-        rtc_sync_process = self.state.get_process("rtc_sync")
-        if rtc_sync_process and not rtc_sync_process.is_running():
-            status = rtc_sync_process.get_status()
-            if status == ProcessStatus.COMPLETED:
-                self.logger.info("RTC sync completed successfully")
-                self.details_text.append("✅ RTC sync completed successfully!")
-                self._check_time_status()  # Re-check time status
-                self.update_status(StepStatus.USER_ACTION_REQUIRED)
-                # Show verification dialog
-                self._verify_time_manually()
-            elif status == ProcessStatus.FAILED:
-                self.logger.error("RTC sync failed")
-                self.details_text.append("❌ RTC sync failed - check RTC hardware")
-                self.update_status(StepStatus.FAILED)
-
-            # Remove completed process
-            self.state.remove_process("rtc_sync")
-
-        # Check RTC set process status
-        rtc_set_process = self.state.get_process("rtc_set")
-        if rtc_set_process and not rtc_set_process.is_running():
-            status = rtc_set_process.get_status()
-            if status == ProcessStatus.COMPLETED:
-                self.logger.info("External RTC set successfully")
-                self.details_text.append("✅ External RTC has been set to system time!")
-                # Re-check RTC status to update display
-                self._check_rtc_status()
-                self.update_status(StepStatus.USER_ACTION_REQUIRED)
-            elif status == ProcessStatus.FAILED:
-                self.logger.error("Setting external RTC failed")
-                self.details_text.append("❌ Failed to set external RTC - check hardware")
-                self.update_status(StepStatus.FAILED)
-
-            # Remove completed process
-            self.state.remove_process("rtc_set")
+        # No longer monitoring RTC processes since we use synchronous run_sudo_command
 
     def cleanup(self) -> None:
         """Clean up resources when step is destroyed."""
