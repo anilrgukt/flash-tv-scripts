@@ -228,7 +228,7 @@ class CameraSetupStep(WizardStep):
             )
 
     @handle_step_error
-    def _test_camera(self) -> None:
+    def _test_camera(self, checked: bool = False) -> None:
         """Test the selected camera with comprehensive error handling."""
         try:
             camera_path = self.state.get_user_input("selected_camera")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import datetime
 
 from PyQt6.QtWidgets import (
@@ -190,7 +191,8 @@ class TimeSyncStep(WizardStep):
             self.details_text.append("📡 Checking External RTC (DS3231) status...")
             
             python_path = f"/home/{username}/py38/bin/python"
-            rtc_check_script = "/mnt/d/Scripts/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py"
+            # Get the script path relative to user's home directory
+            rtc_check_script = os.path.expanduser("~/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py")
             
             result = self.process_runner.run_command(
                 [python_path, rtc_check_script, "check"], timeout_ms=15000
@@ -266,12 +268,13 @@ class TimeSyncStep(WizardStep):
             
             # Run the RTC sync script
             python_path = f"/home/{username}/py38/bin/python"
-            rtc_sync_script = "/mnt/d/Scripts/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py"
+            # Get the script path relative to user's home directory
+            rtc_sync_script = os.path.expanduser("~/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py")
             
             process_info = self.process_runner.run_script(
                 command=[python_path, rtc_sync_script, "sync"],
                 description="Syncing system time from external RTC",
-                working_dir="/mnt/d/Scripts/flash-tv-scripts/python_scripts",
+                working_dir=os.path.expanduser("~/flash-tv-scripts/python_scripts"),
                 process_name="rtc_sync",
             )
             
@@ -319,12 +322,13 @@ class TimeSyncStep(WizardStep):
             
             # Run the RTC set script
             python_path = f"/home/{username}/py38/bin/python"
-            rtc_set_script = "/mnt/d/Scripts/flash-tv-scripts/python_scripts/set_external_RTC_and_save_start_date.py"
+            # Get the script path relative to user's home directory
+            rtc_set_script = os.path.expanduser("~/flash-tv-scripts/python_scripts/set_external_RTC_and_save_start_date.py")
             
             process_info = self.process_runner.run_script(
                 command=[python_path, rtc_set_script],
                 description="Setting external RTC to system time",
-                working_dir="/mnt/d/Scripts/flash-tv-scripts/python_scripts",
+                working_dir=os.path.expanduser("~/flash-tv-scripts/python_scripts"),
                 process_name="rtc_set",
             )
             

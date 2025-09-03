@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from PyQt6.QtWidgets import QWidget, QProgressBar, QFileDialog
@@ -221,7 +222,8 @@ class GalleryCreationStep(WizardStep):
             )
 
             # Run gallery creation script using process runner
-            script_path = "/mnt/d/Scripts/flash-tv-scripts/runtime_scripts/build_gallery.sh"
+            # Get the script path relative to user's home directory
+            script_path = os.path.expanduser("~/flash-tv-scripts/runtime_scripts/build_gallery.sh")
             command = ["bash", script_path]
 
             # Set up environment for script with proper variable substitution
@@ -240,7 +242,7 @@ class GalleryCreationStep(WizardStep):
             process_info = self.process_runner.run_script(
                 command=command,
                 description=f"Creating face gallery for {participant_id}",
-                working_dir="/mnt/d/Scripts/flash-tv-scripts/runtime_scripts",
+                working_dir=os.path.expanduser("~/flash-tv-scripts/runtime_scripts"),
                 env=env,
                 process_name="gallery_creation",
             )

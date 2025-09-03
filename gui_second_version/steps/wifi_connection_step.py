@@ -152,7 +152,7 @@ class WiFiWorkerThread(QThread):
     def _scan_operation(self) -> None:
         """Scan for WiFi networks with retry logic."""
         retry_count = self._operation_data.get("retry_count", 3)
-        retry_delay = self._operation_data.get("retry_delay", 2.0)
+        retry_delay = self._operation_data.get("retry_delay", 5.0)  # Increased from 2.0 to 5.0 seconds
         
         self.scan_started.emit()
         
@@ -163,7 +163,22 @@ class WiFiWorkerThread(QThread):
             try:
                 self.logger.info(f"WiFi scan attempt {attempt + 1}/{retry_count}")
                 
-                # Trigger scan
+                # First, try to get cached results without scanning
+                if attempt == 0:
+                    # Try to get existing network list first
+                    result = self.process_runner.run_command(
+                        ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "dev", "wifi"],
+                        timeout_ms=Network.WIFI_SCAN_TIMEOUT * 1000,
+                    )
+                    
+                    if result and result.returncode == 0:
+                        networks = self._process_scan_results(result.stdout)
+                        if networks:
+                            self.logger.info(f"Found {len(networks)} cached WiFi networks")
+                            self.scan_completed.emit(networks)
+                            return
+                
+                # If no cached results or not first attempt, trigger a new scan
                 scan_result = self.process_runner.run_command(
                     ["nmcli", "dev", "wifi", "rescan"],
                     timeout_ms=Network.WIFI_SCAN_TIMEOUT * 1000,
@@ -183,7 +198,7 @@ class WiFiWorkerThread(QThread):
                     if result and result.returncode == 0:
                         networks = self._process_scan_results(result.stdout)
                         if networks:
-                            self.logger.info(f"Found {len(networks)} WiFi networks")
+                            self.logger.info(f"Found {len(networks)} WiFi networks after scan")
                             self.scan_completed.emit(networks)
                             return
                         else:
@@ -191,7 +206,20 @@ class WiFiWorkerThread(QThread):
                     else:
                         self.logger.warning(f"Failed to get scan results on attempt {attempt + 1}")
                 else:
-                    self.logger.warning(f"Failed to trigger scan on attempt {attempt + 1}")
+                    # If scan fails, still try to get cached results
+                    self.logger.warning(f"Failed to trigger scan on attempt {attempt + 1}, trying cached results")
+                    
+                    result = self.process_runner.run_command(
+                        ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "dev", "wifi"],
+                        timeout_ms=Network.WIFI_SCAN_TIMEOUT * 1000,
+                    )
+                    
+                    if result and result.returncode == 0:
+                        networks = self._process_scan_results(result.stdout)
+                        if networks:
+                            self.logger.info(f"Found {len(networks)} cached networks (scan failed)")
+                            self.scan_completed.emit(networks)
+                            return
                 
                 # Wait before retry (except on last attempt)
                 if attempt < retry_count - 1 and not self._should_stop:
@@ -285,6 +313,7 @@ class WiFiConnectionStep(WizardStep):
         # Connection tracking
         self.wifi_connected = False
         self._last_wifi_check = 0
+        self._scan_in_progress = False  # Prevent multiple simultaneous scans
 
     def create_content_widget(self) -> QWidget:
         """Create the WiFi connection UI using UI factory."""
@@ -464,8 +493,9 @@ class WiFiConnectionStep(WizardStep):
             self._handle_wifi_connected(ssid_or_message)
         else:
             self._handle_no_wifi_connection()
-            # If not connected, automatically scan for networks
-            self._scan_networks()
+            # Don't automatically scan here - let user click scan button
+            # This avoids multiple overlapping scans
+            self.logger.info("WiFi not connected. User can click 'Scan' to search for networks.")
 
     def _handle_wifi_connected(self, ssid: str) -> None:
         """Handle successful WiFi connection detection."""
@@ -506,7 +536,13 @@ class WiFiConnectionStep(WizardStep):
     @handle_step_error
     def _scan_networks(self, checked: bool = False) -> None:
         """Scan for available WiFi networks asynchronously."""
+        # Prevent multiple simultaneous scans
+        if self._scan_in_progress:
+            self.logger.warning("Scan already in progress, skipping new scan request")
+            return
+            
         self.logger.info("Starting WiFi network scan")
+        self._scan_in_progress = True
         
         # Update UI state
         self.scan_button.setEnabled(False)
@@ -514,7 +550,8 @@ class WiFiConnectionStep(WizardStep):
         self._show_loading("Scanning for networks...")
         
         # Start async scan with retry logic
-        self.wifi_worker.scan_networks(retry_count=3, retry_delay=2.0)
+        # Use longer delay to avoid "Scanning not allowed immediately" errors
+        self.wifi_worker.scan_networks(retry_count=3, retry_delay=5.0)
 
     def _on_scan_started(self) -> None:
         """Handle scan start."""
@@ -522,6 +559,7 @@ class WiFiConnectionStep(WizardStep):
         
     def _on_scan_completed(self, networks: List[Tuple[str, str, str]]) -> None:
         """Handle scan completion with results."""
+        self._scan_in_progress = False  # Reset scan flag
         self._hide_loading()
         self.scan_button.setEnabled(True)
         
@@ -541,6 +579,7 @@ class WiFiConnectionStep(WizardStep):
         
     def _on_scan_failed(self, error_message: str) -> None:
         """Handle scan failure."""
+        self._scan_in_progress = False  # Reset scan flag
         self._hide_loading()
         self.scan_button.setEnabled(True)
         
@@ -549,7 +588,7 @@ class WiFiConnectionStep(WizardStep):
         self.networks_list.addItem(error_item)
 
     @handle_step_error
-    def _connect_to_selected_network(self) -> None:
+    def _connect_to_selected_network(self, checked: bool = False) -> None:
         """Connect to the selected network with validation."""
         try:
             current_item = self.networks_list.currentItem()

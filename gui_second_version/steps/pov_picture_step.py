@@ -361,7 +361,7 @@ class POVPictureStep(WizardStep):
             )
 
     @handle_step_error
-    def _verify_picture(self) -> None:
+    def _verify_picture(self, checked: bool = False) -> None:
         """Verify picture quality with comprehensive validation."""
         try:
             picture_path = self.state.get_user_input("pov_picture_path", "")
