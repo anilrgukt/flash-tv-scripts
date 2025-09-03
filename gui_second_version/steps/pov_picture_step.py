@@ -6,8 +6,9 @@ import os
 import shutil
 from pathlib import Path
 
-from PyQt6.QtWidgets import QWidget, QMessageBox, QFileDialog
+from PyQt6.QtWidgets import QWidget, QMessageBox, QFileDialog, QLabel
 from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QPixmap
 
 from core import WizardStep
 from core.exceptions import handle_step_error, FlashTVError, ErrorType
@@ -30,29 +31,27 @@ class POVPictureStep(WizardStep):
         overview_section = self._create_overview_section()
         main_layout.addWidget(overview_section)
 
-        # Top row using UI factory
-        top_row = self.ui_factory.create_horizontal_layout(spacing=12)
+        # Main content row
+        content_row = self.ui_factory.create_horizontal_layout(spacing=12)
 
-        # Instructions and actions sections
+        # Left column: Instructions
         instructions_section = self._create_instructions_section()
+        content_row.addWidget(instructions_section, 2)  # 40% width
+
+        # Right column: Actions and Status combined
+        right_column = self.ui_factory.create_vertical_layout(spacing=8)
+        
+        # Actions section at top of right column
         actions_section = self._create_actions_section()
-
-        top_row.addWidget(instructions_section, 3)  # 60% width
-        top_row.addWidget(actions_section, 2)  # 40% width
-
-        main_layout.addLayout(top_row)
-
-        # Middle row using UI factory
-        middle_row = self.ui_factory.create_horizontal_layout(spacing=12)
-
-        # Status and guidelines sections
+        right_column.addWidget(actions_section)
+        
+        # Status section directly below actions
         status_section = self._create_status_section()
-        guidelines_section = self._create_guidelines_section()
+        right_column.addWidget(status_section, 1)  # Give it stretch
+        
+        content_row.addLayout(right_column, 3)  # 60% width
 
-        middle_row.addWidget(status_section, 3)  # 60% width
-        middle_row.addWidget(guidelines_section, 2)  # 40% width
-
-        main_layout.addLayout(middle_row, 1)  # Give it stretch
+        main_layout.addLayout(content_row, 1)  # Give it stretch
 
         # Continue button using UI factory
         continue_section = self._create_continue_section()
@@ -138,6 +137,17 @@ class POVPictureStep(WizardStep):
 
         self.picture_path_label = self.ui_factory.create_label("")
         status_layout.addWidget(self.picture_path_label)
+        
+        # Add image preview label
+        self.image_preview = QLabel()
+        self.image_preview.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.image_preview.setStyleSheet(
+            "border: 2px solid #ccc; padding: 10px; background-color: #f5f5f5; border-radius: 4px;"
+        )
+        self.image_preview.setMinimumHeight(200)
+        self.image_preview.setMaximumHeight(400)
+        self.image_preview.setText("No image selected")
+        status_layout.addWidget(self.image_preview, 1)
 
         # Button layout for picture actions
         button_layout = self.ui_factory.create_horizontal_layout(spacing=8)
@@ -299,15 +309,34 @@ class POVPictureStep(WizardStep):
 
                 # Save picture path
                 self.state.set_user_input("pov_picture_path", file_path)
+                
+                # Load and display the image preview
+                pixmap = QPixmap(file_path)
+                if not pixmap.isNull():
+                    # Scale image to fit while maintaining aspect ratio
+                    scaled_pixmap = pixmap.scaled(
+                        600, 400,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation
+                    )
+                    self.image_preview.setPixmap(scaled_pixmap)
+                else:
+                    self.image_preview.setText("Error loading image")
 
                 # Copy to participant folder
                 participant_id = self.state.get_user_input("participant_id", "")
+                device_id = self.state.get_user_input("device_id", "")
                 if participant_id and data_path:
                     try:
-                        dest_dir = Path(data_path) / f"{participant_id}_data"
+                        # Data path already includes participant and device ID
+                        dest_dir = Path(data_path)
                         dest_dir.mkdir(parents=True, exist_ok=True)
-
-                        dest_path = dest_dir / f"{participant_id}_pov_picture.jpg"
+                        
+                        # Include device_id in filename if available
+                        if device_id:
+                            dest_path = dest_dir / f"{participant_id}{device_id}_pov_picture.jpg"
+                        else:
+                            dest_path = dest_dir / f"{participant_id}_pov_picture.jpg"
 
                         self.logger.info(f"Copying POV picture to: {dest_path}")
                         shutil.copy2(file_path, dest_path)

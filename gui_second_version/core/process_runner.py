@@ -283,8 +283,8 @@ class ProcessRunner:
 
             log_process_complete(
                 name,
-                status.value,
-                f"Runtime: {runtime:.1f}s, Exit code: {process_info.process.returncode}",
+                process_info.process.returncode if process_info.process.returncode is not None else -1,
+                runtime,
             )
 
             # Run cleanup handler if provided

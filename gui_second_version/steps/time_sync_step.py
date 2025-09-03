@@ -195,7 +195,7 @@ class TimeSyncStep(WizardStep):
             rtc_check_script = os.path.expanduser("~/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py")
             
             result = self.process_runner.run_command(
-                [python_path, rtc_check_script, "check"], timeout_ms=15000
+                ["sudo", python_path, rtc_check_script, "check"], timeout_ms=15000
             )
             
             if result and result.returncode == 0:
@@ -272,7 +272,7 @@ class TimeSyncStep(WizardStep):
             rtc_sync_script = os.path.expanduser("~/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py")
             
             process_info = self.process_runner.run_script(
-                command=[python_path, rtc_sync_script, "sync"],
+                command=["sudo", python_path, rtc_sync_script, "sync"],
                 description="Syncing system time from external RTC",
                 working_dir=os.path.expanduser("~/flash-tv-scripts/python_scripts"),
                 process_name="rtc_sync",
@@ -326,7 +326,7 @@ class TimeSyncStep(WizardStep):
             rtc_set_script = os.path.expanduser("~/flash-tv-scripts/python_scripts/set_external_RTC_and_save_start_date.py")
             
             process_info = self.process_runner.run_script(
-                command=[python_path, rtc_set_script],
+                command=["sudo", python_path, rtc_set_script],
                 description="Setting external RTC to system time",
                 working_dir=os.path.expanduser("~/flash-tv-scripts/python_scripts"),
                 process_name="rtc_set",

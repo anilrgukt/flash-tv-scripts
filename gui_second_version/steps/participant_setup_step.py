@@ -22,7 +22,7 @@ class ParticipantSetupStep(WizardStep):
     This step simplifies the setup process by:
     1. Auto-detecting device ID and username from /home/flashsysXXX folders
     2. Only requiring user to input participant ID (P1-XXXX or ES-XXXX format)
-    3. Auto-generating data path as /home/{username}/data/{participant_id}_data
+    3. Auto-generating data path as /home/{username}/data/{participant_id}{device_id}_data
     4. Validating participant ID format and auto-detection success
     
     The UI shows:
@@ -254,10 +254,12 @@ class ParticipantSetupStep(WizardStep):
             if self._device_id and self._username:
                 # Generate data path preview (updates when participant ID changes)
                 participant_id = self.state.get_user_input("participant_id", "").strip()
-                if participant_id:
-                    data_path = f"/home/{self._username}/data/{participant_id}_data"
+                if participant_id and self._device_id:
+                    data_path = f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
+                elif self._device_id:
+                    data_path = f"/home/{self._username}/data/[PARTICIPANT_ID]{self._device_id}_data"
                 else:
-                    data_path = f"/home/{self._username}/data/[PARTICIPANT_ID]_data"
+                    data_path = f"/home/{self._username}/data/[PARTICIPANT_ID][DEVICE_ID]_data"
                 
                 self.data_path_label = self.ui_factory.create_label(f"Data Path: {data_path}")
                 self.data_path_label.setStyleSheet("font-weight: bold; color: #1976d2; padding: 4px; background-color: #e3f2fd; border-radius: 4px;")
@@ -307,8 +309,8 @@ class ParticipantSetupStep(WizardStep):
                 
                 # Update data path if participant ID is available
                 participant_id = self.state.get_user_input("participant_id", "")
-                if participant_id:
-                    data_path = f"/home/{self._username}/data/{participant_id}_data"
+                if participant_id and self._device_id:
+                    data_path = f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
                     self.state.set_user_input("data_path", data_path)
 
             self.logger.info("Loaded existing values from state")
@@ -326,7 +328,7 @@ class ParticipantSetupStep(WizardStep):
         """Handle participant ID input changes with automatic data path generation.
         
         Updates the auto-generated data path dynamically as user types participant ID.
-        Format: /home/{username}/data/{participant_id}_data
+        Format: /home/{username}/data/{participant_id}{device_id}_data
         """
         # Store participant ID in state
         participant_id = text.strip()
@@ -336,7 +338,7 @@ class ParticipantSetupStep(WizardStep):
         if self._device_id and self._username and not self._detection_error:
             if participant_id:
                 # Generate complete data path
-                data_path = f"/home/{self._username}/data/{participant_id}_data"
+                data_path = f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
                 self.state.set_user_input("data_path", data_path)
                 
                 # Update the data path display label
@@ -348,7 +350,7 @@ class ParticipantSetupStep(WizardStep):
                     )
             else:
                 # Show placeholder when participant ID is empty
-                placeholder_path = f"/home/{self._username}/data/[PARTICIPANT_ID]_data"
+                placeholder_path = f"/home/{self._username}/data/[PARTICIPANT_ID]{self._device_id}_data"
                 if hasattr(self, 'data_path_label'):
                     self.data_path_label.setText(f"Data Path: {placeholder_path}")
                     self.data_path_label.setStyleSheet(
@@ -429,8 +431,9 @@ class ParticipantSetupStep(WizardStep):
 
             if is_valid and self.next_button.isEnabled() and participant_id and self._device_id and self._username:
                 # Generate final data path
-                data_path = f"/home/{self._username}/data/{participant_id}_data"
-                self.state.set_user_input("data_path", data_path)
+                if self._device_id:
+                    data_path = f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
+                    self.state.set_user_input("data_path", data_path)
                 
                 # Emit detection signal
                 self.device_detected.emit(self._device_id, self._username, data_path)
@@ -579,4 +582,6 @@ class ParticipantSetupStep(WizardStep):
         if not participant_id:
             return ""
             
-        return f"/home/{self._username}/data/{participant_id}_data"
+        if self._device_id:
+            return f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
+        return f"/home/{self._username}/data/{participant_id}_data"  # Fallback if no device_id

@@ -83,7 +83,7 @@ class GalleryCreationStep(WizardStep):
 
         # Create gallery button
         self.create_gallery_button = self.ui_factory.create_action_button(
-            "🎥 Create Gallery from Camera Captures (Automated)",
+            "🎥 Create Gallery from Camera Captures (Manual)",
             callback=self._create_gallery,
             style=ButtonStyle.PRIMARY,
             height=35,
@@ -98,7 +98,7 @@ class GalleryCreationStep(WizardStep):
 
         # Gallery creation output
         creation_progress_label = self.ui_factory.create_label(
-            "📋 Automated Gallery Creation Progress:"
+            "📋 Gallery Creation Instructions:"
         )
         creation_layout.addWidget(creation_progress_label)
 
@@ -153,10 +153,15 @@ class GalleryCreationStep(WizardStep):
         """Auto-generate and load gallery path from participant info with logging."""
         try:
             participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
             data_path = self.state.get_user_input("data_path", "")
             
             if participant_id and data_path:
-                gallery_path = str(Path(data_path) / f"{participant_id}_faces")
+                # Include device_id in gallery path to match data path format
+                if device_id:
+                    gallery_path = str(Path(data_path) / f"{participant_id}{device_id}_faces")
+                else:
+                    gallery_path = str(Path(data_path) / f"{participant_id}_faces")
                 self.gallery_path_input.setText(gallery_path)
                 self.state.set_user_input("gallery_path", gallery_path)
                 self.logger.info(f"Auto-generated gallery path: {gallery_path}")
@@ -182,6 +187,7 @@ class GalleryCreationStep(WizardStep):
         """Create a new face gallery using the gallery creation script with comprehensive error handling."""
         try:
             participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
             data_path = self.state.get_user_input("data_path", "")
             username = self.state.get_user_input("username", "")
 
@@ -202,8 +208,11 @@ class GalleryCreationStep(WizardStep):
             self.progress_bar.setVisible(True)
             self.progress_bar.setRange(0, 0)  # Indeterminate progress
 
-            # Construct gallery path
-            gallery_path = str(Path(data_path) / f"{participant_id}_faces")
+            # Construct gallery path with device_id
+            if device_id:
+                gallery_path = str(Path(data_path) / f"{participant_id}{device_id}_faces")
+            else:
+                gallery_path = str(Path(data_path) / f"{participant_id}_faces")
             self.gallery_path_input.setText(gallery_path)
             self.state.set_user_input("gallery_path", gallery_path)
 
@@ -248,9 +257,11 @@ class GalleryCreationStep(WizardStep):
             )
 
             if process_info:
-                self.gallery_output.append("🚀 Gallery creation process started successfully!")
-                self.gallery_output.append("⏳ The automated script will guide you through camera setup...")
-                self.gallery_output.append("📸 Please follow the on-screen prompts to capture face images")
+                self.gallery_output.append("🚀 Gallery creation script launched!")
+                self.gallery_output.append("✋ Please follow the manual steps in the terminal window")
+                self.gallery_output.append("📸 You will be guided to capture face images for each family member")
+                self.gallery_output.append("👥 Capture 5 images each for: parent1, parent2, sib1, sib2, tc1")
+                self.gallery_output.append("ℹ️ The script will open camera windows for you to capture images")
                 self.logger.info("Gallery creation script started successfully")
                 # Monitor process completion in update_ui
             else:
