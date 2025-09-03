@@ -760,24 +760,31 @@ class WiFiConnectionStep(WizardStep):
 
         self.logger.info("WiFi connection step activated")
 
-        # Start by enabling WiFi to ensure it's on
-        self._enable_wifi_first()
+        # Only enable WiFi if this step is actually the current step
+        # This prevents WiFi scanning when navigating to other steps
+        if hasattr(self.state, 'current_step') and self.state.current_step == self.step_definition.step_id:
+            # Start by enabling WiFi to ensure it's on
+            self._enable_wifi_first()
+        else:
+            self.logger.info(f"Skipping WiFi enable - not the current step (current: {getattr(self.state, 'current_step', 'unknown')})")
 
     def update_ui(self) -> None:
         """Update UI elements periodically with framework integration."""
         super().update_ui()
 
-        # Periodic WiFi status check if not connected
-        if not self.wifi_connected and hasattr(self, "_last_wifi_check"):
-            import time
+        # Only do periodic WiFi check if this is the current active step
+        if hasattr(self.state, 'current_step') and self.state.current_step == self.step_definition.step_id:
+            # Periodic WiFi status check if not connected
+            if not self.wifi_connected and hasattr(self, "_last_wifi_check"):
+                import time
 
-            current_time = time.time()
-            if current_time - self._last_wifi_check > 30:  # Check every 30 seconds
-                try:
-                    self._check_current_wifi()
-                    self._last_wifi_check = current_time
-                except Exception as e:
-                    self.logger.error(f"Error during periodic WiFi check: {e}")
+                current_time = time.time()
+                if current_time - self._last_wifi_check > 30:  # Check every 30 seconds
+                    try:
+                        self._check_current_wifi()
+                        self._last_wifi_check = current_time
+                    except Exception as e:
+                        self.logger.error(f"Error during periodic WiFi check: {e}")
 
     def _cleanup_step_resources(self) -> None:
         """Clean up step-specific resources."""
