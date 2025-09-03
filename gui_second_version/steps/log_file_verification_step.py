@@ -307,7 +307,7 @@ class LogFileVerificationStep(WizardStep):
                 self.logs_problem_button.setEnabled(True)
                 raise FlashTVError(
                     f"Data directory not found: {data_path}",
-                    ErrorType.FILE_ERROR,
+                    ErrorType.SYSTEM_ERROR,
                     recovery_action="Check data path configuration",
                 )
 
@@ -325,7 +325,7 @@ class LogFileVerificationStep(WizardStep):
                 self.logs_problem_button.setEnabled(True)
                 raise FlashTVError(
                     "No log files found",
-                    ErrorType.FILE_ERROR,
+                    ErrorType.SYSTEM_ERROR,
                     recovery_action="Run the test again or check data permissions",
                 )
 

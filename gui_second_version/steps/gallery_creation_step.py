@@ -304,7 +304,7 @@ class GalleryCreationStep(WizardStep):
                 self.validate_button.setEnabled(True)
                 raise FlashTVError(
                     f"Gallery directory does not exist: {gallery_path}",
-                    ErrorType.FILE_ERROR,
+                    ErrorType.SYSTEM_ERROR,
                     recovery_action="Create the gallery first",
                 )
 

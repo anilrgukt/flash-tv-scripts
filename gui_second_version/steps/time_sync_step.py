@@ -143,7 +143,7 @@ class TimeSyncStep(WizardStep):
 
         self.details_text = self.ui_factory.create_text_area(
             placeholder="Time synchronization details will appear here...",
-            max_height=150,
+            min_height=200,
             read_only=True,
         )
         details_layout.addWidget(self.details_text)

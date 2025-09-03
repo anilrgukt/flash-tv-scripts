@@ -321,7 +321,7 @@ class POVPictureStep(WizardStep):
                 if not os.path.exists(file_path):
                     raise FlashTVError(
                         f"Selected file does not exist: {file_path}",
-                        ErrorType.FILE_ERROR,
+                        ErrorType.SYSTEM_ERROR,
                         recovery_action="Select a different file",
                     )
 
@@ -403,7 +403,7 @@ class POVPictureStep(WizardStep):
             self.logger.error(f"Error selecting POV picture file: {e}")
             raise FlashTVError(
                 f"Failed to select POV picture: {e}",
-                ErrorType.FILE_ERROR,
+                ErrorType.SYSTEM_ERROR,
                 recovery_action="Try selecting the file again",
             )
 
