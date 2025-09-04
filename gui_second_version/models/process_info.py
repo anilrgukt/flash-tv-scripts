@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import subprocess
-from dataclasses import dataclass
+import threading
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable
+from collections import deque
 
 from models.enums import ProcessStatus
 
@@ -22,6 +24,10 @@ class ProcessInfo:
     expected_duration: int | None = None
     cleanup_handler: Callable[[], None] | None = None
     max_output_lines: int = 1000
+    stdout_lines: deque = field(default_factory=lambda: deque(maxlen=100))
+    stderr_lines: deque = field(default_factory=lambda: deque(maxlen=100))
+    _stdout_thread: threading.Thread | None = field(default=None, init=False, repr=False)
+    _stderr_thread: threading.Thread | None = field(default=None, init=False, repr=False)
 
     def get_status(self) -> ProcessStatus:
         """Get the current status of the process."""
@@ -106,3 +112,37 @@ class ProcessInfo:
         }
 
         return summary
+    
+    def start_output_capture(self):
+        """Start threads to capture stdout and stderr."""
+        def read_stdout():
+            try:
+                if self.process.stdout:
+                    for line in iter(self.process.stdout.readline, ''):
+                        if line:
+                            self.stdout_lines.append(line.strip())
+                            print(f"[{self.name}] STDOUT: {line.strip()}")
+            except Exception as e:
+                print(f"Error reading stdout for {self.name}: {e}")
+        
+        def read_stderr():
+            try:
+                if self.process.stderr:
+                    for line in iter(self.process.stderr.readline, ''):
+                        if line:
+                            self.stderr_lines.append(line.strip())
+                            print(f"[{self.name}] STDERR: {line.strip()}")
+            except Exception as e:
+                print(f"Error reading stderr for {self.name}: {e}")
+        
+        if self.process.stdout:
+            self._stdout_thread = threading.Thread(target=read_stdout, daemon=True)
+            self._stdout_thread.start()
+        
+        if self.process.stderr:
+            self._stderr_thread = threading.Thread(target=read_stderr, daemon=True)
+            self._stderr_thread.start()
+    
+    def get_output(self) -> tuple[list[str], list[str]]:
+        """Get captured stdout and stderr lines."""
+        return list(self.stdout_lines), list(self.stderr_lines)

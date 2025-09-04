@@ -458,11 +458,33 @@ class GalleryCreationStep(WizardStep):
                 elif status == ProcessStatus.FAILED:
                     self.logger.error(f"Gallery creation failed")
                     self.gallery_output.append(f"\n❌ Gallery creation failed")
+                    
+                    # Get and show error output
+                    stdout_lines, stderr_lines = process_info.get_output()
+                    if stderr_lines:
+                        self.gallery_output.append("\nError output:")
+                        for line in stderr_lines[-10:]:  # Show last 10 lines
+                            self.gallery_output.append(f"  {line}")
+                            self.logger.error(f"Gallery stderr: {line}")
+                    
+                    if stdout_lines:
+                        self.gallery_output.append("\nLast output:")
+                        for line in stdout_lines[-5:]:  # Show last 5 lines
+                            self.gallery_output.append(f"  {line}")
+                    
                     self.gallery_output.append("💡 Please check the error messages above and try again")
                     self.update_status(StepStatus.FAILED)
                 elif status == ProcessStatus.TERMINATED:
                     self.logger.warning("Gallery creation was terminated")
                     self.gallery_output.append("\n⚠️ Gallery creation was terminated")
+                    
+                    # Get and show any output before termination
+                    stdout_lines, stderr_lines = process_info.get_output()
+                    if stderr_lines:
+                        self.gallery_output.append("\nError output before termination:")
+                        for line in stderr_lines[-5:]:  
+                            self.gallery_output.append(f"  {line}")
+                    
                     self.gallery_output.append("💡 You can restart the process if needed")
                     self.update_status(StepStatus.FAILED)
                 else:

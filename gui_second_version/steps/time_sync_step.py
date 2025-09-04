@@ -244,10 +244,10 @@ class TimeSyncStep(WizardStep):
                 self.details_text.append(f"External RTC Error: {error_msg}")
                 self.logger.warning(f"External RTC not available: {error_msg}")
             
-            # Check internal RTC
+            # Check internal RTC (needs sudo)
             self.details_text.append("💻 Checking Internal RTC status...")
             hwclock_result = self.process_runner.run_command(
-                ["hwclock", "--show"], timeout_ms=5000
+                ["sudo", "hwclock", "--show"], timeout_ms=5000
             )
             
             if hwclock_result and hwclock_result.returncode == 0:

@@ -537,12 +537,29 @@ The gaze detection system tracks where the target child is looking relative to t
         process_info = self.state.get_process("gaze_test")
         if process_info and not process_info.is_running():
             status = process_info.get_status()
+            
+            # Get output for debugging
+            stdout_lines, stderr_lines = process_info.get_output()
+            
             if status.value == "completed":
                 self.logger.info("Gaze test process ended normally")
                 self.output_text.append("\n⚠️ Gaze test process ended")
                 self.output_text.append("Please verify if testing was successful")
             else:
                 self.logger.warning(f"Gaze test process ended with status: {status}")
+                self.output_text.append(f"\n❌ Process failed with status: {status}")
+                
+                # Show error output
+                if stderr_lines:
+                    self.output_text.append("\nError output:")
+                    for line in stderr_lines[-10:]:  # Show last 10 lines
+                        self.output_text.append(f"  {line}")
+                        self.logger.error(f"Gaze test stderr: {line}")
+                
+                if stdout_lines:
+                    self.output_text.append("\nLast output:")
+                    for line in stdout_lines[-5:]:  # Show last 5 lines
+                        self.output_text.append(f"  {line}")
 
             # Reset launch button
             self.launch_button.setEnabled(True)

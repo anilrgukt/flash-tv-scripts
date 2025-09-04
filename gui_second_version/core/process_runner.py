@@ -138,6 +138,9 @@ class ProcessRunner:
                 start_time=datetime.now(),
                 cleanup_handler=cleanup_handler,
             )
+            
+            # Start capturing output
+            process_info.start_output_capture()
 
             # Thread-safe process tracking
             with self._processes_lock:
