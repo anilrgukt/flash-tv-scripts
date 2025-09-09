@@ -39,7 +39,7 @@ import threading as th
 # time libs
 import time
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from queue import Queue
 import math
 
@@ -73,12 +73,12 @@ rotate_to_find_tc = False  # Disabled for multi-person tracking
 famid = str(args.family_id)
 
 # Identity mapping for readable output
-# Note: Identity 3 is reserved for poster face (unused in gaze tracking)
+# Note: This matches the order in face_verification.py: ["tc", "sib", "parent", "extra"]
 IDENTITY_NAMES = {
     0: "tc",      # Target child
-    1: "parent",  # Parent
-    2: "sib",     # Sibling
-    3: "poster"   # Poster face (not tracked for gaze)
+    1: "sib",     # Sibling
+    2: "parent",  # Parent
+    3: "extra"    # Extra/poster face (not tracked for gaze)
 }
 
 # Set paths from arguments
@@ -123,12 +123,19 @@ else:
         frame_files = sorted(glob.glob(os.path.join(frames_read_path, "*.jpg")))
     
     q = []
-    for i, frame_file in enumerate(frame_files[:-1]):  # Skip last frame since we need pairs
-        frame_num = i + 1
-        # Create dummy timestamp
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+    base_time = datetime.now()
+    for i in range(len(frame_files) - 1):  # Skip last frame since we need pairs
+        # Extract frame number from filename (assuming format like 000001.png)
+        frame_name = os.path.basename(frame_files[i])
+        try:
+            frame_num = int(os.path.splitext(frame_name)[0])
+        except:
+            frame_num = i + 1
+        # Create timestamp with small increments
+        timestamp = (base_time + timedelta(seconds=i*0.033)).strftime("%Y-%m-%d %H:%M:%S.%f")
         q.append(f"{timestamp} {frame_num}")
     q = q[::-1]  # Reverse to match expected order
+    print(f"Created queue with {len(q)} frame pairs to process")
 
 # Set output paths
 if args.output_dir:
@@ -209,7 +216,11 @@ log_lines_detailed = []
 print("Starting multi-person gaze tracking for family:", famid)
 print("Processing frames from:", frames_read_path)
 print("Saving results to:", frames_save_path)
+print(f"Total frames to process: {len(q)}")
 print("-" * 60)
+
+total_frames = len(q)
+processed_frames = 0
 
 while True:
     if (batch_count + 1) % 100 == 0:  # to capture the time for frame capture
@@ -244,6 +255,11 @@ while True:
 
         batch_count += 1
         batch_write = True
+        processed_frames += 1
+        
+        # Show progress every 10 frames
+        if processed_frames % 10 == 0:
+            print(f"Progress: {processed_frames}/{total_frames} frames processed ({100*processed_frames/total_frames:.1f}%)")
 
         frame_1080p_ls = [b[0] for b in batch7_list]
         frame_counts = [b[1] for b in batch7_list]
@@ -410,8 +426,10 @@ while True:
                 if args.display:
                     cv2.imshow('Multi-Person Gaze Tracking', img_vis)
                     # Wait 1ms and check for 'q' key to quit
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                    key = cv2.waitKey(1) & 0xFF
+                    if key == ord('q'):
                         print("\nDisplay window closed by user")
+                        q = []  # Clear queue to stop processing
                         break
 
         else:
@@ -432,6 +450,9 @@ while True:
             log_lines = []
             log_lines_detailed = []
     else:
+        # Queue is empty, check if we should continue
+        if len(q) == 0:
+            print("\nFinished processing all frames in queue")
         break
 
 # Write remaining logs
