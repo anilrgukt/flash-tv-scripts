@@ -62,7 +62,8 @@ parser.add_argument('--output_dir', type=str, default=None, help='Output directo
 parser.add_argument('--log_file', type=str, default=None, help='Path to timestamp log file (optional)')
 parser.add_argument('--save_images', action='store_true', help='Save visualization images')
 parser.add_argument('--no_save_images', dest='save_images', action='store_false')
-parser.set_defaults(save_images=True)
+parser.add_argument('--display', action='store_true', help='Display frames in real-time window')
+parser.set_defaults(save_images=True, display=False)
 
 args = parser.parse_args()
 
@@ -72,11 +73,12 @@ rotate_to_find_tc = False  # Disabled for multi-person tracking
 famid = str(args.family_id)
 
 # Identity mapping for readable output
+# Note: Identity 3 is reserved for poster face (unused in gaze tracking)
 IDENTITY_NAMES = {
     0: "tc",      # Target child
-    1: "parent1", # Parent 1
-    2: "parent2", # Parent 2
-    3: "sib1"     # Sibling 1
+    1: "parent",  # Parent
+    2: "sib",     # Sibling
+    3: "poster"   # Poster face (not tracked for gaze)
 }
 
 # Set paths from arguments
@@ -134,10 +136,10 @@ if args.output_dir:
 else:
     save_path = "/home/" + os.getlogin() + "/code_test/data"
 
-# Create output directories
-frames_path = os.path.join(save_path, str(famid) + "_frames")
+# Create output directory (only for test results, not frames)
 frames_save_path = os.path.join(save_path, str(famid) + "_test_res_multi")
-frames_path, frames_save_path = make_directories(save_path, famid, frames_path, frames_save_path)
+if not os.path.exists(frames_save_path):
+    os.makedirs(frames_save_path, exist_ok=True)
 
 
 tmp_fname = str(datetime.now().strftime("%Y-%m-%d %H-%M-%S"))
@@ -281,10 +283,14 @@ while True:
             # Create summary log line
             summary_line = [timestamp, str(frame_counts[3]).zfill(6), total_faces]
             
-            # Process each identity
+            # Process each identity (skip poster face at index 3)
             for person_id in range(num_identities):
                 person_name = IDENTITY_NAMES.get(person_id, f"person{person_id}")
                 
+                # Skip poster face (identity 3)
+                if person_id == 3:
+                    continue
+                    
                 if person_id in persons_gaze_results and persons_gaze_results[person_id]["present"]:
                     result = persons_gaze_results[person_id]
                     gaze_data = result["gaze_data"]
@@ -292,8 +298,16 @@ while True:
                     
                     # Extract gaze values
                     o1, e1, o2, e2 = gaze_data
-                    gaze_vals1 = list(o1[0]) + [e1[0][0]]  # pitch, yaw, confidence
-                    gaze_vals2 = list(o2[0]) + [e2[0][0]]
+                    # Handle case where confidence might not be in o1
+                    if o1.shape[1] > 2:
+                        gaze_vals1 = list(o1[0])  # pitch, yaw, confidence already included
+                    else:
+                        gaze_vals1 = list(o1[0]) + [e1[0][0]]  # append error as confidence
+                    
+                    if o2.shape[1] > 2:
+                        gaze_vals2 = list(o2[0])
+                    else:
+                        gaze_vals2 = list(o2[0]) + [e2[0][0]]
                     
                     # Get position
                     pos = [bbox["top"], bbox["left"], bbox["bottom"], bbox["right"]]
@@ -330,6 +344,10 @@ while True:
                 
                 # Draw gaze arrows for each person using the standard formula from draw_gz
                 for person_id, result in persons_gaze_results.items():
+                    # Skip poster face (identity 3) 
+                    if person_id == 3:
+                        continue
+                        
                     if result["present"]:
                         person_name = IDENTITY_NAMES.get(person_id, f"person{person_id}")
                         bbox = result["bboxes"][0]
@@ -375,15 +393,26 @@ while True:
                                   (left, top - 10),
                                   cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
                         
-                        # Add confidence score
-                        confidence = o1[0, 2]
-                        conf_text = f"Conf: {confidence:.2f}"
-                        cv2.putText(img_vis, conf_text,
-                                  (left, bottom + 15),
-                                  cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+                        # Add confidence score if available
+                        # Check if confidence value exists (3rd element)
+                        if o1.shape[1] > 2:
+                            confidence = o1[0, 2]
+                            conf_text = f"Conf: {confidence:.2f}"
+                            cv2.putText(img_vis, conf_text,
+                                      (left, bottom + 15),
+                                      cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
                 
                 # Save the visualization
-                cv2.imwrite(save_path_img, img_vis)
+                if write_image_data:
+                    cv2.imwrite(save_path_img, img_vis)
+                
+                # Display in real-time if requested
+                if args.display:
+                    cv2.imshow('Multi-Person Gaze Tracking', img_vis)
+                    # Wait 1ms and check for 'q' key to quit
+                    if cv2.waitKey(1) & 0xFF == ord('q'):
+                        print("\nDisplay window closed by user")
+                        break
 
         else:
             print(f"\nFrame {frame_counts[3]} at {timestamp}")
@@ -411,8 +440,13 @@ if log_lines:
 if log_lines_detailed:
     write_multi_log_file(log_path_detailed, log_lines_detailed)
 
+# Clean up display window if it was open
+if args.display:
+    cv2.destroyAllWindows()
+
 print("\n" + "="*60)
 print("Processing complete!")
 print(f"Summary log: {log_path}")
 print(f"Detailed log: {log_path_detailed}")
-print(f"Visualizations: {frames_save_path}/")
+if write_image_data:
+    print(f"Visualizations: {frames_save_path}/")
