@@ -1,4 +1,35 @@
+#!/usr/bin/env python3
+"""
+Multi-person gaze tracking for FLASH-TV frames
+
+Usage:
+    python run_flash_on_frames_multi.py <family_id> <frames_folder> <faces_folder> [options]
+
+Example:
+    python run_flash_on_frames_multi.py 123 /path/to/123_frames /path/to/123_faces
+    
+    python run_flash_on_frames_multi.py 123 \\
+        /media/flashsys007/FLASH_SSD/123_frames \\
+        /home/flashsys007/data/123_faces \\
+        --output_dir /home/flashsys007/results \\
+        --log_file /path/to/timestamp_log.txt \\
+        --save_images
+
+Arguments:
+    family_id       : Family ID (e.g., 123)
+    frames_folder   : Path to folder containing frame images (000001.png, 000002.png, etc.)
+    faces_folder    : Path to folder containing face gallery images for verification
+
+Options:
+    --output_dir    : Output directory for results (default: auto-generated)
+    --log_file      : Path to timestamp log file (optional, for frame timing)
+    --save_images   : Save visualization images with gaze arrows
+    --no_save_images: Don't save visualization images
+"""
+
 import os
+import argparse
+import glob
 
 # import queue libraries
 import subprocess
@@ -22,10 +53,23 @@ from utils.flash_runtime_utils import cam_id, check_face_presence, correct_rotat
 from utils.rotate_frame import rotate_frame
 from utils.visualizer import draw_gz, draw_rect_ver
 
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='Multi-person gaze tracking on FLASH-TV frames')
+parser.add_argument('family_id', type=str, help='Family ID (e.g., 123)')
+parser.add_argument('frames_folder', type=str, help='Path to folder containing frame images')
+parser.add_argument('faces_folder', type=str, help='Path to folder containing face gallery images')
+parser.add_argument('--output_dir', type=str, default=None, help='Output directory for results (default: auto-generated)')
+parser.add_argument('--log_file', type=str, default=None, help='Path to timestamp log file (optional)')
+parser.add_argument('--save_images', action='store_true', help='Save visualization images')
+parser.add_argument('--no_save_images', dest='save_images', action='store_false')
+parser.set_defaults(save_images=True)
+
+args = parser.parse_args()
+
 # super variables
-write_image_data = True
+write_image_data = args.save_images
 rotate_to_find_tc = False  # Disabled for multi-person tracking
-famid = sys.argv[1]
+famid = str(args.family_id)
 
 # Identity mapping for readable output
 IDENTITY_NAMES = {
@@ -35,16 +79,62 @@ IDENTITY_NAMES = {
     3: "sib1"     # Sibling 1
 }
 
-famid = str(famid)
-frames_read_path = "/media/flashsys007/FLASH_SSD/" + famid + "_frames"
-fname_log_read = "/home/flashsys007/code_test/flash_old_logs/txt_logs/" + famid + "_flash_log_sub_sort.txt"
-a = open(fname_log_read, "r")
-q = a.readlines()
-q = [line.strip() for line in q]
-q = q[::-1]
+# Set paths from arguments
+frames_read_path = os.path.abspath(args.frames_folder)
+faces_gallery_path = os.path.abspath(args.faces_folder)
 
+# Validate that paths exist
+if not os.path.exists(frames_read_path):
+    print(f"Error: Frames folder does not exist: {frames_read_path}")
+    sys.exit(1)
+    
+if not os.path.exists(faces_gallery_path):
+    print(f"Error: Faces gallery folder does not exist: {faces_gallery_path}")
+    sys.exit(1)
 
-save_path = "/home/" + os.getlogin() + "/code_test/data"
+# Handle log file - either use provided or try to find one
+if args.log_file:
+    fname_log_read = os.path.abspath(args.log_file)
+    if not os.path.exists(fname_log_read):
+        print(f"Warning: Log file not found: {fname_log_read}")
+        print("Will process frames in alphabetical order without timestamps")
+        q = []
+else:
+    # Try to find a log file in standard location
+    fname_log_read = f"/home/flashsys007/code_test/flash_old_logs/txt_logs/{famid}_flash_log_sub_sort.txt"
+    if os.path.exists(fname_log_read):
+        print(f"Using log file: {fname_log_read}")
+    else:
+        print("No log file provided or found. Processing frames in alphabetical order.")
+        q = []
+
+# Read log file if it exists
+if 'fname_log_read' in locals() and os.path.exists(fname_log_read):
+    with open(fname_log_read, "r") as a:
+        q = a.readlines()
+        q = [line.strip() for line in q]
+        q = q[::-1]
+else:
+    # If no log file, create entries from frame files
+    frame_files = sorted(glob.glob(os.path.join(frames_read_path, "*.png")))
+    if not frame_files:
+        frame_files = sorted(glob.glob(os.path.join(frames_read_path, "*.jpg")))
+    
+    q = []
+    for i, frame_file in enumerate(frame_files[:-1]):  # Skip last frame since we need pairs
+        frame_num = i + 1
+        # Create dummy timestamp
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        q.append(f"{timestamp} {frame_num}")
+    q = q[::-1]  # Reverse to match expected order
+
+# Set output paths
+if args.output_dir:
+    save_path = os.path.abspath(args.output_dir)
+else:
+    save_path = "/home/" + os.getlogin() + "/code_test/data"
+
+# Create output directories
 frames_path = os.path.join(save_path, str(famid) + "_frames")
 frames_save_path = os.path.join(save_path, str(famid) + "_test_res_multi")
 frames_path, frames_save_path = make_directories(save_path, famid, frames_path, frames_save_path)
@@ -96,7 +186,8 @@ def write_multi_log_file(log_path, log_lines):
 
 
 username = get_flash_username()
-flash_tv = FLASHtv(username, family_id=str(famid), num_identities=num_identities, data_path=save_path, frame_res_hw=None, output_res_hw=None)
+# Use the faces_gallery_path provided as argument
+flash_tv = FLASHtv(username, family_id=str(famid), num_identities=num_identities, data_path=os.path.dirname(faces_gallery_path), frame_res_hw=None, output_res_hw=None)
 
 frame_counter = 1
 log_file = [log_path, frame_counter]
