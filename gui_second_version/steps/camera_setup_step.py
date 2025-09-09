@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import List, Dict
 
 from PyQt6.QtWidgets import QWidget, QListWidget, QListWidgetItem
 
@@ -14,7 +15,7 @@ from utils.ui_factory import ButtonStyle
 
 
 class CameraSetupStep(WizardStep):
-    """Step 3: Camera Detection and Setup using new framework patterns."""
+    """Step 3: Camera Positioning and Setup using new framework patterns."""
 
     def create_content_widget(self) -> QWidget:
         """Create the camera setup UI using UI factory."""
@@ -25,9 +26,11 @@ class CameraSetupStep(WizardStep):
         content.setLayout(main_layout)
 
         # Create sections using UI factory
+        positioning_section = self._create_positioning_section()
         detection_section = self._create_detection_section()
         test_section = self._create_test_section()
 
+        main_layout.addWidget(positioning_section)
         main_layout.addWidget(detection_section)
         main_layout.addWidget(test_section)
 
@@ -42,6 +45,34 @@ class CameraSetupStep(WizardStep):
         self.cameras_detected = False
 
         return content
+
+    def _create_positioning_section(self) -> QWidget:
+        """Create the camera positioning guidelines section using UI factory."""
+        positioning_group, positioning_layout = self.ui_factory.create_group_box(
+            "Camera Positioning Guidelines"
+        )
+
+        # Create positioning instructions text
+        positioning_text = (
+            "For optimal FLASH-TV performance, please position your camera according to these guidelines:\n\n"
+            "📏 HEIGHT: Mount camera 3-4 feet above floor level (eye level when seated)\n"
+            "📐 ANGLE: Point camera slightly downward toward the viewing area\n"
+            "📍 DISTANCE: Place 6-10 feet from the main TV viewing seating area\n"
+            "👥 FIELD OF VIEW: Ensure camera captures the entire seating area where children sit\n"
+            "💡 LIGHTING: Avoid backlighting from windows or bright lights behind subjects\n"
+            "🔌 CONNECTION: Use a stable USB connection - avoid extension cables if possible\n\n"
+            "The camera should clearly see faces of people sitting in their normal TV watching positions."
+        )
+
+        positioning_instructions = self.ui_factory.create_text_area(
+            placeholder="",
+            read_only=True,
+            max_height=180
+        )
+        positioning_instructions.setPlainText(positioning_text)
+        positioning_layout.addWidget(positioning_instructions)
+
+        return positioning_group
 
     def _create_detection_section(self) -> QWidget:
         """Create the camera detection section using UI factory."""
@@ -175,6 +206,20 @@ class CameraSetupStep(WizardStep):
                     Messages.FOUND_CAMERAS.format(count=len(video_devices))
                 )
                 self.logger.info(f"Found {len(video_devices)} cameras")
+                
+                # Auto-select the first camera
+                self.camera_list.setCurrentRow(0)
+                first_camera = video_devices[0]
+                self.state.set_user_input("selected_camera", first_camera["path"])
+                self.state.set_user_input("selected_camera_name", first_camera["name"])
+                
+                # Persist state
+                if self.state_manager:
+                    self.state_manager.save_state(self.state)
+                
+                self.test_button.setEnabled(True)
+                self.logger.info(f"Auto-selected first camera: {first_camera['name']} ({first_camera['path']})")
+                self.test_output.append(f"📷 Auto-selected: {first_camera['name']}")
             else:
                 self.update_status(StepStatus.FAILED)
                 self.test_output.append(Messages.NO_CAMERAS_DETECTED)

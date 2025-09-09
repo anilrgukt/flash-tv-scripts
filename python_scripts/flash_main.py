@@ -123,3 +123,76 @@ class FLASHtv:
             tc_bbx = tc_boxs[0]
 
         return tc_present, gz_data, tc_boxs, tc_id, tc_imgs
+
+    def run_multi_gaze(self, frame_ls, frame_bbox_ls):
+        """
+        Run gaze estimation for all detected and verified faces, not just target child.
+        Returns a dictionary mapping person IDs to their gaze data.
+        """
+        persons_data = {}
+        
+        for frame_idx, (img, bbox_ls) in enumerate(zip(frame_ls, frame_bbox_ls)):
+            for bbx in bbox_ls:
+                person_id = bbx["idx"]
+                
+                # Skip unknown faces (idx == -1 or >= num_identities)
+                if person_id < 0 or person_id >= self.ni:
+                    continue
+                
+                # Process face for gaze estimation
+                bbx_ = Bbox(bbx)
+                face, bbx_ = self.gaze_face_processing.crop_face_from_frame(img, bbx_)  # rgb
+                face, lmarks = self.gaze_face_processing.resize_face(face, bbx_)  # rgb
+                face_rot, angle, lmrks = self.gaze_face_processing.rotate_face(face, lmarks, angle=None)
+                
+                # Store additional info in bbox
+                bbx["angle"] = angle
+                bbx["new_lmrks"] = lmarks
+                bbx["frame_idx"] = frame_idx
+                
+                # Initialize person data if not exists
+                if person_id not in persons_data:
+                    persons_data[person_id] = {
+                        "faces": [],
+                        "bboxes": [],
+                        "frame_indices": []
+                    }
+                
+                persons_data[person_id]["faces"].append(face_rot)
+                persons_data[person_id]["bboxes"].append(bbx)
+                persons_data[person_id]["frame_indices"].append(frame_idx)
+        
+        # Process gaze for each person
+        results = {}
+        for person_id, data in persons_data.items():
+            if len(data["faces"]) > 0:
+                # Prepare input for gaze estimation
+                gaze_input = self.gz.to_input(data["faces"])
+                output = self.gz.gaze_estimate(gaze_input)
+                
+                # Extract outputs from both models
+                o1, e1 = output[0]
+                o2, e2 = output[1]
+                
+                o1 = o1.cpu().data.numpy()
+                e1 = e1.cpu().data.numpy()
+                o2 = o2.cpu().data.numpy()
+                e2 = e2.cpu().data.numpy()
+                
+                results[person_id] = {
+                    "present": True,
+                    "gaze_data": [o1, e1, o2, e2],
+                    "bboxes": data["bboxes"],
+                    "frame_indices": data["frame_indices"],
+                    "faces": data["faces"]
+                }
+            else:
+                results[person_id] = {
+                    "present": False,
+                    "gaze_data": None,
+                    "bboxes": [],
+                    "frame_indices": [],
+                    "faces": []
+                }
+        
+        return results

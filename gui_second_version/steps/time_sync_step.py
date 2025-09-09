@@ -628,7 +628,21 @@ class TimeSyncStep(WizardStep):
                 new_datetime = datetime_edit.dateTime().toString("yyyy-MM-dd HH:mm:ss")
                 self.logger.info(f"User selected time: {new_datetime}")
 
-                # Set the time
+                # CRITICAL FIX: Disable NTP FIRST before setting time manually
+                self.details_text.append("📡 Disabling NTP before manual time setting...")
+                ntp_result, ntp_error = self.process_runner.run_sudo_command(
+                    ["timedatectl", "set-ntp", "0"], "disable NTP before manual time setting"
+                )
+                
+                if ntp_error:
+                    self.logger.warning(f"Warning: Could not disable NTP: {ntp_error}")
+                    self.details_text.append(f"⚠️ Warning: Could not disable NTP: {ntp_error}")
+                    # Continue anyway as it might still work
+                else:
+                    self.details_text.append("✅ NTP disabled - ready for manual time setting")
+
+                # Now set the time
+                self.details_text.append(f"⏰ Setting system time to: {new_datetime}")
                 result, error = self.process_runner.run_sudo_command(
                     ["date", "-s", new_datetime], "set system time manually"
                 )
@@ -644,11 +658,8 @@ class TimeSyncStep(WizardStep):
                         recovery_action="Check system permissions or try NTP sync",
                     )
                 else:
-                    # Disable NTP if it was enabled
-                    self.process_runner.run_sudo_command(
-                        ["timedatectl", "set-ntp", "0"], "disable automatic time sync"
-                    )
-
+                    self.details_text.append("✅ System time set successfully!")
+                    
                     # Update status and UI
                     self._check_time_status()
                     self._enable_continue()

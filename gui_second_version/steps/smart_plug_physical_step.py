@@ -92,10 +92,8 @@ class SmartPlugPhysicalStep(WizardStep):
         )
 
         step2_text = self.ui_factory.create_label(
-            "⚠️ IMPORTANT: Turn off TV first using remote/button\n\n"
             "• Unplug the TV power cord from the wall outlet\n"
-            "• Keep the cord accessible for next step",
-            style=f"color: {self.config.error_color}; font-weight: bold;",
+            "• Keep the cord accessible for next step"
         )
         step2_layout.addWidget(step2_text)
 
@@ -114,40 +112,40 @@ class SmartPlugPhysicalStep(WizardStep):
         """Create the right column with steps 3 & 4."""
         right_column = self.ui_factory.create_vertical_layout(spacing=8)
 
-        # Step 3: Insert Smart Plug
+        # Step 3: Connect TV to Smart Plug
         step3_box, step3_layout = self.ui_factory.create_group_box(
-            "Step 3: Insert Smart Plug"
+            "Step 3: Connect TV to Smart Plug"
         )
 
         step3_text = self.ui_factory.create_label(
-            "• Take the provided smart plug device\n"
-            "• Plug it into the wall outlet where TV was connected\n"
-            "• Ensure it's fully inserted and LED light is on\n"
-            "• The smart plug should show a solid light"
+            "• Take the TV power cord (unplugged from wall)\n"
+            "• Plug the TV power cord into the smart plug outlet\n"
+            "• Ensure connection is secure\n"
+            "• Keep this assembly ready for next step"
         )
         step3_layout.addWidget(step3_text)
 
         self.step3_check = self.ui_factory.create_checkbox(
-            "✓ Smart plug is inserted and LED is on", callback=self._update_progress
+            "✓ TV is connected to smart plug", callback=self._update_progress
         )
         step3_layout.addWidget(self.step3_check)
         step3_layout.addStretch()
 
-        # Step 4: Connect TV to Smart Plug
+        # Step 4: Insert Smart Plug Assembly
         step4_box, step4_layout = self.ui_factory.create_group_box(
-            "Step 4: Connect TV to Smart Plug"
+            "Step 4: Insert Smart Plug Assembly"
         )
 
         step4_text = self.ui_factory.create_label(
-            "• Plug the TV power cord into the smart plug outlet\n"
-            "• Ensure connection is secure\n"
-            "• Turn on TV using remote/button to test\n"
-            "• TV should power on normally"
+            "• Take the smart plug with TV cord attached\n"
+            "• Plug it into the wall outlet where TV was connected\n"
+            "• Ensure it's fully inserted and LED light is on\n"
+            "• Turn on TV using remote/button to test - TV should power on normally"
         )
         step4_layout.addWidget(step4_text)
 
         self.step4_check = self.ui_factory.create_checkbox(
-            "✓ TV is connected through smart plug and works",
+            "✓ Smart plug is inserted, LED is on, and TV works",
             callback=self._update_progress,
         )
         step4_layout.addWidget(self.step4_check)
