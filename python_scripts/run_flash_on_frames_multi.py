@@ -469,5 +469,93 @@ print("\n" + "="*60)
 print("Processing complete!")
 print(f"Summary log: {log_path}")
 print(f"Detailed log: {log_path_detailed}")
+
 if write_image_data:
     print(f"Visualizations: {frames_save_path}/")
+    
+    # Generate video from output frames
+    print("\nGenerating video from output frames...")
+    
+    # Get list of output images
+    output_images = sorted(glob.glob(os.path.join(frames_save_path, "*.png")))
+    
+    if output_images:
+        # Output video path
+        video_path = os.path.join(save_path, f"{famid}_gaze_tracking_multi.mp4")
+        
+        # Method 1: Using ffmpeg (lossless with H.264)
+        try:
+            # Build ffmpeg command for lossless H.264
+            ffmpeg_cmd = [
+                'ffmpeg',
+                '-y',  # Overwrite output
+                '-framerate', '30',  # 30 fps
+                '-pattern_type', 'glob',
+                '-i', f'{frames_save_path}/*.png',
+                '-c:v', 'libx264',  # H.264 codec
+                '-crf', '0',  # Lossless quality
+                '-preset', 'veryslow',  # Best compression
+                '-pix_fmt', 'yuv444p',  # Preserve color information
+                video_path
+            ]
+            
+            print(f"Running: {' '.join(ffmpeg_cmd)}")
+            result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
+            
+            if result.returncode == 0:
+                print(f"Video saved successfully: {video_path}")
+                # Get video file size
+                video_size = os.path.getsize(video_path) / (1024*1024)  # Convert to MB
+                print(f"Video size: {video_size:.2f} MB")
+            else:
+                print(f"FFmpeg failed: {result.stderr}")
+                print("Falling back to OpenCV method...")
+                raise Exception("FFmpeg failed")
+                
+        except Exception as e:
+            # Method 2: Fallback to OpenCV (if ffmpeg not available)
+            print("Using OpenCV to create video...")
+            
+            # Read first image to get dimensions
+            first_img = cv2.imread(output_images[0])
+            height, width, layers = first_img.shape
+            
+            # Define codec and create VideoWriter - using lossless codec
+            # Try different codecs in order of preference
+            codecs_to_try = [
+                ('mp4v', '.mp4'),  # MPEG-4 
+                ('MJPG', '.avi'),  # Motion JPEG (good quality)
+                ('XVID', '.avi'),  # Xvid
+            ]
+            
+            video_written = False
+            for codec_str, ext in codecs_to_try:
+                try:
+                    video_path = os.path.join(save_path, f"{famid}_gaze_tracking_multi{ext}")
+                    fourcc = cv2.VideoWriter_fourcc(*codec_str)
+                    video_writer = cv2.VideoWriter(video_path, fourcc, 30.0, (width, height))
+                    
+                    if video_writer.isOpened():
+                        # Write frames to video
+                        for i, img_path in enumerate(output_images):
+                            if i % 100 == 0:
+                                print(f"  Adding frame {i}/{len(output_images)}...")
+                            img = cv2.imread(img_path)
+                            video_writer.write(img)
+                        
+                        video_writer.release()
+                        video_written = True
+                        print(f"Video saved successfully: {video_path}")
+                        video_size = os.path.getsize(video_path) / (1024*1024)
+                        print(f"Video size: {video_size:.2f} MB")
+                        break
+                except Exception as codec_error:
+                    print(f"  Codec {codec_str} failed: {codec_error}")
+                    continue
+            
+            if not video_written:
+                print("Warning: Could not create video with OpenCV")
+                print("You can manually create a video using:")
+                print(f"  ffmpeg -framerate 30 -pattern_type glob -i '{frames_save_path}/*.png' -c:v libx264 -crf 0 -pix_fmt yuv444p output.mp4")
+    else:
+        print("No output images found to create video")
