@@ -208,3 +208,5 @@ CLAUDE.md
 *.json
 *.backup
 image.png
+
+.txt

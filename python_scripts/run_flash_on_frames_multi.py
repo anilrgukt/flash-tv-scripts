@@ -54,15 +54,15 @@ from utils.rotate_frame import rotate_frame
 from utils.visualizer import draw_gz, draw_rect_ver
 
 # Parse command line arguments
-parser = argparse.ArgumentParser(description='Multi-person gaze tracking on FLASH-TV frames')
-parser.add_argument('family_id', type=str, help='Family ID (e.g., 123)')
-parser.add_argument('frames_folder', type=str, help='Path to folder containing frame images')
-parser.add_argument('faces_folder', type=str, help='Path to folder containing face gallery images')
-parser.add_argument('--output_dir', type=str, default=None, help='Output directory for results (default: auto-generated)')
-parser.add_argument('--log_file', type=str, default=None, help='Path to timestamp log file (optional)')
-parser.add_argument('--save_images', action='store_true', help='Save visualization images')
-parser.add_argument('--no_save_images', dest='save_images', action='store_false')
-parser.add_argument('--display', action='store_true', help='Display frames in real-time window')
+parser = argparse.ArgumentParser(description="Multi-person gaze tracking on FLASH-TV frames")
+parser.add_argument("family_id", type=str, help="Family ID (e.g., 123)")
+parser.add_argument("frames_folder", type=str, help="Path to folder containing frame images")
+parser.add_argument("faces_folder", type=str, help="Path to folder containing face gallery images")
+parser.add_argument("--output_dir", type=str, default=None, help="Output directory for results (default: auto-generated)")
+parser.add_argument("--log_file", type=str, default=None, help="Path to timestamp log file (optional)")
+parser.add_argument("--save_images", action="store_true", help="Save visualization images")
+parser.add_argument("--no_save_images", dest="save_images", action="store_false")
+parser.add_argument("--display", action="store_true", help="Display frames in real-time window")
 parser.set_defaults(save_images=True, display=False)
 
 args = parser.parse_args()
@@ -75,10 +75,10 @@ famid = str(args.family_id)
 # Identity mapping for readable output
 # Note: This matches the order in face_verification.py: ["tc", "sib", "parent", "extra"]
 IDENTITY_NAMES = {
-    0: "tc",      # Target child
-    1: "sib",     # Sibling
+    0: "tc",  # Target child
+    1: "sib",  # Sibling
     2: "parent",  # Parent
-    3: "extra"    # Extra/poster face (not tracked for gaze)
+    3: "extra",  # Extra/poster face (not tracked for gaze)
 }
 
 # Set paths from arguments
@@ -89,7 +89,7 @@ faces_gallery_path = os.path.abspath(args.faces_folder)
 if not os.path.exists(frames_read_path):
     print(f"Error: Frames folder does not exist: {frames_read_path}")
     sys.exit(1)
-    
+
 if not os.path.exists(faces_gallery_path):
     print(f"Error: Faces gallery folder does not exist: {faces_gallery_path}")
     sys.exit(1)
@@ -111,7 +111,7 @@ else:
         q = []
 
 # Read log file if it exists
-if 'fname_log_read' in locals() and os.path.exists(fname_log_read):
+if "fname_log_read" in locals() and os.path.exists(fname_log_read):
     with open(fname_log_read, "r") as a:
         q = a.readlines()
         q = [line.strip() for line in q]
@@ -121,9 +121,12 @@ else:
     frame_files = sorted(glob.glob(os.path.join(frames_read_path, "*.png")))
     if not frame_files:
         frame_files = sorted(glob.glob(os.path.join(frames_read_path, "*.jpg")))
-    
+
     q = []
     base_time = datetime.now()
+    
+    # Get the first frame number to use as baseline
+    first_frame_num = None
     for i in range(len(frame_files) - 1):  # Skip last frame since we need pairs
         # Extract frame number from filename (assuming format like 000001.png)
         frame_name = os.path.basename(frame_files[i])
@@ -131,11 +134,28 @@ else:
             frame_num = int(os.path.splitext(frame_name)[0])
         except:
             frame_num = i + 1
-        # Create timestamp with small increments
-        timestamp = (base_time + timedelta(seconds=i*0.033)).strftime("%Y-%m-%d %H:%M:%S.%f")
+        
+        # Set first frame as baseline
+        if first_frame_num is None:
+            first_frame_num = frame_num
+        
+        # Calculate actual time offset based on frame number difference
+        # Assuming 30fps, each frame is 0.033 seconds
+        frame_offset = frame_num - first_frame_num
+        timestamp = (base_time + timedelta(seconds=frame_offset * 0.033)).strftime("%Y-%m-%d %H:%M:%S.%f")
         q.append(f"{timestamp} {frame_num}")
+    
     q = q[::-1]  # Reverse to match expected order
-    print(f"Created queue with {len(q)} frame pairs to process")
+    
+    # Calculate expected duration
+    if len(frame_files) > 1:
+        last_frame_num = frame_num  # Last frame from loop
+        total_frames = last_frame_num - first_frame_num
+        duration_seconds = total_frames * 0.033
+        duration_minutes = duration_seconds / 60
+        print(f"Created queue with {len(q)} frame pairs to process")
+        print(f"Frame range: {first_frame_num} to {last_frame_num} ({total_frames} frames)")
+        print(f"Expected duration: {duration_minutes:.1f} minutes ({duration_seconds:.1f} seconds)")
 
 # Set output paths
 if args.output_dir:
@@ -195,7 +215,14 @@ def write_multi_log_file(log_path, log_lines):
 
 username = get_flash_username()
 # Use the faces_gallery_path provided as argument
-flash_tv = FLASHtv(username, family_id=str(famid), num_identities=num_identities, data_path=os.path.dirname(faces_gallery_path), frame_res_hw=None, output_res_hw=None)
+flash_tv = FLASHtv(
+    username,
+    family_id=str(famid),
+    num_identities=num_identities,
+    data_path=os.path.dirname(faces_gallery_path),
+    frame_res_hw=None,
+    output_res_hw=None,
+)
 
 frame_counter = 1
 log_file = [log_path, frame_counter]
@@ -246,7 +273,7 @@ while True:
         imgv1_2 = cv2.imread(os.path.join(frames_read_path, str(frame_num + 1).zfill(6) + ".png"))
 
         if imgv1_1 is None or imgv1_2 is None:
-            print(f"Warning: Could not read frame {frame_num} or {frame_num+1}, skipping...")
+            print(f"Warning: Could not read frame {frame_num} or {frame_num + 1}, skipping...")
             continue
 
         batch7_list = [[imgv1_1, frame_num, time_stamp] for i in range(7)]
@@ -255,10 +282,10 @@ while True:
         batch_count += 1
         batch_write = True
         processed_frames += 1
-        
+
         # Show progress every 10 frames
         if processed_frames % 10 == 0:
-            print(f"Progress: {processed_frames}/{total_frames} frames processed ({100*processed_frames/total_frames:.1f}%)")
+            print(f"Progress: {processed_frames}/{total_frames} frames processed ({100 * processed_frames / total_frames:.1f}%)")
 
         frame_1080p_ls = [b[0] for b in batch7_list]
         frame_counts = [b[1] for b in batch7_list]
@@ -280,68 +307,72 @@ while True:
 
         if any(frame_bbox_ls):
             face_seen_last_time = datetime.now()
-            
+
             # Run face verification
             frame_bbox_ls = [flash_tv.run_verification(img[:, :, ::-1], bbox_ls) for img, bbox_ls in zip(frame_1080p_ls, frame_bbox_ls)]
 
             # Run multi-person gaze estimation
             persons_gaze_results = flash_tv.run_multi_gaze(frame_1080p_ls, frame_bbox_ls)
-            
+
             # Count total UNIQUE faces detected (not duplicates across frames)
             # Since we process 2 frames, we should count unique faces, not sum
             # Use the frame with more faces as the count (typically they're similar)
             total_faces = max(len(bbox_ls) for bbox_ls in frame_bbox_ls) if frame_bbox_ls else 0
-            
+
             # Process results for each person
             print(f"\nFrame {frame_counts[3]} at {timestamp}")
             print(f"Total faces detected: {total_faces}")
             print("-" * 40)
-            
+
             # Track if we have target child (for proper tag assignment)
             tc_present = 0 in persons_gaze_results and persons_gaze_results[0]["present"]
-            
+
             # Process ALL family members with qualified tags
             for person_id in range(3):  # tc=0, sib=1, parent=2
                 person_name = IDENTITY_NAMES.get(person_id, f"person{person_id}")
-                
+
                 if person_id in persons_gaze_results and persons_gaze_results[person_id]["present"]:
                     result = persons_gaze_results[person_id]
                     gaze_data = result["gaze_data"]
                     bbox = result["bboxes"][0]
-                    
+
                     # Extract gaze values
                     o1, e1, o2, e2 = gaze_data
                     if o1.shape[1] > 2:
                         gaze_vals1 = list(o1[0])
                     else:
                         gaze_vals1 = list(o1[0]) + [e1[0][0]]
-                    
+
                     if o2.shape[1] > 2:
                         gaze_vals2 = list(o2[0])
                     else:
                         gaze_vals2 = list(o2[0]) + [e2[0][0]]
-                    
+
                     # Get position
                     pos = [bbox["top"], bbox["left"], bbox["bottom"], bbox["right"]]
                     angle = bbox["angle"]
-                    
+
                     # Correct rotation if needed
                     gaze_vals1_rot = correct_rotation(gaze_vals1, angle) if abs(angle) >= 30 else gaze_vals1
-                    
+
                     print(f"  {person_name}: Gaze detected - Pitch: {gaze_vals1[0]:.3f}, Yaw: {gaze_vals1[1]:.3f}, Conf: {gaze_vals1[2]:.3f}")
-                    
+
                     # Use qualified tags for ALL members including tc
                     tag = f"Gaze-det-{person_name}"
                     log_line = [timestamp, str(frame_counts[3]).zfill(6), total_faces, 1] + gaze_vals1 + [angle] + pos + [tag]
                     log_lines.append(log_line)
-                    
+
                     # Also create rotated version for detailed log
-                    log_line_rot = [timestamp, str(frame_counts[3]).zfill(6), total_faces, 1] + gaze_vals1_rot + [angle] + pos + [f"Gaze-det-{person_name}-rot"]
+                    log_line_rot = (
+                        [timestamp, str(frame_counts[3]).zfill(6), total_faces, 1] + gaze_vals1_rot + [angle] + pos + [f"Gaze-det-{person_name}-rot"]
+                    )
                     log_lines_detailed.append(log_line_rot)
-                    
+
                     # Model 2 version if it's tc
                     if person_id == 0:
-                        log_line_reg = [timestamp, str(frame_counts[3]).zfill(6), total_faces, 1] + gaze_vals2 + [angle] + pos + [f"Gaze-det-{person_name}-m2"]
+                        log_line_reg = (
+                            [timestamp, str(frame_counts[3]).zfill(6), total_faces, 1] + gaze_vals2 + [angle] + pos + [f"Gaze-det-{person_name}-m2"]
+                        )
                         log_lines_detailed.append(log_line_reg)
                 else:
                     # Person not detected but faces exist - use qualified "Gaze-no-det" tag
@@ -349,85 +380,81 @@ while True:
                     tag = f"Gaze-no-det-{person_name}"
                     log_line = [timestamp, str(frame_counts[3]).zfill(6), total_faces, 0, None, None, None, None, None, None, None, None, tag]
                     log_lines.append(log_line)
-            
+
             # Visualization (if enabled)
             if write_image_data:
                 save_path_img = os.path.join(frames_save_path, str(frame_counts[3]).zfill(6) + ".png")
-                
+
                 # Convert to BGR for OpenCV and resize
                 img_vis = frame_1080p_ls[0][:, :, ::-1].copy()
                 img_vis = cv2.resize(img_vis, (854, 480))
-                
+
                 # Draw gaze arrows for each person using the standard formula from draw_gz
                 for person_id, result in persons_gaze_results.items():
-                    # Skip poster face (identity 3) 
+                    # Skip poster face (identity 3)
                     if person_id == 3:
                         continue
-                        
+
                     if result["present"]:
                         person_name = IDENTITY_NAMES.get(person_id, f"person{person_id}")
                         bbox = result["bboxes"][0]
                         gaze_data = result["gaze_data"]
                         o1 = gaze_data[0]  # numpy array with gaze angles
-                        
+
                         # Extract gaze angles
                         s0 = o1[0, 0]  # pitch
                         s1 = o1[0, 1]  # yaw
-                        
+
                         # Scale bounding box coordinates to output resolution
                         scale_x = 854 / 608.0
                         scale_y = 480 / 342.0
-                        
+
                         # Calculate center point in scaled coordinates
                         sx = (bbox["left"] + bbox["right"]) / 2 * scale_x
                         sy = (bbox["top"] + bbox["bottom"]) / 2 * scale_y
-                        
+
                         # Use the same gaze arrow calculation as draw_gz
                         x = -40 * math.cos(s1) * math.sin(s0)
                         y = -40 * math.sin(s1)
-                        
+
                         start = (int(sx), int(sy))
                         end = (int(sx + x), int(sy + y))
-                        
+
                         # Person-specific color
                         colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0)]
                         color = colors[person_id % 4]
-                        
+
                         # Draw gaze arrow using standard parameters
                         cv2.arrowedLine(img_vis, start, end, color, 3, tipLength=0.5)
-                        
+
                         # Draw bounding box
                         left = int(bbox["left"] * scale_x)
                         top = int(bbox["top"] * scale_y)
                         right = int(bbox["right"] * scale_x)
                         bottom = int(bbox["bottom"] * scale_y)
-                        
+
                         cv2.rectangle(img_vis, (left, top), (right, bottom), color, 2)
-                        
+
                         # Add person label
-                        cv2.putText(img_vis, person_name, 
-                                  (left, top - 10),
-                                  cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-                        
+                        cv2.putText(img_vis, person_name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+
                         # Add confidence score if available
                         # Check if confidence value exists (3rd element)
                         if o1.shape[1] > 2:
                             confidence = o1[0, 2]
                             conf_text = f"Conf: {confidence:.2f}"
-                            cv2.putText(img_vis, conf_text,
-                                      (left, bottom + 15),
-                                      cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
-                
+                            cv2.putText(img_vis, conf_text, (left, bottom + 15), cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+
                 # Save the visualization
                 if write_image_data:
                     cv2.imwrite(save_path_img, img_vis)
-                
+
                 # Display in real-time if requested
                 if args.display:
-                    cv2.imshow('Multi-Person Gaze Tracking', img_vis)
+                    cv2.imshow("Multi-Person Gaze Tracking", img_vis)
                     # Wait 1ms and check for 'q' key to quit
                     key = cv2.waitKey(1) & 0xFF
-                    if key == ord('q'):
+                    if key == ord("q"):
                         print("\nDisplay window closed by user")
                         q = []  # Clear queue to stop processing
                         break
@@ -435,7 +462,7 @@ while True:
         else:
             print(f"\nFrame {frame_counts[3]} at {timestamp}")
             print("No faces detected")
-            
+
             # Create standard log line for no faces detected
             # [timestamp, frameNum, num_faces, person_present, phi, theta, sigma, rotation, top, left, bottom, right, tag]
             tag = "No-face-detected"
@@ -464,77 +491,85 @@ if log_lines_detailed:
 if args.display:
     cv2.destroyAllWindows()
 
-print("\n" + "="*60)
+print("\n" + "=" * 60)
 print("Processing complete!")
 print(f"Summary log: {log_path}")
 print(f"Detailed log: {log_path_detailed}")
 
 if write_image_data:
     print(f"Visualizations: {frames_save_path}/")
-    
+
     # Generate video from output frames
     print("\nGenerating video from output frames...")
-    
+
     # Get list of output images
     output_images = sorted(glob.glob(os.path.join(frames_save_path, "*.png")))
-    
+
     if output_images:
         # Output video path
         video_path = os.path.join(save_path, f"{famid}_gaze_tracking_multi.mp4")
-        
+
         # Method 1: Using ffmpeg (H.264 compatible with Windows Media Player)
         try:
             # Build ffmpeg command for Windows-compatible H.264
             ffmpeg_cmd = [
-                'ffmpeg',
-                '-y',  # Overwrite output
-                '-framerate', '30',  # 30 fps
-                '-pattern_type', 'glob',
-                '-i', f'{frames_save_path}/*.png',
-                '-c:v', 'libx264',  # H.264 codec
-                '-crf', '18',  # High quality (visually lossless)
-                '-preset', 'medium',  # Balanced speed/compression
-                '-pix_fmt', 'yuv420p',  # Windows Media Player compatible pixel format
-                '-movflags', '+faststart',  # Enable streaming/quick playback
-                video_path
+                "ffmpeg",
+                "-y",  # Overwrite output
+                "-framerate",
+                "30",  # 30 fps
+                "-pattern_type",
+                "glob",
+                "-i",
+                f"{frames_save_path}/*.png",
+                "-c:v",
+                "libx264",  # H.264 codec
+                "-crf",
+                "18",  # High quality (visually lossless)
+                "-preset",
+                "medium",  # Balanced speed/compression
+                "-pix_fmt",
+                "yuv420p",  # Windows Media Player compatible pixel format
+                "-movflags",
+                "+faststart",  # Enable streaming/quick playback
+                video_path,
             ]
-            
+
             print(f"Running: {' '.join(ffmpeg_cmd)}")
             result = subprocess.run(ffmpeg_cmd, capture_output=True, text=True)
-            
+
             if result.returncode == 0:
                 print(f"Video saved successfully: {video_path}")
                 # Get video file size
-                video_size = os.path.getsize(video_path) / (1024*1024)  # Convert to MB
+                video_size = os.path.getsize(video_path) / (1024 * 1024)  # Convert to MB
                 print(f"Video size: {video_size:.2f} MB")
             else:
                 print(f"FFmpeg failed: {result.stderr}")
                 print("Falling back to OpenCV method...")
                 raise Exception("FFmpeg failed")
-                
+
         except Exception as e:
             # Method 2: Fallback to OpenCV (if ffmpeg not available)
             print("Using OpenCV to create video...")
-            
+
             # Read first image to get dimensions
             first_img = cv2.imread(output_images[0])
             height, width, layers = first_img.shape
-            
+
             # Define codec and create VideoWriter - using lossless codec
             # Try different codecs in order of preference
             codecs_to_try = [
-                ('mp4v', '.mp4'),  # MPEG-4 
-                ('MJPG', '.avi'),  # Motion JPEG (good quality)
-                ('XVID', '.avi'),  # Xvid
+                ("mp4v", ".mp4"),  # MPEG-4
+                ("MJPG", ".avi"),  # Motion JPEG (good quality)
+                ("XVID", ".avi"),  # Xvid
             ]
-            
+
             video_written = False
             for codec_str, ext in codecs_to_try:
                 try:
                     video_path = os.path.join(save_path, f"{famid}_gaze_tracking_multi{ext}")
                     fourcc = cv2.VideoWriter_fourcc(*codec_str)
                     video_writer = cv2.VideoWriter(video_path, fourcc, 30.0, (width, height))
-                    
+
                     if video_writer.isOpened():
                         # Write frames to video
                         for i, img_path in enumerate(output_images):
@@ -542,20 +577,22 @@ if write_image_data:
                                 print(f"  Adding frame {i}/{len(output_images)}...")
                             img = cv2.imread(img_path)
                             video_writer.write(img)
-                        
+
                         video_writer.release()
                         video_written = True
                         print(f"Video saved successfully: {video_path}")
-                        video_size = os.path.getsize(video_path) / (1024*1024)
+                        video_size = os.path.getsize(video_path) / (1024 * 1024)
                         print(f"Video size: {video_size:.2f} MB")
                         break
                 except Exception as codec_error:
                     print(f"  Codec {codec_str} failed: {codec_error}")
                     continue
-            
+
             if not video_written:
                 print("Warning: Could not create video with OpenCV")
                 print("You can manually create a video using:")
-                print(f"  ffmpeg -framerate 30 -pattern_type glob -i '{frames_save_path}/*.png' -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -movflags +faststart output.mp4")
+                print(
+                    f"  ffmpeg -framerate 30 -pattern_type glob -i '{frames_save_path}/*.png' -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -movflags +faststart output.mp4"
+                )
     else:
         print("No output images found to create video")
