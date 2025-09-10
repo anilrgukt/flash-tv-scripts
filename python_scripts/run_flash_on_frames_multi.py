@@ -188,10 +188,9 @@ def get_flash_username():
 
 
 def write_multi_log_file(log_path, log_lines):
-    """Write log file for multi-person gaze tracking."""
-    with open(log_path, 'a') as f:
-        for line in log_lines:
-            f.write(','.join(str(x) for x in line) + '\n')
+    """Write log file for multi-person gaze tracking using standard FLASH-TV format."""
+    # Use the standard write_log_file from utils which uses spaces as separator
+    write_log_file(log_path, log_lines)
 
 
 username = get_flash_username()
@@ -296,9 +295,6 @@ while True:
             print(f"Total faces detected: {total_faces}")
             print("-" * 40)
             
-            # Create summary log line
-            summary_line = [timestamp, str(frame_counts[3]).zfill(6), total_faces]
-            
             # Process each identity (skip poster face at index 3)
             for person_id in range(num_identities):
                 person_name = IDENTITY_NAMES.get(person_id, f"person{person_id}")
@@ -334,21 +330,22 @@ while True:
                     
                     print(f"  {person_name}: Gaze detected - Pitch: {gaze_vals1[0]:.3f}, Yaw: {gaze_vals1[1]:.3f}, Conf: {gaze_vals1[2]:.3f}")
                     
-                    # Add to summary (simplified)
-                    summary_line.extend([person_name, 1, gaze_vals1[0], gaze_vals1[1], gaze_vals1[2]])
+                    # Create standard FLASH-TV log line format:
+                    # [timestamp, frameNum, num_faces, person_present, phi, theta, sigma, rotation, top, left, bottom, right, tag]
+                    tag = f"Gaze-det-{person_name}"
+                    log_line = [timestamp, str(frame_counts[3]).zfill(6), total_faces, 1] + gaze_vals1 + [angle] + pos + [tag]
+                    log_lines.append(log_line)
                     
-                    # Detailed log line for this person
-                    detailed_line = [timestamp, str(frame_counts[3]).zfill(6), person_name, 1] + gaze_vals1 + [angle] + pos
-                    log_lines_detailed.append(detailed_line)
+                    # Also create rotated version
+                    log_line_rot = [timestamp, str(frame_counts[3]).zfill(6), total_faces, 1] + gaze_vals1_rot + [angle] + pos + [tag]
+                    log_lines_detailed.append(log_line_rot)
                 else:
                     print(f"  {person_name}: Not detected")
-                    summary_line.extend([person_name, 0, None, None, None])
                     
-                    # Detailed log line for missing person
-                    detailed_line = [timestamp, str(frame_counts[3]).zfill(6), person_name, 0, None, None, None, None, None, None, None, None]
-                    log_lines_detailed.append(detailed_line)
-            
-            log_lines.append(summary_line)
+                    # Create standard log line for missing person
+                    tag = f"Gaze-no-det-{person_name}"
+                    log_line = [timestamp, str(frame_counts[3]).zfill(6), total_faces, 0, None, None, None, None, None, None, None, None, tag]
+                    log_lines.append(log_line)
             
             # Visualization (if enabled)
             if write_image_data:
@@ -436,12 +433,11 @@ while True:
             print(f"\nFrame {frame_counts[3]} at {timestamp}")
             print("No faces detected")
             
-            # Log no faces for all identities
-            summary_line = [timestamp, str(frame_counts[3]).zfill(6), 0]
-            for person_id in range(num_identities):
-                person_name = IDENTITY_NAMES.get(person_id, f"person{person_id}")
-                summary_line.extend([person_name, 0, None, None, None])
-            log_lines.append(summary_line)
+            # Create standard log line for no faces detected
+            # [timestamp, frameNum, num_faces, person_present, phi, theta, sigma, rotation, top, left, bottom, right, tag]
+            tag = "No-face-detected"
+            log_line = [timestamp, str(frame_counts[3]).zfill(6), 0, 0, None, None, None, None, None, None, None, None, tag]
+            log_lines.append(log_line)
 
         # Write logs periodically
         if len(log_lines) >= 5:
