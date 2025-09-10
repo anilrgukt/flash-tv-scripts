@@ -479,9 +479,9 @@ if write_image_data:
         # Output video path
         video_path = os.path.join(save_path, f"{famid}_gaze_tracking_multi.mp4")
         
-        # Method 1: Using ffmpeg (lossless with H.264)
+        # Method 1: Using ffmpeg (H.264 compatible with Windows Media Player)
         try:
-            # Build ffmpeg command for lossless H.264
+            # Build ffmpeg command for Windows-compatible H.264
             ffmpeg_cmd = [
                 'ffmpeg',
                 '-y',  # Overwrite output
@@ -489,9 +489,10 @@ if write_image_data:
                 '-pattern_type', 'glob',
                 '-i', f'{frames_save_path}/*.png',
                 '-c:v', 'libx264',  # H.264 codec
-                '-crf', '0',  # Lossless quality
-                '-preset', 'veryslow',  # Best compression
-                '-pix_fmt', 'yuv444p',  # Preserve color information
+                '-crf', '18',  # High quality (visually lossless)
+                '-preset', 'medium',  # Balanced speed/compression
+                '-pix_fmt', 'yuv420p',  # Windows Media Player compatible pixel format
+                '-movflags', '+faststart',  # Enable streaming/quick playback
                 video_path
             ]
             
@@ -552,6 +553,6 @@ if write_image_data:
             if not video_written:
                 print("Warning: Could not create video with OpenCV")
                 print("You can manually create a video using:")
-                print(f"  ffmpeg -framerate 30 -pattern_type glob -i '{frames_save_path}/*.png' -c:v libx264 -crf 0 -pix_fmt yuv444p output.mp4")
+                print(f"  ffmpeg -framerate 30 -pattern_type glob -i '{frames_save_path}/*.png' -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -movflags +faststart output.mp4")
     else:
         print("No output images found to create video")
