@@ -129,15 +129,15 @@ class WiFiConnectionStep(WizardStep):
             success = False
             for cmd in commands_to_try:
                 try:
-                    result = self.process_runner.run_command(
-                        cmd, 
-                        timeout_ms=5000,
-                        background=True  # Run in background so UI doesn't freeze
-                    )
-                    if result and result.returncode == 0:
-                        success = True
-                        self.logger.info(f"Successfully opened network settings using: {' '.join(cmd)}")
-                        break
+                    # Use subprocess.Popen directly to run in background
+                    import subprocess
+                    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    success = True
+                    self.logger.info(f"Successfully opened network settings using: {' '.join(cmd)}")
+                    break
+                except (FileNotFoundError, OSError) as e:
+                    self.logger.debug(f"Command {' '.join(cmd)} not found: {e}")
+                    continue
                 except Exception as e:
                     self.logger.debug(f"Command {' '.join(cmd)} failed: {e}")
                     continue

@@ -178,29 +178,15 @@ class POVPictureStep(WizardStep):
         """Launch cheese camera application and monitor it."""
         try:
             if self.workflow_step != "initial":
-                QMessageBox.information(
-                    self,
-                    "Workflow In Progress",
-                    f"Workflow is already in progress (step: {self.workflow_step})"
-                )
+                self.step_details_label.setText(f"⚠️ Workflow already in progress (step: {self.workflow_step})")
                 return
                 
             self.logger.info("Launching cheese camera application for POV picture")
 
-            # Show workflow instructions
-            QMessageBox.information(
-                self,
-                "POV Picture Workflow Starting",
-                "The camera application will launch after you click OK.\n\n"
-                "WORKFLOW STEPS:\n"
-                "1. Position yourself at the TV location (NOT the camera)\n"
-                "2. Make sure NO PEOPLE are in the room at all\n"
-                "3. Take picture FROM TV's perspective of the room\n"
-                "4. Child's face should NOT be visible\n"
-                "5. TV screen should NOT be in the picture\n"
-                "6. Close the camera app when done\n\n"
-                "After you close the camera app, the picture will automatically\n"
-                "display fullscreen for you to photograph with your iPad."
+            # Update status instead of showing blocking dialog
+            self.step_status_label.setText("📸 Starting POV picture workflow...")
+            self.step_details_label.setText(
+                "Take POV picture FROM TV position → NO PEOPLE in room → Close camera when done"
             )
             
             # Check if cheese is available

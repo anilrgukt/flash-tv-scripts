@@ -287,34 +287,34 @@ while True:
             # Run multi-person gaze estimation
             persons_gaze_results = flash_tv.run_multi_gaze(frame_1080p_ls, frame_bbox_ls)
             
-            # Count total faces detected
-            total_faces = sum(len(bbox_ls) for bbox_ls in frame_bbox_ls)
+            # Count total UNIQUE faces detected (not duplicates across frames)
+            # Since we process 2 frames, we should count unique faces, not sum
+            # Use the frame with more faces as the count (typically they're similar)
+            total_faces = max(len(bbox_ls) for bbox_ls in frame_bbox_ls) if frame_bbox_ls else 0
             
             # Process results for each person
             print(f"\nFrame {frame_counts[3]} at {timestamp}")
             print(f"Total faces detected: {total_faces}")
             print("-" * 40)
             
-            # Process each identity (skip poster face at index 3)
-            for person_id in range(num_identities):
+            # Track if we have target child (for proper tag assignment)
+            tc_present = 0 in persons_gaze_results and persons_gaze_results[0]["present"]
+            
+            # Process ALL family members with qualified tags
+            for person_id in range(3):  # tc=0, sib=1, parent=2
                 person_name = IDENTITY_NAMES.get(person_id, f"person{person_id}")
                 
-                # Skip poster face (identity 3)
-                if person_id == 3:
-                    continue
-                    
                 if person_id in persons_gaze_results and persons_gaze_results[person_id]["present"]:
                     result = persons_gaze_results[person_id]
                     gaze_data = result["gaze_data"]
-                    bbox = result["bboxes"][0]  # Use first bbox if multiple
+                    bbox = result["bboxes"][0]
                     
                     # Extract gaze values
                     o1, e1, o2, e2 = gaze_data
-                    # Handle case where confidence might not be in o1
                     if o1.shape[1] > 2:
-                        gaze_vals1 = list(o1[0])  # pitch, yaw, confidence already included
+                        gaze_vals1 = list(o1[0])
                     else:
-                        gaze_vals1 = list(o1[0]) + [e1[0][0]]  # append error as confidence
+                        gaze_vals1 = list(o1[0]) + [e1[0][0]]
                     
                     if o2.shape[1] > 2:
                         gaze_vals2 = list(o2[0])
@@ -330,19 +330,22 @@ while True:
                     
                     print(f"  {person_name}: Gaze detected - Pitch: {gaze_vals1[0]:.3f}, Yaw: {gaze_vals1[1]:.3f}, Conf: {gaze_vals1[2]:.3f}")
                     
-                    # Create standard FLASH-TV log line format:
-                    # [timestamp, frameNum, num_faces, person_present, phi, theta, sigma, rotation, top, left, bottom, right, tag]
+                    # Use qualified tags for ALL members including tc
                     tag = f"Gaze-det-{person_name}"
                     log_line = [timestamp, str(frame_counts[3]).zfill(6), total_faces, 1] + gaze_vals1 + [angle] + pos + [tag]
                     log_lines.append(log_line)
                     
-                    # Also create rotated version
-                    log_line_rot = [timestamp, str(frame_counts[3]).zfill(6), total_faces, 1] + gaze_vals1_rot + [angle] + pos + [tag]
+                    # Also create rotated version for detailed log
+                    log_line_rot = [timestamp, str(frame_counts[3]).zfill(6), total_faces, 1] + gaze_vals1_rot + [angle] + pos + [f"Gaze-det-{person_name}-rot"]
                     log_lines_detailed.append(log_line_rot)
-                else:
-                    print(f"  {person_name}: Not detected")
                     
-                    # Create standard log line for missing person
+                    # Model 2 version if it's tc
+                    if person_id == 0:
+                        log_line_reg = [timestamp, str(frame_counts[3]).zfill(6), total_faces, 1] + gaze_vals2 + [angle] + pos + [f"Gaze-det-{person_name}-m2"]
+                        log_lines_detailed.append(log_line_reg)
+                else:
+                    # Person not detected but faces exist - use qualified "Gaze-no-det" tag
+                    print(f"  {person_name}: Not detected")
                     tag = f"Gaze-no-det-{person_name}"
                     log_line = [timestamp, str(frame_counts[3]).zfill(6), total_faces, 0, None, None, None, None, None, None, None, None, tag]
                     log_lines.append(log_line)

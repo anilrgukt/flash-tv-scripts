@@ -34,14 +34,12 @@ class TimeSyncStep(WizardStep):
 
         # Create sections using UI factory
         display_section = self._create_time_display_section()
-        rtc_section = self._create_rtc_section()
+        actions_section = self._create_actions_section()  # ALL buttons in correct order
         details_section = self._create_details_section()
-        actions_section = self._create_actions_section()
 
         main_layout.addWidget(display_section)
-        main_layout.addWidget(rtc_section)
-        main_layout.addWidget(details_section)
         main_layout.addWidget(actions_section)
+        main_layout.addWidget(details_section)
 
         # Continue button using UI factory
         continue_section = self._create_continue_section()
@@ -72,68 +70,6 @@ class TimeSyncStep(WizardStep):
 
         return display_group
 
-    def _create_rtc_section(self) -> QWidget:
-        """Create the RTC information and control section using UI factory."""
-        rtc_group, rtc_layout = self.ui_factory.create_group_box(
-            "Real-Time Clock (RTC) Information"
-        )
-
-        # Add instructions for proper workflow
-        instructions_label = self.ui_factory.create_label(
-            "⚠️ IMPORTANT: Follow these steps in order:\n"
-            "1. First, click 'Set External RTC to System Time' to initialize the RTC\n"
-            "2. Then click 'Check All RTC Status' to verify\n"
-            "3. Finally, sync time from External RTC if needed"
-        )
-        instructions_label.setStyleSheet("color: #d32f2f; font-weight: bold; padding: 10px; background-color: #ffebee; border-radius: 4px;")
-        rtc_layout.addWidget(instructions_label)
-        
-        # External RTC (DS3231) status
-        self.external_rtc_label = self.ui_factory.create_status_label(
-            "📡 External RTC (DS3231): Not checked yet", status_type="info"
-        )
-        rtc_layout.addWidget(self.external_rtc_label)
-
-        # Internal RTC status
-        self.internal_rtc_label = self.ui_factory.create_status_label(
-            "💻 Internal RTC: Not checked yet", status_type="info"
-        )
-        rtc_layout.addWidget(self.internal_rtc_label)
-
-        # RTC buttons - ordered by workflow
-        rtc_button_layout = self.ui_factory.create_horizontal_layout()
-
-        # Set RTC button first (step 1)
-        self.set_external_rtc_button = self.ui_factory.create_action_button(
-            "1️⃣ Set External RTC to System Time",
-            callback=self._set_external_rtc,
-            style=ButtonStyle.PRIMARY,
-            height=35,
-        )
-        rtc_button_layout.addWidget(self.set_external_rtc_button)
-
-        # Check RTC status button (step 2)
-        self.check_rtc_button = self.ui_factory.create_action_button(
-            "2️⃣ Check All RTC Status",
-            callback=self._check_rtc_status,
-            style=ButtonStyle.SECONDARY,
-            height=35,
-        )
-        rtc_button_layout.addWidget(self.check_rtc_button)
-
-        # Sync from RTC button (step 3)
-        self.sync_from_external_rtc_button = self.ui_factory.create_action_button(
-            "3️⃣ Sync from External RTC",
-            callback=self._sync_from_external_rtc,
-            style=ButtonStyle.SUCCESS,
-            height=35,
-            enabled=False,
-        )
-        rtc_button_layout.addWidget(self.sync_from_external_rtc_button)
-
-        rtc_layout.addLayout(rtc_button_layout)
-
-        return rtc_group
 
     def _create_details_section(self) -> QWidget:
         """Create the time configuration details section using UI factory."""
@@ -151,28 +87,80 @@ class TimeSyncStep(WizardStep):
         return details_group
 
     def _create_actions_section(self) -> QWidget:
-        """Create the time synchronization actions section using UI factory."""
+        """Create the time synchronization actions section with ALL buttons in correct order."""
         actions_group, actions_layout = self.ui_factory.create_group_box(
             "Time Synchronization Actions"
         )
 
-        # Synchronize time button (NTP)
+        # Add RTC status labels at the top
+        self.external_rtc_label = self.ui_factory.create_status_label(
+            "📡 External RTC (DS3231): Not checked yet", status_type="info"
+        )
+        actions_layout.addWidget(self.external_rtc_label)
+
+        self.internal_rtc_label = self.ui_factory.create_status_label(
+            "💻 Internal RTC: Not checked yet", status_type="info"
+        )
+        actions_layout.addWidget(self.internal_rtc_label)
+        
+        # Add separator
+        separator = self.ui_factory.create_separator()
+        actions_layout.addWidget(separator)
+
+        # 1. NTP Synchronize time button (PRIMARY - FIRST)
         self.sync_button = self.ui_factory.create_action_button(
-            "🌐 Synchronize with Network Time (NTP)",
+            "1️⃣ 🌐 Synchronize with Network Time (NTP) - RECOMMENDED",
             callback=self._synchronize_time,
             style=ButtonStyle.PRIMARY,
-            height=35,
+            height=40,
         )
         actions_layout.addWidget(self.sync_button)
 
-        # Manual time setting button
+        # 2. Manual time setting button (BACKUP - SECOND)
         self.manual_time_button = self.ui_factory.create_action_button(
-            "📅 Manually Set Time",
+            "2️⃣ 📅 Manually Set Time (Backup Option)",
             callback=self._set_time_manually,
             style=ButtonStyle.SECONDARY,
             height=35,
         )
         actions_layout.addWidget(self.manual_time_button)
+        
+        # Add separator for RTC operations
+        separator2 = self.ui_factory.create_separator()
+        actions_layout.addWidget(separator2)
+        
+        # RTC operations label
+        rtc_label = self.ui_factory.create_label("RTC Operations (after setting system time):")
+        rtc_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        actions_layout.addWidget(rtc_label)
+
+        # 3. Set RTC button
+        self.set_external_rtc_button = self.ui_factory.create_action_button(
+            "3️⃣ Set External RTC to System Time",
+            callback=self._set_external_rtc,
+            style=ButtonStyle.INFO,
+            height=35,
+        )
+        actions_layout.addWidget(self.set_external_rtc_button)
+
+        # 4. Check RTC status button
+        self.check_rtc_button = self.ui_factory.create_action_button(
+            "4️⃣ Check All RTC Status",
+            callback=self._check_rtc_status,
+            style=ButtonStyle.INFO,
+            height=35,
+        )
+        actions_layout.addWidget(self.check_rtc_button)
+
+        # 5. Sync from RTC button
+        self.sync_from_external_rtc_button = self.ui_factory.create_action_button(
+            "5️⃣ Sync from External RTC",
+            callback=self._sync_from_external_rtc,
+            style=ButtonStyle.INFO,
+            height=35,
+            enabled=False,
+        )
+        actions_layout.addWidget(self.sync_from_external_rtc_button)
 
         return actions_group
 
@@ -568,7 +556,7 @@ class TimeSyncStep(WizardStep):
 
             if self.continue_button.isEnabled():
                 self.logger.info("Time synchronization completed successfully")
-                QMessageBox.information(self, "Success", "Time synchronization completed successfully!")
+                self.details_text.append("✅ Time synchronization completed successfully!")
             else:
                 self.update_status(StepStatus.USER_ACTION_REQUIRED)
                 self.logger.warning("Time synchronization enabled but still pending")
@@ -665,9 +653,7 @@ class TimeSyncStep(WizardStep):
                     self._enable_continue()
 
                     self.logger.info("Manual time setting completed successfully")
-                    QMessageBox.information(
-                        self, "Success", "System time has been set successfully!"
-                    )
+                    self.details_text.append("✅ Manual time setting completed successfully!")
             else:
                 self.logger.info("User cancelled manual time setting")
 
