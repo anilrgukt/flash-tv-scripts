@@ -264,7 +264,7 @@ class TimeSyncStep(WizardStep):
         try:
             username = self.state.get_user_input("username", "")
             if not username:
-                raise FlashTVError("Username not available", ErrorType.STATE_ERROR)
+                raise FlashTVError("Username not available", ErrorType.VALIDATION_ERROR)
             
             reply = QMessageBox.question(
                 self,
@@ -336,7 +336,7 @@ class TimeSyncStep(WizardStep):
         try:
             username = self.state.get_user_input("username", "")
             if not username:
-                raise FlashTVError("Username not available", ErrorType.STATE_ERROR)
+                raise FlashTVError("Username not available", ErrorType.VALIDATION_ERROR)
             
             reply = QMessageBox.question(
                 self,

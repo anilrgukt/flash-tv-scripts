@@ -319,7 +319,7 @@ class ParticipantSetupStep(WizardStep):
             self.logger.error(f"Error loading existing values: {e}")
             raise FlashTVError(
                 f"Failed to load existing values: {e}",
-                ErrorType.STATE_ERROR,
+                ErrorType.VALIDATION_ERROR,
                 recovery_action="Clear form and start fresh",
             )
 

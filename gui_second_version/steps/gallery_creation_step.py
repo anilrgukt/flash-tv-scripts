@@ -177,7 +177,7 @@ class GalleryCreationStep(WizardStep):
             self.logger.error(f"Error auto-generating gallery path: {e}")
             raise FlashTVError(
                 f"Failed to generate gallery path: {e}",
-                ErrorType.STATE_ERROR,
+                ErrorType.VALIDATION_ERROR,
                 recovery_action="Check participant setup completion",
             )
 

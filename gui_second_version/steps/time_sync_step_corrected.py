@@ -121,7 +121,7 @@ class TimeSyncStepCorrected(WizardStep):
         self.check_rtcs_button = self.ui_factory.create_action_button(
             "🔍 Check All RTC Status",
             callback=self._check_all_rtcs,
-            style=ButtonStyle.INFO,
+            style=ButtonStyle.SECONDARY,
             height=35,
         )
         actions_layout.addWidget(self.check_rtcs_button)

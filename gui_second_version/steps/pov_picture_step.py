@@ -184,7 +184,7 @@ class POVPictureStep(WizardStep):
             self.logger.info("Launching cheese camera application for POV picture")
 
             # Update status instead of showing blocking dialog
-            self.step_status_label.setText("📸 Starting POV picture workflow...")
+            self.workflow_status_label.setText("📸 Starting POV picture workflow...")
             self.step_details_label.setText(
                 "Take POV picture FROM TV position → NO PEOPLE in room → Close camera when done"
             )
