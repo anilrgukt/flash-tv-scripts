@@ -16,7 +16,6 @@ class WiFiConnectionStep(WizardStep):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.wifi_connected = False
 
     def create_content_widget(self) -> QWidget:
         """Create the simplified WiFi connection UI."""
@@ -47,11 +46,11 @@ class WiFiConnectionStep(WizardStep):
     def _create_status_section(self) -> QWidget:
         """Create the WiFi status section."""
         status_group, status_layout = self.ui_factory.create_group_box(
-            "WiFi Connection Status"
+            "WiFi Connection Setup"
         )
 
         self.wifi_status_label = self.ui_factory.create_status_label(
-            "Checking WiFi connection...", status_type="info"
+            "Use the button below to open network settings", status_type="info"
         )
         status_layout.addWidget(self.wifi_status_label)
 
@@ -196,83 +195,23 @@ class WiFiConnectionStep(WizardStep):
                 recovery_action="Try clicking skip again",
             )
 
-    @handle_step_error
-    def _check_wifi_connection(self) -> None:
-        """Check current WiFi connection status."""
-        try:
-            self.logger.info("Checking WiFi connection status")
-            
-            # Use nmcli to check connection status
-            result = self.process_runner.run_command(
-                ["nmcli", "-t", "-f", "ACTIVE,SSID", "dev", "wifi"],
-                timeout_ms=10000,
-            )
-            
-            if result and result.returncode == 0:
-                for line in result.stdout.split("\\n"):
-                    if line.startswith("yes:"):
-                        ssid = line.split(":", 1)[1]
-                        self.logger.info(f"Connected to WiFi: {ssid}")
-                        self._handle_wifi_connected(ssid)
-                        return
-            
-            # No active connection found
-            self._handle_no_wifi_connection()
-            
-        except Exception as e:
-            self.logger.error(f"Error checking WiFi status: {e}")
-            self._handle_no_wifi_connection()
-
-    def _handle_wifi_connected(self, ssid: str) -> None:
-        """Handle successful WiFi connection detection."""
-        self.wifi_status_label.setText(f"✅ Connected to WiFi: {ssid}")
-        self.state.set_user_input("wifi_ssid", ssid)
-
-        # Persist state
-        if self.state_manager:
-            self.state_manager.save_state(self.state)
-
-        self.wifi_connected = True
-        self.continue_button.setEnabled(True)
-        self.update_status(StepStatus.COMPLETED)
-
-        self.logger.info(f"WiFi connected to: {ssid}")
-
-    def _handle_no_wifi_connection(self) -> None:
-        """Handle no WiFi connection detected."""
-        self.wifi_status_label.setText("❌ No WiFi connection detected")
-        self.logger.warning("No active WiFi connection detected")
+    # WiFi checking removed - user manages connection through system settings
 
     @handle_step_error
     def _on_continue_clicked(self, checked: bool = False) -> None:
         """Handle continue button click with validation."""
         try:
-            # Check WiFi status one more time before continuing
-            self._check_wifi_connection()
-            
+            # User clicked continue - they know if WiFi is connected or not
             wifi_ssid = self.state.get_user_input("wifi_ssid", "")
 
-            if self.wifi_connected or wifi_ssid == "SKIPPED":
-                self.logger.info(f"WiFi step completed with SSID: {wifi_ssid}")
+            # Just continue - user has already opened network settings if needed
+            self.logger.info(f"WiFi step completed")
 
-                # Persist final state
-                if self.state_manager:
-                    self.state_manager.save_state(self.state)
+            # Persist final state
+            if self.state_manager:
+                self.state_manager.save_state(self.state)
 
-                self.request_next_step.emit()
-            else:
-                # Show message asking user to connect or skip
-                reply = QMessageBox.question(
-                    self,
-                    "No WiFi Connection",
-                    "No WiFi connection detected. Would you like to:\n\n"
-                    "• Click 'Yes' to skip WiFi setup\n"
-                    "• Click 'No' to go back and connect to WiFi",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                )
-                
-                if reply == QMessageBox.StandardButton.Yes:
-                    self._skip_wifi_setup()
+            self.request_next_step.emit()
 
         except Exception as e:
             self.logger.error(f"Error during continue action: {e}")
@@ -287,9 +226,7 @@ class WiFiConnectionStep(WizardStep):
         """Activate the network configuration step."""
         super().activate_step()
         self.logger.info("WiFi connection step activated")
-        
-        # Check current WiFi status when step is activated
-        self._check_wifi_connection()
+        # Don't check WiFi automatically - let user handle it
 
     def update_ui(self) -> None:
         """Update UI elements periodically."""

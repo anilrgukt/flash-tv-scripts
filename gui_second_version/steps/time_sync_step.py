@@ -136,7 +136,7 @@ class TimeSyncStep(WizardStep):
         self.set_external_rtc_button = self.ui_factory.create_action_button(
             "3️⃣ Set External RTC to System Time",
             callback=self._set_external_rtc,
-            style=ButtonStyle.INFO,
+            style=ButtonStyle.SECONDARY,
             height=35,
         )
         actions_layout.addWidget(self.set_external_rtc_button)
@@ -145,7 +145,7 @@ class TimeSyncStep(WizardStep):
         self.check_rtc_button = self.ui_factory.create_action_button(
             "4️⃣ Check All RTC Status",
             callback=self._check_rtc_status,
-            style=ButtonStyle.INFO,
+            style=ButtonStyle.SECONDARY,
             height=35,
         )
         actions_layout.addWidget(self.check_rtc_button)
@@ -154,7 +154,7 @@ class TimeSyncStep(WizardStep):
         self.sync_from_external_rtc_button = self.ui_factory.create_action_button(
             "5️⃣ Sync from External RTC",
             callback=self._sync_from_external_rtc,
-            style=ButtonStyle.INFO,
+            style=ButtonStyle.SECONDARY,
             height=35,
             enabled=False,
         )
