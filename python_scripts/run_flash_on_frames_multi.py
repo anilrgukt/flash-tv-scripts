@@ -6,17 +6,20 @@ Usage:
     python run_flash_on_frames_multi.py <family_id> <frames_folder> <faces_folder> [options]
 
 Example:
+    # Basic usage - will auto-find log files
     python run_flash_on_frames_multi.py 123 /path/to/123_frames /path/to/123_faces
     
+    # Specify a specific log file (recommended)
     python run_flash_on_frames_multi.py 123 \\
         /media/flashsys007/FLASH_SSD/123_frames \\
         /home/flashsys007/data/123_faces \\
-        --output_dir /home/flashsys007/results \\
-        --log_file /path/to/timestamp_log.txt \\
-        --start_time "2024-03-15 14:30:00" \\
-        --save_images
+        --log_file 123_flash_log_rot.txt \\
+        --output_dir /home/flashsys007/results
     
-    # Using just time (assumes today's date)
+    # Use existing FLASH log for accurate timestamps
+    python run_flash_on_frames_multi.py 111 frames/ faces/ --log_file 111_flash_log_rot.txt
+    
+    # Generate synthetic timestamps if no log available
     python run_flash_on_frames_multi.py 123 frames/ faces/ --start_time "09:45:00"
 
 Arguments:
@@ -67,6 +70,8 @@ parser.add_argument("faces_folder", type=str, help="Path to folder containing fa
 parser.add_argument("--output_dir", type=str, default=None, help="Output directory for results (default: auto-generated)")
 parser.add_argument("--log_file", type=str, default=None, help="Path to timestamp log file (optional)")
 parser.add_argument("--start_time", type=str, default=None, help='Starting timestamp (format: "YYYY-MM-DD HH:MM:SS" or "HH:MM:SS" for today)')
+parser.add_argument("--end_time", type=str, default=None, help='Ending timestamp for calculating frame rate (format: same as start_time)')
+parser.add_argument("--fps", type=float, default=30.0, help='Frames per second (default: 30.0, auto-calculated if end_time provided)')
 parser.add_argument("--save_images", action="store_true", help="Save visualization images")
 parser.add_argument("--no_save_images", dest="save_images", action="store_false")
 parser.add_argument("--display", action="store_true", help="Display frames in real-time window")
@@ -101,29 +106,70 @@ if not os.path.exists(faces_gallery_path):
     print(f"Error: Faces gallery folder does not exist: {faces_gallery_path}")
     sys.exit(1)
 
-# Handle log file - either use provided or try to find one
+# Handle log file - check multiple possible sources
+log_found = False
+q = []
+
+# Priority 1: User-provided log file (highest priority)
 if args.log_file:
     fname_log_read = os.path.abspath(args.log_file)
-    if not os.path.exists(fname_log_read):
-        print(f"Warning: Log file not found: {fname_log_read}")
-        print("Will process frames in alphabetical order without timestamps")
-        q = []
-else:
-    # Try to find a log file in standard location
-    fname_log_read = f"/home/flashsys007/code_test/flash_old_logs/txt_logs/{famid}_flash_log_sub_sort.txt"
     if os.path.exists(fname_log_read):
-        print(f"Using log file: {fname_log_read}")
+        print(f"Using user-specified log file: {fname_log_read}")
+        log_found = True
     else:
-        print("No log file provided or found. Processing frames in alphabetical order.")
-        q = []
+        print(f"ERROR: Specified log file not found: {fname_log_read}")
+        sys.exit(1)  # Exit if user explicitly specified a file that doesn't exist
 
-# Read log file if it exists
-if "fname_log_read" in locals() and os.path.exists(fname_log_read):
+# Priority 2: Look for existing FLASH log files from single-gaze processing
+if not log_found:
+    # Check for log files in current directory and common locations
+    # Prioritize rot/reg logs as they start when gaze detection actually begins
+    possible_log_locations = [
+        f"{famid}_flash_log_rot.txt",  # Rotation-corrected log (preferred - starts with actual detection)
+        f"{famid}_flash_log_reg.txt",  # Secondary model log (also starts with actual detection)
+        f"{famid}_flash_log.txt",  # Main log file (may have extra frames at beginning)
+        f"./{famid}_flash_log.txt",
+        f"/home/flashsys007/code_test/flash_old_logs/txt_logs/{famid}_flash_log_sub_sort.txt"
+    ]
+    
+    for log_path in possible_log_locations:
+        if os.path.exists(log_path):
+            fname_log_read = log_path
+            print(f"Found existing FLASH log file: {fname_log_read}")
+            log_found = True
+            break
+
+# Read and parse FLASH log file if found
+if log_found:
     with open(fname_log_read, "r") as a:
-        q = a.readlines()
-        q = [line.strip() for line in q]
-        q = q[::-1]
-else:
+        lines = a.readlines()
+    
+    # Parse FLASH log format: timestamp frameNum numFaces tcPresent ...
+    for line in lines:
+        parts = line.strip().split()
+        if len(parts) >= 3:  # Need at least date, time, frameNum
+            try:
+                date = parts[0]
+                time = parts[1]
+                frame_num = parts[2]  # Keep as string with leading zeros
+                
+                # Reconstruct the timestamp line for queue
+                q.append(f"{date} {time} {frame_num}")
+            except (ValueError, IndexError):
+                continue  # Skip malformed lines
+    
+    if q:
+        print(f"Loaded {len(q)} timestamps from existing FLASH log")
+        q = q[::-1]  # Reverse to match expected order (process oldest first)
+    else:
+        print("Warning: Log file found but no valid timestamps extracted")
+        log_found = False
+
+if not log_found:
+    print("No existing FLASH log found. Will generate timestamps.")
+
+# Only generate synthetic timestamps if no log was found
+if not q:
     # If no log file, create entries from frame files
     frame_files = sorted(glob.glob(os.path.join(frames_read_path, "*.png")))
     if not frame_files:
@@ -150,37 +196,77 @@ else:
         base_time = datetime.now()
         print(f"Using current time as start: {base_time}")
     
-    # Get the first frame number to use as baseline
-    first_frame_num = None
-    for i in range(len(frame_files) - 1):  # Skip last frame since we need pairs
-        # Extract frame number from filename (assuming format like 000001.png)
-        frame_name = os.path.basename(frame_files[i])
+    # Extract all frame numbers first to understand the pattern
+    frame_numbers = []
+    for frame_file in frame_files:
+        frame_name = os.path.basename(frame_file)
         try:
             frame_num = int(os.path.splitext(frame_name)[0])
+            frame_numbers.append(frame_num)
         except:
-            frame_num = i + 1
+            continue
+    
+    if not frame_numbers:
+        print("Error: Could not extract frame numbers from files")
+        sys.exit(1)
+    
+    # Get the first and last frame numbers
+    first_frame_num = frame_numbers[0]
+    last_frame_num = frame_numbers[-1]
+    
+    # Calculate actual frame rate if end_time is provided
+    seconds_per_frame = 1.0 / args.fps  # Default to provided fps
+    
+    if args.end_time and args.start_time:
+        try:
+            # Parse end time
+            if ' ' in args.end_time:
+                end_time = datetime.strptime(args.end_time, "%Y-%m-%d %H:%M:%S")
+            else:
+                time_only = datetime.strptime(args.end_time, "%H:%M:%S").time()
+                end_time = datetime.combine(base_time.date(), time_only)
+            
+            # Calculate actual duration and frame rate
+            actual_duration = (end_time - base_time).total_seconds()
+            frame_span = last_frame_num - first_frame_num
+            
+            if frame_span > 0 and actual_duration > 0:
+                seconds_per_frame = actual_duration / frame_span
+                calculated_fps = 1.0 / seconds_per_frame
+                print(f"Auto-calculated frame rate: {calculated_fps:.2f} fps")
+                print(f"Actual duration: {actual_duration:.1f} seconds ({actual_duration/60:.1f} minutes)")
+            else:
+                print(f"Warning: Could not calculate frame rate. Using default {args.fps} fps")
+        except ValueError as e:
+            print(f"Warning: Could not parse end time. Using default {args.fps} fps")
+    else:
+        print(f"Using frame rate: {args.fps} fps")
+    
+    # Process frames in pairs (since they come as pairs like 14,15 then 73,74)
+    # We'll use every other frame as the primary frame for the pair
+    for i in range(0, len(frame_numbers) - 1, 2):  # Step by 2 to handle pairs
+        frame_num = frame_numbers[i]
+        next_frame_num = frame_numbers[i + 1] if i + 1 < len(frame_numbers) else frame_num + 1
         
-        # Set first frame as baseline
-        if first_frame_num is None:
-            first_frame_num = frame_num
-        
-        # Calculate actual time offset based on frame number difference
-        # Assuming 30fps, each frame is 0.033 seconds
+        # Calculate actual time offset based on frame number
+        # This ensures gaps in frame numbers translate to gaps in time
         frame_offset = frame_num - first_frame_num
-        timestamp = (base_time + timedelta(seconds=frame_offset * 0.033)).strftime("%Y-%m-%d %H:%M:%S.%f")
+        timestamp = (base_time + timedelta(seconds=frame_offset * seconds_per_frame)).strftime("%Y-%m-%d %H:%M:%S.%f")
+        
+        # Store timestamp with the first frame of the pair
         q.append(f"{timestamp} {frame_num}")
     
     q = q[::-1]  # Reverse to match expected order
     
-    # Calculate expected duration
-    if len(frame_files) > 1:
-        last_frame_num = frame_num  # Last frame from loop
-        total_frames = last_frame_num - first_frame_num
-        duration_seconds = total_frames * 0.033
+    # Calculate expected duration based on actual frame numbers and rate
+    if len(frame_numbers) > 1:
+        total_frame_span = last_frame_num - first_frame_num
+        duration_seconds = total_frame_span * seconds_per_frame
         duration_minutes = duration_seconds / 60
         print(f"Created queue with {len(q)} frame pairs to process")
-        print(f"Frame range: {first_frame_num} to {last_frame_num} ({total_frames} frames)")
+        print(f"Frame range: {first_frame_num} to {last_frame_num} (span of {total_frame_span} frames)")
         print(f"Expected duration: {duration_minutes:.1f} minutes ({duration_seconds:.1f} seconds)")
+        print(f"Processing {len(q)} pairs from {len(frame_files)} total files")
 
 # Set output paths
 if args.output_dir:
