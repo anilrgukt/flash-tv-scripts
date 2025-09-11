@@ -13,7 +13,11 @@ Example:
         /home/flashsys007/data/123_faces \\
         --output_dir /home/flashsys007/results \\
         --log_file /path/to/timestamp_log.txt \\
+        --start_time "2024-03-15 14:30:00" \\
         --save_images
+    
+    # Using just time (assumes today's date)
+    python run_flash_on_frames_multi.py 123 frames/ faces/ --start_time "09:45:00"
 
 Arguments:
     family_id       : Family ID (e.g., 123)
@@ -23,8 +27,10 @@ Arguments:
 Options:
     --output_dir    : Output directory for results (default: auto-generated)
     --log_file      : Path to timestamp log file (optional, for frame timing)
+    --start_time    : Starting timestamp (format: "YYYY-MM-DD HH:MM:SS" or "HH:MM:SS")
     --save_images   : Save visualization images with gaze arrows
     --no_save_images: Don't save visualization images
+    --display       : Show frames in real-time window during processing
 """
 
 import os
@@ -60,6 +66,7 @@ parser.add_argument("frames_folder", type=str, help="Path to folder containing f
 parser.add_argument("faces_folder", type=str, help="Path to folder containing face gallery images")
 parser.add_argument("--output_dir", type=str, default=None, help="Output directory for results (default: auto-generated)")
 parser.add_argument("--log_file", type=str, default=None, help="Path to timestamp log file (optional)")
+parser.add_argument("--start_time", type=str, default=None, help='Starting timestamp (format: "YYYY-MM-DD HH:MM:SS" or "HH:MM:SS" for today)')
 parser.add_argument("--save_images", action="store_true", help="Save visualization images")
 parser.add_argument("--no_save_images", dest="save_images", action="store_false")
 parser.add_argument("--display", action="store_true", help="Display frames in real-time window")
@@ -123,7 +130,25 @@ else:
         frame_files = sorted(glob.glob(os.path.join(frames_read_path, "*.jpg")))
 
     q = []
-    base_time = datetime.now()
+    
+    # Parse start time if provided
+    if args.start_time:
+        try:
+            # Try full datetime format first
+            if ' ' in args.start_time:
+                base_time = datetime.strptime(args.start_time, "%Y-%m-%d %H:%M:%S")
+            else:
+                # If only time provided, use today's date
+                time_only = datetime.strptime(args.start_time, "%H:%M:%S").time()
+                base_time = datetime.combine(datetime.now().date(), time_only)
+            print(f"Using specified start time: {base_time}")
+        except ValueError:
+            print(f"Warning: Invalid time format '{args.start_time}'. Using current time.")
+            print("Expected format: 'YYYY-MM-DD HH:MM:SS' or 'HH:MM:SS'")
+            base_time = datetime.now()
+    else:
+        base_time = datetime.now()
+        print(f"Using current time as start: {base_time}")
     
     # Get the first frame number to use as baseline
     first_frame_num = None
