@@ -149,12 +149,12 @@ if log_found:
         parts = line.strip().split()
         if len(parts) >= 3:  # Need at least date, time, frameNum
             try:
-                date = parts[0]
-                time = parts[1]
+                date_str = parts[0]
+                time_str = parts[1]
                 frame_num = parts[2]  # Keep as string with leading zeros
                 
                 # Reconstruct the timestamp line for queue
-                q.append(f"{date} {time} {frame_num}")
+                q.append(f"{date_str} {time_str} {frame_num}")
             except (ValueError, IndexError):
                 continue  # Skip malformed lines
     
