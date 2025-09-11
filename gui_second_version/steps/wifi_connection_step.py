@@ -119,7 +119,7 @@ class WiFiConnectionStep(WizardStep):
             
             # Try different network settings commands based on desktop environment
             commands_to_try = [
-                ["gnome-control-center", "network"],
+                ["gnome-control-center", "wifi"],
                 ["unity-control-center", "network"],
                 ["systemsettings5", "kcm_networkmanagement"],
                 ["nm-connection-editor"],
@@ -294,10 +294,7 @@ class WiFiConnectionStep(WizardStep):
     def update_ui(self) -> None:
         """Update UI elements periodically."""
         super().update_ui()
-        
-        # Periodically check WiFi status if not connected
-        if not self.wifi_connected:
-            self._check_wifi_connection()
+        # Don't continuously check WiFi - user will click Continue when ready
 
     def _cleanup_step_resources(self) -> None:
         """Clean up step-specific resources."""

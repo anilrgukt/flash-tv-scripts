@@ -103,9 +103,8 @@ class TimeSyncStep(WizardStep):
         )
         actions_layout.addWidget(self.internal_rtc_label)
         
-        # Add separator
-        separator = self.ui_factory.create_separator()
-        actions_layout.addWidget(separator)
+        # Add spacing
+        actions_layout.addSpacing(10)
 
         # 1. NTP Synchronize time button (PRIMARY - FIRST)
         self.sync_button = self.ui_factory.create_action_button(
@@ -125,9 +124,8 @@ class TimeSyncStep(WizardStep):
         )
         actions_layout.addWidget(self.manual_time_button)
         
-        # Add separator for RTC operations
-        separator2 = self.ui_factory.create_separator()
-        actions_layout.addWidget(separator2)
+        # Add spacing for RTC operations
+        actions_layout.addSpacing(15)
         
         # RTC operations label
         rtc_label = self.ui_factory.create_label("RTC Operations (after setting system time):")
