@@ -6,8 +6,15 @@ import time
 from datetime import datetime
 
 import cv2
-import matplotlib.pyplot as plt
 import numpy as np
+
+# Try to import matplotlib for optional plotting functionality
+try:
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+    print("Warning: matplotlib not available. Plotting features disabled.")
 import pandas as pd
 from flash.face_detection import FlashFaceDetector
 from flash.face_processing import FaceModelv4 as FaceProcessing
@@ -17,7 +24,7 @@ from utils.bbox_utils import Bbox
 from utils.stream import WebcamVideoStream
 from utils.visualizer import draw_gz, draw_rect_det, draw_rect_ver, get_xticks, num2ts, ts2num
 
-plot_data = True
+plot_data = True and HAS_MATPLOTLIB
 if plot_data:
     num_mins = 5
     window_duration = num_mins * 60
@@ -247,4 +254,5 @@ while True:
 
 stream.stop()
 cv2.destroyAllWindows()
-plt.show()
+if HAS_MATPLOTLIB and plot_data:
+    plt.show()

@@ -216,7 +216,7 @@ class GazeDetectionTestingStep(WizardStep):
         return continue_group
 
     @handle_step_error
-    def _update_test_readiness(self, state: int = 0) -> None:
+    def _update_test_readiness(self, checked: bool = False) -> None:
         """Update test launch button based on readiness with logging."""
         try:
             is_ready = self.setup_check.isChecked()
@@ -240,6 +240,7 @@ class GazeDetectionTestingStep(WizardStep):
         """Launch the gaze detection test with comprehensive error handling."""
         try:
             participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
             username = self.state.get_user_input("username", "")
 
             if not participant_id or not username:
@@ -255,8 +256,11 @@ class GazeDetectionTestingStep(WizardStep):
                     recovery_action="Complete participant setup first",
                 )
 
+            # Combine participant_id and device_id
+            full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
+
             self.logger.info(
-                f"Starting gaze detection test for participant: {participant_id}"
+                f"Starting gaze detection test for participant: {full_participant_id}"
             )
             self.launch_button.setEnabled(False)
             self.test_status_label.setText("🎯 Launching gaze detection test...")
@@ -270,8 +274,8 @@ class GazeDetectionTestingStep(WizardStep):
             command = [
                 f"/home/{username}/py38/bin/python",
                 script_path,
-                participant_id,
-                f"/home/{username}/data",
+                full_participant_id,
+                f"/home/{username}/data/{full_participant_id}_data",
                 "save-image",
                 username,
             ]
@@ -320,7 +324,7 @@ class GazeDetectionTestingStep(WizardStep):
             raise
 
     @handle_step_error
-    def _gaze_working_confirmed(self) -> None:
+    def _gaze_working_confirmed(self, checked: bool = False) -> None:
         """Handle confirmation that gaze detection is working with comprehensive validation."""
         try:
             reply = QMessageBox.question(
@@ -405,7 +409,7 @@ class GazeDetectionTestingStep(WizardStep):
             # Don't raise error - cleanup failure shouldn't block progress
 
     @handle_step_error
-    def _gaze_not_working(self) -> None:
+    def _gaze_not_working(self, checked: bool = False) -> None:
         """Handle gaze detection issues with comprehensive error handling."""
         try:
             self.logger.warning("User reported gaze detection issues")
@@ -446,7 +450,7 @@ class GazeDetectionTestingStep(WizardStep):
             )
 
     @handle_step_error
-    def _show_gaze_help(self) -> None:
+    def _show_gaze_help(self, checked: bool = False) -> None:
         """Show gaze detection troubleshooting help with logging."""
         try:
             self.logger.info("Showing gaze detection help dialog")

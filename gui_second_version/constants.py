@@ -448,14 +448,34 @@ def get_path_for_user(path_template: str, username: str) -> str:
     return path_template.format(username=username)
 
 
-def get_data_path(participant_id: str, username: str) -> str:
-    """Get the data path for a specific participant."""
-    return f"/home/{username}/data/{participant_id}_data"
+def get_data_path(participant_id: str, username: str, device_id: str = "") -> str:
+    """Get the data path for a specific participant.
+    
+    Args:
+        participant_id: Participant ID (e.g., 'P1-3999')
+        username: System username (e.g., 'flashsys028')  
+        device_id: Optional device ID to append (e.g., '028')
+        
+    Returns:
+        Data path in format: /home/{username}/data/{participant_id}{device_id}_data
+    """
+    full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
+    return f"/home/{username}/data/{full_participant_id}_data"
 
 
-def get_faces_path(participant_id: str, username: str) -> str:
-    """Get the faces directory path for a specific participant."""
-    return f"/home/{username}/data/{participant_id}_faces"
+def get_faces_path(participant_id: str, username: str, device_id: str = "") -> str:
+    """Get the faces directory path for a specific participant.
+    
+    Args:
+        participant_id: Participant ID (e.g., 'P1-3999')
+        username: System username (e.g., 'flashsys028')
+        device_id: Optional device ID to append (e.g., '028')
+        
+    Returns:
+        Faces path in format: /home/{username}/data/{participant_id}{device_id}_faces
+    """
+    full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
+    return f"/home/{username}/data/{full_participant_id}_faces"
 
 
 def get_python_path(username: str) -> str:
