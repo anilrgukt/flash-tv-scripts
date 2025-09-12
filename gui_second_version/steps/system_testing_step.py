@@ -133,6 +133,7 @@ class SystemTestingStep(WizardStep):
     def _start_system_test(self) -> None:
         """Start comprehensive system testing with error handling."""
         participant_id = self.state.get_user_input("participant_id", "")
+        device_id = self.state.get_user_input("device_id", "")
         data_path = self.state.get_user_input("data_path", "")
         username = self.state.get_user_input("username", "")
 
@@ -145,6 +146,9 @@ class SystemTestingStep(WizardStep):
                 recovery_action="Complete all previous setup steps",
             )
 
+        # Combine participant_id and device_id
+        full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
+
         self.update_status(StepStatus.AUTOMATION_RUNNING)
         self.start_test_button.setEnabled(False)
         self.progress_bar.setVisible(True)
@@ -155,7 +159,7 @@ class SystemTestingStep(WizardStep):
         self.test_results = {}
 
         self.output_text.append("🧪 Starting comprehensive system testing...")
-        self.output_text.append(f"Participant: {participant_id}")
+        self.output_text.append(f"Participant: {full_participant_id}")
         self.output_text.append(f"Data path: {data_path}")
         self.output_text.append(f"Username: {username}")
 
@@ -178,7 +182,7 @@ class SystemTestingStep(WizardStep):
 
         # Run the system testing script
         script_path = "../runtime_scripts/run_flashtv_system.sh"
-        command = ["bash", script_path, "test", participant_id, data_path]
+        command = ["bash", script_path, "test", full_participant_id, data_path]
 
         process_info = self.process_runner.run_script(
             command=command,

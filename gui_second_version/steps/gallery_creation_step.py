@@ -158,10 +158,13 @@ class GalleryCreationStep(WizardStep):
             
             if participant_id and data_path:
                 # Include device_id in gallery path to match data path format
+                # data_path is already the full data directory (e.g., /home/user/data/P1-3999028_data)
+                # Structure: {data_path}/{participant_id}{device_id}_faces
                 if device_id:
-                    gallery_path = str(Path(data_path) / f"{participant_id}{device_id}_faces")
+                    full_participant_id = f"{participant_id}{device_id}"
                 else:
-                    gallery_path = str(Path(data_path) / f"{participant_id}_faces")
+                    full_participant_id = participant_id
+                gallery_path = str(Path(data_path) / f"{full_participant_id}_faces")
                 self.gallery_path_input.setText(gallery_path)
                 self.state.set_user_input("gallery_path", gallery_path)
                 self.logger.info(f"Auto-generated gallery path: {gallery_path}")
@@ -208,11 +211,12 @@ class GalleryCreationStep(WizardStep):
             self.progress_bar.setVisible(True)
             self.progress_bar.setRange(0, 0)  # Indeterminate progress
 
-            # Construct gallery path with device_id
+            # Construct gallery path with device_id - same structure as in _load_existing_gallery_path
             if device_id:
-                gallery_path = str(Path(data_path) / f"{participant_id}{device_id}_faces")
+                full_participant_id = f"{participant_id}{device_id}"
             else:
-                gallery_path = str(Path(data_path) / f"{participant_id}_faces")
+                full_participant_id = participant_id
+            gallery_path = str(Path(data_path) / f"{full_participant_id}_faces")
             self.gallery_path_input.setText(gallery_path)
             self.state.set_user_input("gallery_path", gallery_path)
 
@@ -233,15 +237,18 @@ class GalleryCreationStep(WizardStep):
             # Run gallery creation script with command-line arguments
             script_path = os.path.expanduser("~/flash-tv-scripts/runtime_scripts/build_gallery.sh")
             
+            # Combine participant_id and device_id for the script
+            full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
+            
             self.gallery_output.append(f"📋 Starting gallery creation...")
-            self.gallery_output.append(f"👤 Participant: {participant_id}")
+            self.gallery_output.append(f"👤 Participant: {full_participant_id}")
             self.gallery_output.append(f"💾 Data path: {data_path}")
             
-            # Pass arguments directly to the script
+            # Pass arguments directly to the script with combined ID
             command = [
                 "bash", 
                 script_path,
-                participant_id,
+                full_participant_id,
                 username,
                 data_path
             ]
@@ -257,8 +264,8 @@ class GalleryCreationStep(WizardStep):
                 self.gallery_output.append("🚀 Gallery creation script launched!")
                 self.gallery_output.append("✋ Please follow the manual steps in the terminal window")
                 self.gallery_output.append("📸 You will be guided to capture face images for each family member")
-                self.gallery_output.append("👥 Capture 5 images each for: parent1, parent2, sib1, sib2, tc1")
-                self.gallery_output.append("ℹ️ The script will open camera windows for you to capture images")
+                self.gallery_output.append("👥 Capture 5 images each for: parent, sib, tc (target child), extra")
+                self.gallery_output.append("💾 Images will be saved directly to the gallery folder with correct naming")
                 self.logger.info("Gallery creation script started successfully")
                 # Monitor process completion in update_ui
             else:
@@ -279,6 +286,8 @@ class GalleryCreationStep(WizardStep):
             self._reset_gallery_creation_ui()
             raise
 
+    # Removed _run_create_faces_script since images are now saved directly to correct location
+    
     @handle_step_error
     def _validate_gallery(self, checked: bool = False) -> None:
         """Validate the gallery structure and contents with comprehensive error handling."""
@@ -310,15 +319,17 @@ class GalleryCreationStep(WizardStep):
 
             # Check for required face categories
             participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
+            full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
             required_faces = Gallery.ROLES
 
             validation_passed = True
             total_images = 0
 
             for face_type in required_faces:
-                # Look for files matching pattern: {participant_id}_{face_type}*.png
+                # Look for files matching pattern: {full_participant_id}_{face_type}*.png
                 face_files = list(
-                    gallery_dir.glob(f"{participant_id}_{face_type}*.png")
+                    gallery_dir.glob(f"{full_participant_id}_{face_type}*.png")
                 )
 
                 if face_files:
@@ -451,10 +462,12 @@ class GalleryCreationStep(WizardStep):
                 status = process_info.get_status()
                 if status == ProcessStatus.COMPLETED:
                     self.logger.info("Gallery creation script completed")
-                    self.gallery_output.append("\n✅ Gallery creation completed successfully!")
+                    self.gallery_output.append("\n✅ Gallery creation completed!")
                     self.gallery_output.append("🔍 Starting automatic validation...")
+                    
+                    # Directly validate the gallery since images are now saved in correct location
+                    self._validate_gallery()
                     self.update_status(StepStatus.USER_ACTION_REQUIRED)
-                    self._validate_gallery()  # Auto-validate after creation
                 elif status == ProcessStatus.FAILED:
                     self.logger.error(f"Gallery creation failed")
                     self.gallery_output.append(f"\n❌ Gallery creation failed")

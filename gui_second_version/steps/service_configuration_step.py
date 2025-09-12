@@ -239,22 +239,26 @@ Services will be configured with your participant and user information.""")
     def _configure_services(self) -> None:
         """Configure system services."""
         participant_id = self.state.get_user_input("participant_id", "")
+        device_id = self.state.get_user_input("device_id", "")
         username = self.state.get_user_input("username", "")
 
         if not all([participant_id, username]):
             self.output_text.append("❌ Missing participant ID or username")
             return
 
+        # Combine participant_id and device_id
+        full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
+
         self.update_status(StepStatus.AUTOMATION_RUNNING)
         self.configure_button.setEnabled(False)
 
         self.output_text.append("🔧 Configuring system services...")
-        self.output_text.append(f"Participant: {participant_id}")
+        self.output_text.append(f"Participant: {full_participant_id}")
         self.output_text.append(f"Username: {username}")
 
-        # Run service configuration script
+        # Run service configuration script with combined ID
         script_path = "../setup_scripts/service_setup.sh"
-        command = ["bash", script_path, participant_id, username]
+        command = ["bash", script_path, full_participant_id, username]
 
         process_info = self.process_runner.run_script(
             command=command,

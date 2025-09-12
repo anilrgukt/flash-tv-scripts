@@ -137,6 +137,16 @@ class POVPictureStep(WizardStep):
             height=30,
         )
         actions_layout.addWidget(self.help_button)
+        
+        # iPad confirmation button - initially hidden
+        self.ipad_confirm_button = self.ui_factory.create_action_button(
+            "✅ I've taken the iPad photo",
+            callback=self._on_ipad_photo_confirmed,
+            style=ButtonStyle.SUCCESS,
+            height=40,
+        )
+        self.ipad_confirm_button.setVisible(False)
+        actions_layout.addWidget(self.ipad_confirm_button)
 
         actions_layout.addStretch()
 
@@ -379,10 +389,10 @@ class POVPictureStep(WizardStep):
             if viewer_launched:
                 self.workflow_step = "fullscreen"
                 self._update_workflow_status("Picture displayed fullscreen - take iPad photo", "success")
-                self.step_details_label.setText("Use your iPad to photograph the computer screen showing this image")
+                self.step_details_label.setText("Use your iPad to photograph the computer screen")
                 
-                # Show confirmation dialog
-                QTimer.singleShot(1000, self._show_ipad_confirmation)
+                # Enable confirmation button in GUI instead of annoying dialog
+                self._enable_ipad_confirmation_button()
                 
             else:
                 raise FlashTVError(
@@ -395,33 +405,36 @@ class POVPictureStep(WizardStep):
             self.logger.error(f"Error displaying image fullscreen: {e}")
             self._handle_display_error(e)
 
-    def _show_ipad_confirmation(self) -> None:
-        """Show dialog to confirm iPad photo was taken."""
+    def _enable_ipad_confirmation_button(self) -> None:
+        """Enable the confirmation button in the GUI."""
         try:
-            reply = QMessageBox.question(
-                self,
-                "iPad Photo Confirmation",
-                "The POV picture is now displayed fullscreen.\n\n"
-                "INSTRUCTIONS:\n"
-                "1. Use your iPad to take a photo of this computer screen\n"
-                "2. Make sure you capture the entire displayed image\n"
-                "3. The iPad photo shows what the TV 'sees'\n\n"
-                "Have you successfully taken the iPad photo?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-
-            if reply == QMessageBox.StandardButton.Yes:
-                self.logger.info("User confirmed iPad photo was taken")
-                self.workflow_step = "confirmed"
-                self._cleanup_and_complete()
-            else:
-                self.logger.info("User needs to retake iPad photo")
-                # Keep fullscreen image open, show confirmation again
-                QTimer.singleShot(5000, self._show_ipad_confirmation)
-                
+            # Add confirmation button to the actions section
+            if not hasattr(self, 'ipad_confirm_button'):
+                self.ipad_confirm_button = self.ui_factory.create_action_button(
+                    "✅ I've taken the iPad photo",
+                    callback=self._on_ipad_photo_confirmed,
+                    style=ButtonStyle.SUCCESS,
+                    height=40,
+                )
+                # Add to the actions layout
+                actions_group = self.findChild(QWidget, "Take POV Picture")
+                if actions_group:
+                    layout = actions_group.layout()
+                    if layout:
+                        # Insert before stretch
+                        layout.insertWidget(2, self.ipad_confirm_button)
+            
+            self.ipad_confirm_button.setEnabled(True)
+            self.ipad_confirm_button.setVisible(True)
+            
         except Exception as e:
-            self.logger.error(f"Error showing iPad confirmation: {e}")
-            self._handle_display_error(e)
+            self.logger.error(f"Error enabling confirmation button: {e}")
+    
+    def _on_ipad_photo_confirmed(self, checked: bool = False) -> None:
+        """Handle iPad photo confirmation from GUI button."""
+        self.logger.info("User confirmed iPad photo was taken")
+        self.workflow_step = "confirmed"
+        self._cleanup_and_complete()
 
     def _cleanup_and_complete(self) -> None:
         """Clean up processes and files, then complete the step."""

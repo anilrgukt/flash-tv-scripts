@@ -187,7 +187,20 @@ class LogFileVerificationStep(WizardStep):
         """Run the log file generation test with comprehensive error handling."""
         try:
             participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
             username = self.state.get_user_input("username", "")
+            
+            # Debug logging
+            self.logger.info(f"Retrieved from state - participant_id: '{participant_id}', device_id: '{device_id}', username: '{username}'")
+            
+            # Combine participant_id and device_id (handle empty/None device_id)
+            if device_id:
+                full_participant_id = f"{participant_id}{device_id}"
+            else:
+                full_participant_id = participant_id
+                self.logger.warning(f"Device ID is empty/None - using only participant_id: '{participant_id}'")
+            
+            self.logger.info(f"Constructed full_participant_id: '{full_participant_id}'")
 
             if not participant_id or not username:
                 self.logger.error("Missing participant ID or username for log test")
@@ -218,8 +231,8 @@ class LogFileVerificationStep(WizardStep):
             command = [
                 f"/home/{username}/py38/bin/python",
                 script_path,
-                participant_id,
-                f"/home/{username}/data",
+                full_participant_id,
+                f"/home/{username}/data/{full_participant_id}_data",
                 "save-image",
                 username,
             ]
@@ -227,7 +240,7 @@ class LogFileVerificationStep(WizardStep):
             # Launch the test process
             process_info = self.process_runner.run_script(
                 command=command,
-                description=f"Log file test for {participant_id}",
+                description=f"Log file test for {full_participant_id}",
                 working_dir=working_dir,
                 process_name="log_test",
             )
@@ -289,7 +302,20 @@ class LogFileVerificationStep(WizardStep):
         """Analyze generated log files with comprehensive error handling."""
         try:
             participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
             username = self.state.get_user_input("username", "")
+            
+            # Debug logging
+            self.logger.info(f"Retrieved from state for analysis - participant_id: '{participant_id}', device_id: '{device_id}', username: '{username}'")
+            
+            # Combine participant_id and device_id (handle empty/None device_id)
+            if device_id:
+                full_participant_id = f"{participant_id}{device_id}"
+            else:
+                full_participant_id = participant_id
+                self.logger.warning(f"Device ID is empty/None for analysis - using only participant_id: '{participant_id}'")
+            
+            self.logger.info(f"Constructed full_participant_id for analysis: '{full_participant_id}'")
 
             if not participant_id or not username:
                 self.logger.warning(
@@ -297,9 +323,9 @@ class LogFileVerificationStep(WizardStep):
                 )
                 return
 
-            self.logger.info(f"Analyzing log files for participant: {participant_id}")
+            self.logger.info(f"Analyzing log files for participant: {full_participant_id}")
 
-            data_path = f"/home/{username}/data/{participant_id}_data"
+            data_path = f"/home/{username}/data/{full_participant_id}_data"
 
             if not os.path.exists(data_path):
                 self.logger.error(f"Data directory not found: {data_path}")
@@ -314,7 +340,7 @@ class LogFileVerificationStep(WizardStep):
             # Look for log files
             log_files = []
             for file in os.listdir(data_path):
-                if file.startswith(f"{participant_id}_flash_log") and file.endswith(
+                if file.startswith(f"{full_participant_id}_flash_log") and file.endswith(
                     ".txt"
                 ):
                     log_files.append(file)
@@ -485,7 +511,15 @@ class LogFileVerificationStep(WizardStep):
         """Clean up test data files with error handling."""
         try:
             participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
             username = self.state.get_user_input("username", "")
+            
+            # Combine participant_id and device_id (handle empty/None device_id)
+            if device_id:
+                full_participant_id = f"{participant_id}{device_id}"
+            else:
+                full_participant_id = participant_id
+                self.logger.warning(f"Device ID is empty/None for cleanup - using only participant_id: '{participant_id}'")
 
             if participant_id and username:
                 self.output_text.append("\n🧹 Cleaning up test data...")

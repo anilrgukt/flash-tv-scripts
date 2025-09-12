@@ -231,9 +231,9 @@ def save_selected_face(img, face_num):
         category_map = {"TC": "tc", "Sib": "sib", "Parent": "parent", "Extra": "extra"}
         category = category_map[show_face]
 
-        # Save face with proper naming convention
+        # Save face with proper naming convention directly to main faces folder
         filename = f"{participant_id}_{category}{face_num + 1}.png"
-        output_path = os.path.join(imsave_dir, category + "_selected", filename)
+        output_path = os.path.join(imsave_dir, filename)  # Save directly to main folder
 
         cv2.imwrite(output_path, face)
 
@@ -608,10 +608,17 @@ frm_counter = 0
 p1 = th.Thread(target=frame_write, args=(q, frm_counter, yolo_model))
 p1.start()
 
+# Note: participant_id here already includes device_id if present (e.g., "P1-3999001")
 participant_id = sys.argv[1]
-save_path = sys.argv[2]
+save_path = sys.argv[2]  # This is the full data directory path from GUI (e.g., /home/user/data/P1-3999028_data)
 
-imsave_dir = os.path.join(save_path, str(participant_id) + "_face_crops")
+# Create directories inside the data directory path
+# save_path is already the full data directory (e.g., /home/user/data/P1-3999028_data)
+if not os.path.exists(save_path):
+    os.makedirs(save_path)
+
+# Using participant_id which already includes device_id from GUI
+imsave_dir = os.path.join(save_path, str(participant_id) + "_faces")  # Gallery inside data directory
 if not os.path.exists(imsave_dir):
     os.makedirs(imsave_dir)
 
@@ -619,15 +626,8 @@ frmsave_dir = os.path.join(save_path, str(participant_id) + "_face_frames")
 if not os.path.exists(frmsave_dir):
     os.makedirs(frmsave_dir)
 
-for idx in ["tc", "sib", "parent", "extra"]:
-    tmp_path = os.path.join(imsave_dir, idx)
-    tmp_path2 = os.path.join(imsave_dir, idx + "_selected")
-
-    if not os.path.exists(tmp_path):
-        os.makedirs(tmp_path)
-
-    if not os.path.exists(tmp_path2):
-        os.makedirs(tmp_path2)
+# Images are now saved directly to the main faces folder with correct naming
+# No need for separate category folders anymore
 
 show_face = None
 sub_count = {"TC": 0, "Sib": 0, "Parent": 0, "Extra": 0}
