@@ -266,10 +266,12 @@ class GazeDetectionTestingStep(WizardStep):
             self.test_status_label.setText("🎯 Launching gaze detection test...")
             self.update_status(StepStatus.AUTOMATION_RUNNING)
 
-            # Prepare command for gaze test
-            # Use expanduser to get the correct path relative to home directory
-            script_path = os.path.expanduser("~/flash-tv-scripts/python_scripts/run_flash_demo_live.py")
-            working_dir = os.path.expanduser("~/flash-tv-scripts/python_scripts")
+            # Prepare command for gaze test - use the new real-time testing script
+            script_path = os.path.join(
+                os.path.dirname(os.getcwd()),
+                "python_scripts",
+                "run_flash_gaze_test.py",
+            )
 
             command = [
                 f"/home/{username}/py38/bin/python",
@@ -283,8 +285,8 @@ class GazeDetectionTestingStep(WizardStep):
             # Launch the gaze test process
             process_info = self.process_runner.run_script(
                 command=command,
-                description=f"Gaze detection test for {participant_id}",
-                working_dir=working_dir,
+                description=f"Gaze detection test for {full_participant_id}",
+                working_dir=os.path.dirname(script_path),
                 process_name="gaze_test",
             )
 

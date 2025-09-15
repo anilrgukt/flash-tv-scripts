@@ -87,7 +87,7 @@ class TimeSyncStep(WizardStep):
         return details_group
 
     def _create_actions_section(self) -> QWidget:
-        """Create the time synchronization actions section with ALL buttons in correct order."""
+        """Create the time synchronization actions section with optimized button layout."""
         actions_group, actions_layout = self.ui_factory.create_group_box(
             "Time Synchronization Actions"
         )
@@ -106,23 +106,28 @@ class TimeSyncStep(WizardStep):
         # Add spacing
         actions_layout.addSpacing(10)
 
+        # Row 1: NTP and Manual time buttons (1 & 2)
+        time_buttons_layout = self.ui_factory.create_horizontal_layout(spacing=10)
+        
         # 1. NTP Synchronize time button (PRIMARY - FIRST)
         self.sync_button = self.ui_factory.create_action_button(
-            "1️⃣ 🌐 Synchronize with Network Time (NTP) - RECOMMENDED",
+            "1️⃣ 🌐 Synchronize with Network Time (NTP)",
             callback=self._synchronize_time,
             style=ButtonStyle.PRIMARY,
             height=40,
         )
-        actions_layout.addWidget(self.sync_button)
+        time_buttons_layout.addWidget(self.sync_button)
 
         # 2. Manual time setting button (BACKUP - SECOND)
         self.manual_time_button = self.ui_factory.create_action_button(
             "2️⃣ 📅 Manually Set Time (Backup Option)",
             callback=self._set_time_manually,
             style=ButtonStyle.SECONDARY,
-            height=35,
+            height=40,
         )
-        actions_layout.addWidget(self.manual_time_button)
+        time_buttons_layout.addWidget(self.manual_time_button)
+        
+        actions_layout.addLayout(time_buttons_layout)
         
         # Add spacing for RTC operations
         actions_layout.addSpacing(15)
@@ -132,6 +137,9 @@ class TimeSyncStep(WizardStep):
         rtc_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
         actions_layout.addWidget(rtc_label)
 
+        # Row 2: RTC operation buttons (3, 4 & 5)
+        rtc_buttons_layout = self.ui_factory.create_horizontal_layout(spacing=10)
+
         # 3. Set RTC button
         self.set_external_rtc_button = self.ui_factory.create_action_button(
             "3️⃣ Set External RTC to System Time",
@@ -139,7 +147,7 @@ class TimeSyncStep(WizardStep):
             style=ButtonStyle.SECONDARY,
             height=35,
         )
-        actions_layout.addWidget(self.set_external_rtc_button)
+        rtc_buttons_layout.addWidget(self.set_external_rtc_button)
 
         # 4. Check RTC status button
         self.check_rtc_button = self.ui_factory.create_action_button(
@@ -148,7 +156,7 @@ class TimeSyncStep(WizardStep):
             style=ButtonStyle.SECONDARY,
             height=35,
         )
-        actions_layout.addWidget(self.check_rtc_button)
+        rtc_buttons_layout.addWidget(self.check_rtc_button)
 
         # 5. Sync from RTC button
         self.sync_from_external_rtc_button = self.ui_factory.create_action_button(
@@ -158,7 +166,9 @@ class TimeSyncStep(WizardStep):
             height=35,
             enabled=False,
         )
-        actions_layout.addWidget(self.sync_from_external_rtc_button)
+        rtc_buttons_layout.addWidget(self.sync_from_external_rtc_button)
+
+        actions_layout.addLayout(rtc_buttons_layout)
 
         return actions_group
 

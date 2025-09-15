@@ -187,14 +187,8 @@ class SmartPlugVerifyStep(WizardStep):
         try:
             self.logger.info("Starting browser automation for smart plug verification")
 
-            home_assistant_url = self.state.get_user_input("home_assistant_url", "")
-
-            if not home_assistant_url or home_assistant_url == "SKIPPED":
-                self.logger.info(
-                    "Home Assistant integration was skipped, offering manual verification"
-                )
-                self._offer_manual_verification()
-                return
+            # Use standard Home Assistant URL - it's always localhost:8123/history
+            home_assistant_url = "http://localhost:8123/history"
 
             self.launch_browser_button.setEnabled(False)
             self.output_text.append("🚀 Launching browser automation...")
@@ -240,22 +234,6 @@ class SmartPlugVerifyStep(WizardStep):
         finally:
             self.launch_browser_button.setEnabled(True)
 
-    def _offer_manual_verification(self) -> None:
-        """Offer manual verification when Home Assistant is skipped."""
-        reply = QMessageBox.question(
-            self,
-            "Manual Verification",
-            "Home Assistant integration was skipped.\n\n"
-            "Do you want to manually verify the smart plug is working?\n"
-            "(You'll need to confirm the TV power can be monitored)",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-
-        if reply == QMessageBox.StandardButton.Yes:
-            self.logger.info("User chose manual verification mode")
-            self._enable_manual_verification()
-        else:
-            self.logger.info("User cancelled manual verification")
 
     @handle_step_error
     def _enable_manual_verification(self) -> None:
