@@ -20,7 +20,6 @@ from steps.wifi_connection_step import WiFiConnectionStep
 
 __all__ = [
     "CameraSetupStep",
-    "CameraSetupStep",
     "CordCheckingStep",
     "DeviceLockingStep",
     "GalleryCreationStep",

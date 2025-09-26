@@ -20,7 +20,7 @@ from steps.gallery_creation_step import GalleryCreationStep
 from steps.gaze_detection_testing_step import GazeDetectionTestingStep
 from steps.log_file_verification_step import LogFileVerificationStep
 from steps.cord_checking_step import CordCheckingStep
-from steps.screen_locking_step import ScreenLockingStep
+from steps.device_locking_step import DeviceLockingStep
 
 
 class StepFactory:
@@ -154,10 +154,7 @@ class StepFactory:
         ]
 
     @staticmethod
-    def create_step_instance(
-        step_definition: StepDefinition, state: WizardState, process_runner, 
-        state_manager=None, parent=None
-    ) -> WizardStep:
+    def create_step_instance(step_definition: StepDefinition, state: WizardState, process_runner, state_manager=None, parent=None) -> WizardStep:
         """Create a step instance based on the step definition."""
 
         # Map step IDs to their implementation classes
@@ -173,7 +170,7 @@ class StepFactory:
             9: GazeDetectionTestingStep,
             10: LogFileVerificationStep,
             11: CordCheckingStep,
-            12: ScreenLockingStep,
+            12: DeviceLockingStep,
         }
 
         step_class = step_classes.get(step_definition.step_id)
@@ -196,9 +193,7 @@ class GenericWizardStep(WizardStep):
         layout = QVBoxLayout(content)
 
         # Placeholder message
-        message = QLabel(
-            f"Step {self.step_definition.step_id} implementation is in progress."
-        )
+        message = QLabel(f"Step {self.step_definition.step_id} implementation is in progress.")
         message.setStyleSheet("color: #666; font-style: italic; padding: 20px;")
         layout.addWidget(message)
 
