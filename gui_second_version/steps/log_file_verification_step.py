@@ -143,10 +143,10 @@ class LogFileVerificationStep(WizardStep):
         # Service info
         service_info = self.ui_factory.create_label(
             "Services to be started:\n"
-            "• FLASH-TV data collection service\n"
-            "• Log monitoring and error detection\n"
-            "• Periodic restart service (if configured)\n\n"
-            "Data collection will begin immediately after service startup."
+            "• flash-run-on-boot.service (systemd)\n"
+            "• flash-periodic-restart.service (systemd)\n"
+            "• Home Assistant Docker container\n\n"
+            "These manage FLASH-TV data collection and restarts."
         )
         service_layout.addWidget(service_info)
 
@@ -211,50 +211,38 @@ class LogFileVerificationStep(WizardStep):
 
     @handle_step_error
     def _start_services(self, checked: bool = False) -> None:
-        """Start FLASH-TV services."""
+        """Start FLASH-TV services using the actual service scripts."""
         try:
-            participant_id = self.state.get_user_input("participant_id", "")
-            device_id = self.state.get_user_input("device_id", "")
             username = self.state.get_user_input("username", "")
 
-            if not participant_id or not username:
+            if not username:
                 raise FlashTVError(
-                    "Missing participant ID or username",
+                    "Missing username",
                     ErrorType.VALIDATION_ERROR,
                     recovery_action="Complete participant setup first"
                 )
 
-            full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
-
-            self.logger.info(f"Starting FLASH-TV services for participant: {full_participant_id}")
+            self.logger.info("Starting FLASH-TV systemd services")
 
             self.start_services_button.setEnabled(False)
-            self.service_status_label.setText("🚀 Starting services...")
+            self.service_status_label.setText("Starting services...")
             self.update_status(StepStatus.AUTOMATION_RUNNING)
 
-            # Start the main data collection service using the same script as data collection
-            script_path = f"/home/{username}/flash-tv-scripts/python_scripts/run_flash_data_collection.py"
+            # Use the actual start_services.sh script
+            script_path = f"/home/{username}/flash-tv-scripts/services/start_services.sh"
 
-            command = [
-                f"/home/{username}/py38/bin/python",
-                script_path,
-                full_participant_id,
-                f"/home/{username}/data/{full_participant_id}_data",
-                "save-image",
-                username,
-            ]
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Running start_services.sh...")
 
-            # Launch the service process
-            process_info = self.process_runner.run_script(
-                command=command,
-                description=f"FLASH-TV service for {full_participant_id}",
-                working_dir=f"/home/{username}/flash-tv-scripts/python_scripts",
-                process_name="flash_service",
+            # Run the service start script (it completes quickly, then services run independently)
+            result = self.process_runner.run_command(
+                ["bash", script_path],
+                working_dir=f"/home/{username}/flash-tv-scripts/services",
+                timeout_ms=60000,  # 1 minute should be enough for script to complete
             )
 
-            if process_info:
+            if result and result.returncode == 0:
                 self.service_running = True
-                self.service_status_label.setText("✅ FLASH-TV services running")
+                self.service_status_label.setText("FLASH-TV services running")
                 self.stop_services_button.setEnabled(True)
                 self.restart_services_button.setEnabled(True)
 
@@ -262,65 +250,95 @@ class LogFileVerificationStep(WizardStep):
                 self._start_log_monitoring()
 
                 self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Services started successfully")
-                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Data collection active for {full_participant_id}")
+                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Systemd services and Docker containers are now running")
 
-                # Enable verification after a brief startup period
-                QTimer.singleShot(5000, lambda: self.services_working_button.setEnabled(True))
-                QTimer.singleShot(5000, lambda: self.services_issue_button.setEnabled(True))
+                # Show script output if available
+                if result.stdout:
+                    self.log_output.append(f"Script output: {result.stdout}")
+
+                # Enable verification immediately since services are now started
+                self.services_working_button.setEnabled(True)
+                self.services_issue_button.setEnabled(True)
 
                 self.logger.info("FLASH-TV services started successfully")
             else:
+                error_msg = result.stderr if result else "Script execution failed"
+                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Service start failed: {error_msg}")
                 raise FlashTVError(
-                    "Failed to start FLASH-TV services",
+                    f"Failed to start FLASH-TV services: {error_msg}",
                     ErrorType.PROCESS_ERROR,
-                    recovery_action="Check permissions and script path"
+                    recovery_action="Check service script permissions and systemd status"
                 )
 
         except Exception as e:
             self.logger.error(f"Error starting services: {e}")
             self.start_services_button.setEnabled(True)
-            self.service_status_label.setText("❌ Failed to start services")
+            self.service_status_label.setText("Failed to start services")
             self.update_status(StepStatus.FAILED)
             raise
 
     @handle_step_error
     def _stop_services(self, checked: bool = False) -> None:
-        """Stop FLASH-TV services."""
+        """Stop FLASH-TV services using the actual service scripts."""
         try:
-            self.logger.info("Stopping FLASH-TV services")
+            username = self.state.get_user_input("username", "")
+            self.logger.info("Stopping FLASH-TV systemd services")
 
             # Stop log monitoring
             self._stop_log_monitoring()
 
-            # Stop the service process
-            process_info = self.state.get_process("flash_service")
-            if process_info and process_info.is_running():
-                self.process_runner.terminate_process("flash_service")
+            # Use the actual stop_services.sh script
+            script_path = f"/home/{username}/flash-tv-scripts/services/stop_services.sh"
+
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Running stop_services.sh...")
+
+            # Run the service stop script
+            result = self.process_runner.run_command(
+                ["bash", script_path],
+                working_dir=f"/home/{username}/flash-tv-scripts/services",
+                timeout_ms=60000,  # 1 minute should be enough
+            )
 
             self.service_running = False
-            self.service_status_label.setText("🛑 Services stopped")
+            self.service_status_label.setText("Services stopped")
             self.start_services_button.setEnabled(True)
             self.stop_services_button.setEnabled(False)
             self.restart_services_button.setEnabled(False)
 
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Services stopped")
-            self.logger.info("FLASH-TV services stopped")
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Stop services script executed")
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Stopping systemd services and Docker containers")
+            self.logger.info("FLASH-TV service stop script executed")
 
         except Exception as e:
             self.logger.error(f"Error stopping services: {e}")
             raise FlashTVError(
                 f"Failed to stop services: {e}",
                 ErrorType.PROCESS_ERROR,
-                recovery_action="Try using system service commands"
+                recovery_action="Try manual systemctl commands"
             )
 
     @handle_step_error
     def _restart_services(self, checked: bool = False) -> None:
-        """Restart FLASH-TV services."""
+        """Restart FLASH-TV services using the actual service scripts."""
         try:
-            self.logger.info("Restarting FLASH-TV services")
-            self._stop_services()
-            QTimer.singleShot(2000, self._start_services)  # Wait 2 seconds before restart
+            username = self.state.get_user_input("username", "")
+            self.logger.info("Restarting FLASH-TV systemd services")
+
+            # Use the actual restart_services.sh script
+            script_path = f"/home/{username}/flash-tv-scripts/services/restart_services.sh"
+
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Running restart_services.sh...")
+
+            # Run the service restart script
+            result = self.process_runner.run_command(
+                ["bash", script_path],
+                working_dir=f"/home/{username}/flash-tv-scripts/services",
+                timeout_ms=90000,  # 1.5 minutes for restart
+            )
+
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Restart services script executed")
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Restarting systemd services and Docker containers")
+            self.logger.info("FLASH-TV service restart script executed")
 
         except Exception as e:
             self.logger.error(f"Error restarting services: {e}")
@@ -534,18 +552,7 @@ class LogFileVerificationStep(WizardStep):
     def update_ui(self) -> None:
         """Update UI elements periodically."""
         super().update_ui()
-
-        # Check service process status
-        process_info = self.state.get_process("flash_service")
-        if process_info and not process_info.is_running() and self.service_running:
-            self.service_running = False
-            self.service_status_label.setText("❌ Service stopped unexpectedly")
-            self.start_services_button.setEnabled(True)
-            self.stop_services_button.setEnabled(False)
-            self.restart_services_button.setEnabled(False)
-
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Service stopped unexpectedly")
-            self.error_list.addItem(QListWidgetItem("Service stopped unexpectedly"))
+        # Services are managed by systemd, no need to monitor processes
 
     def _cleanup_step_resources(self) -> None:
         """Clean up step-specific resources."""

@@ -88,25 +88,44 @@ def process_frame(frame_rgb, bbox_list, flash_tv, loc_lims, num_locs, current_ti
                     arrow_color = None  # Will draw blue manually
                 
                 # Draw the gaze arrow with color coding
-                if looking_at_tv:
-                    # GREEN arrow for looking at TV
-                    display_frame, _ = draw_gz(
+                try:
+                    # Ensure gaze data has correct shape for draw_gz
+                    if combined_gaze.shape[-1] == 2:
+                        # Add a dummy third dimension (confidence) if missing
+                        gaze_for_drawing = np.concatenate([combined_gaze, np.ones((combined_gaze.shape[0], 1))], axis=1)
+                    else:
+                        gaze_for_drawing = combined_gaze
+
+                    if looking_at_tv:
+                        # GREEN arrow for looking at TV
+                        display_frame, _ = draw_gz(
+                            frame_rgb,
+                            gaze_for_drawing.reshape(1, 3),
+                            tc_bbox,
+                            save_path=None,
+                            gz_label=1,  # Green arrow
+                            write_img=False,
+                            scale=[480, 854]
+                        )
+                    else:
+                        # BLUE arrow for gaze detected but not looking at TV
+                        display_frame, _ = draw_gz(
+                            frame_rgb,
+                            gaze_for_drawing.reshape(1, 3),
+                            tc_bbox,
+                            save_path=None,
+                            gz_label=None,  # This will draw with default blue color
+                            write_img=False,
+                            scale=[480, 854]
+                        )
+                except Exception as draw_error:
+                    print(f"Warning: Could not draw gaze arrow: {draw_error}")
+                    # Fallback to just showing the detection box
+                    display_frame = draw_rect_ver(
                         frame_rgb,
-                        combined_gaze.reshape(1, 3),
-                        tc_bbox,
+                        bbox_list,
+                        None,
                         save_path=None,
-                        gz_label=1,  # Green arrow
-                        write_img=False,
-                        scale=[480, 854]
-                    )
-                else:
-                    # BLUE arrow for gaze detected but not looking at TV
-                    display_frame, _ = draw_gz(
-                        frame_rgb,
-                        combined_gaze.reshape(1, 3),
-                        tc_bbox,
-                        save_path=None,
-                        gz_label=None,  # This will draw with default blue color
                         write_img=False,
                         scale=[480, 854]
                     )
@@ -341,40 +360,50 @@ def main():
                 if not ret:
                     print("Failed to capture frame from camera")
                     break
-                
+
                 frame_count += 1
                 current_time = datetime.now()
-                
-                # Convert BGR to RGB for processing
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                
-                # Step 1: Face Detection
-                bbox_list = flash_tv.run_detector(frame)
-                
-                # Process frame and create display
-                display_frame_bgr, status_text = process_frame(
-                    frame_rgb, bbox_list, flash_tv, loc_lims, num_locs, current_time, frame_count
-                )
-                
-                # Save frame to buffer
-                frame_data = {
-                    'frame_count': frame_count,
-                    'timestamp': current_time,
-                    'display_frame': display_frame_bgr.copy(),
-                    'status': status_text,
-                    'raw_frame': frame.copy(),
-                    'bbox_list': bbox_list
-                }
-                
-                frame_buffer.append(frame_data)
-                
-                # Limit buffer size
-                if len(frame_buffer) > max_buffer_size:
-                    frame_buffer.pop(0)
-                
-                # Add live streaming indicator
-                cv2.putText(display_frame_bgr, "LIVE", (10, 150), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+                try:
+                    # Convert BGR to RGB for processing
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                    # Step 1: Face Detection
+                    bbox_list = flash_tv.run_detector(frame)
+
+                    # Process frame and create display
+                    display_frame_bgr, status_text = process_frame(
+                        frame_rgb, bbox_list, flash_tv, loc_lims, num_locs, current_time, frame_count
+                    )
+
+                    # Save frame to buffer
+                    frame_data = {
+                        'frame_count': frame_count,
+                        'timestamp': current_time,
+                        'display_frame': display_frame_bgr.copy(),
+                        'status': status_text,
+                        'raw_frame': frame.copy(),
+                        'bbox_list': bbox_list
+                    }
+
+                    frame_buffer.append(frame_data)
+
+                    # Limit buffer size
+                    if len(frame_buffer) > max_buffer_size:
+                        frame_buffer.pop(0)
+
+                    # Add live streaming indicator
+                    cv2.putText(display_frame_bgr, "LIVE", (10, 150),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+                except Exception as frame_error:
+                    print(f"Warning: Error processing frame {frame_count}: {frame_error}")
+                    # Continue with a fallback display
+                    display_frame_bgr = cv2.resize(frame, (854, 480))
+                    cv2.putText(display_frame_bgr, f"PROCESSING ERROR - Frame {frame_count}", (10, 30),
+                               cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                    cv2.putText(display_frame_bgr, "LIVE", (10, 150),
+                               cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
             else:
                 # Skip if paused and no buffered frame to show
                 continue
