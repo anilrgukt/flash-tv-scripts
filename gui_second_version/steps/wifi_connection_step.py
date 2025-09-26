@@ -146,7 +146,6 @@ class WiFiConnectionStep(WizardStep):
             for cmd in commands_to_try:
                 try:
                     # Use subprocess.Popen directly to run in background
-                    import subprocess
                     subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
                     success = True
                     self.logger.info(f"Successfully opened network settings using: {' '.join(cmd)}")

@@ -235,7 +235,7 @@ class GalleryCreationStep(WizardStep):
             )
 
             # Run gallery creation script with command-line arguments
-            script_path = os.path.expanduser("~/flash-tv-scripts/runtime_scripts/build_gallery.sh")
+            script_path = f"/home/{username}/flash-tv-scripts/runtime_scripts/build_gallery.sh"
             
             # Combine participant_id and device_id for the script
             full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id

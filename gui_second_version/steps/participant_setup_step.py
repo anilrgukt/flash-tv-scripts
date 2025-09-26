@@ -210,6 +210,22 @@ class ParticipantSetupStep(WizardStep):
         self.participant_id_input.setStyleSheet("padding: 8px; font-size: 14px;")
         participant_layout.addWidget(self.participant_id_input)
 
+        participant_layout.addSpacing(15)
+
+        # Sudo password label and input
+        sudo_password_label = self.ui_factory.create_label("Sudo Password:")
+        sudo_password_label.setStyleSheet("font-weight: bold; margin-top: 8px;")
+        participant_layout.addWidget(sudo_password_label)
+
+        # Create sudo password input field
+        self.sudo_password_input = self.ui_factory.create_input_field(
+            "Enter sudo password for system operations..."
+        )
+        self.sudo_password_input.setEchoMode(self.sudo_password_input.EchoMode.Password)
+        self.sudo_password_input.textChanged.connect(self._on_sudo_password_changed)
+        self.sudo_password_input.setStyleSheet("padding: 8px; font-size: 14px;")
+        participant_layout.addWidget(self.sudo_password_input)
+
         # Add spacing
         participant_layout.addStretch()
 
@@ -297,9 +313,12 @@ class ParticipantSetupStep(WizardStep):
     def _load_existing_values(self) -> None:
         """Load existing values from state with error handling."""
         try:
-            # Only load participant ID from state - device info is auto-detected
+            # Load participant ID and sudo password from state - device info is auto-detected
             self.participant_id_input.setText(
                 self.state.get_user_input("participant_id", "")
+            )
+            self.sudo_password_input.setText(
+                self.state.get_user_input("sudo_password", "")
             )
 
             # Set auto-detected values in state if available
@@ -366,6 +385,17 @@ class ParticipantSetupStep(WizardStep):
         self._validate_and_update_ui()
 
     @handle_step_error
+    def _on_sudo_password_changed(self, text: str) -> None:
+        """Handle sudo password input changes."""
+        sudo_password = text.strip()
+        self.state.set_user_input("sudo_password", sudo_password)
+
+        # Persist state
+        if self.state_manager:
+            self.state_manager.save_state(self.state)
+        self._validate_and_update_ui()
+
+    @handle_step_error
     def _validate_and_update_ui(self) -> None:
         """Validate inputs and update UI state.
         
@@ -377,12 +407,13 @@ class ParticipantSetupStep(WizardStep):
             # Run validation
             is_valid, errors = self.validate_inputs()
             
-            # Check requirements: participant_id format and auto-detection success
+            # Check requirements: participant_id format, auto-detection success, and sudo password
             participant_id = self.state.get_user_input("participant_id", "").strip()
+            sudo_password = self.state.get_user_input("sudo_password", "").strip()
             has_detection = self._device_id and self._username and not self._detection_error
-            
+
             # All requirements met
-            all_requirements_met = bool(participant_id and has_detection and is_valid)
+            all_requirements_met = bool(participant_id and sudo_password and has_detection and is_valid)
 
             # Display validation results
             if errors:
@@ -468,17 +499,18 @@ class ParticipantSetupStep(WizardStep):
             )
 
     def validate_inputs(self) -> Tuple[bool, list[str]]:
-        """Validate participant_id format and auto-detection success.
-        
-        Only validates:
+        """Validate participant_id format, sudo password, and auto-detection success.
+
+        Validates:
         1. Participant ID format (P1-XXXX or ES-XXXX)
-        2. Auto-detection succeeded (device_id and username available)
-        
+        2. Sudo password is provided
+        3. Auto-detection succeeded (device_id and username available)
+
         Returns:
             tuple: (is_valid, list_of_error_messages)
         """
         errors = []
-        
+
         try:
             # 1. Validate participant ID format
             participant_id = self.state.get_user_input("participant_id", "").strip()
@@ -486,8 +518,13 @@ class ParticipantSetupStep(WizardStep):
                 errors.append("Participant ID is required")
             elif not re.match(Patterns.PARTICIPANT_ID, participant_id):
                 errors.append("Participant ID must be in format P1-XXXX or ES-XXXX (e.g., P1-0123, ES-0456)")
-            
-            # 2. Ensure auto-detection succeeded
+
+            # 2. Validate sudo password
+            sudo_password = self.state.get_user_input("sudo_password", "").strip()
+            if not sudo_password:
+                errors.append("Sudo password is required for system operations")
+
+            # 3. Ensure auto-detection succeeded
             if self._detection_error:
                 errors.append(f"Auto-detection failed: {self._detection_error}")
             elif not (self._device_id and self._username):

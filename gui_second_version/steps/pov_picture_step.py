@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from PyQt6.QtWidgets import QWidget, QMessageBox
+from PyQt6.QtWidgets import QWidget, QMessageBox, QGroupBox
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal
 
 from core import WizardStep
@@ -417,7 +417,7 @@ class POVPictureStep(WizardStep):
                     height=40,
                 )
                 # Add to the actions layout
-                actions_group = self.findChild(QWidget, "Take POV Picture")
+                actions_group = self.findChild(QGroupBox, "Take POV Picture")
                 if actions_group:
                     layout = actions_group.layout()
                     if layout:

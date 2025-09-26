@@ -137,7 +137,18 @@ def check_all_datetimes() -> None:
 
 def set_datetime_from_external_rtc(bus: SMBus) -> None:
     success_message = "The system time was set from the external RTC"
-    command = ["sudo", "timedatectl", "set-time", convert_external_RTC_datetime_format_to_timedatectl_format(bus=bus)]
+
+    # Get time string from external RTC
+    time_string = convert_external_RTC_datetime_format_to_timedatectl_format(bus=bus)
+
+    # Check if we got a valid time string (format: YYYY-MM-DD HH:MM:SS)
+    # If it's an error message, it won't match this pattern
+    import re
+    if not re.match(r'^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$', time_string):
+        # This is an error message, not a valid time string
+        raise Exception(f"External RTC returned invalid time: {time_string}")
+
+    command = ["sudo", "timedatectl", "set-time", time_string]
     run_command_and_raise_exceptions(command, "Failed to set time from external RTC", success_message)
 
 

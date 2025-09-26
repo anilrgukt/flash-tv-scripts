@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import subprocess
-
 from core import WizardStep
 from models import StepStatus
 from PyQt6.QtWidgets import (
@@ -201,7 +199,7 @@ class DeviceLockingStep(WizardStep):
         """Enable automatic device lock after 5 minutes."""
         try:
             # Set device to lock after 5 minutes of inactivity
-            subprocess.run(
+            result1 = self.process_runner.run_command(
                 [
                     "gsettings",
                     "set",
@@ -209,10 +207,10 @@ class DeviceLockingStep(WizardStep):
                     "lock-delay",
                     "uint32 300",
                 ],
-                check=True,
+                timeout_ms=5000
             )
 
-            subprocess.run(
+            result2 = self.process_runner.run_command(
                 [
                     "gsettings",
                     "set",
@@ -220,8 +218,12 @@ class DeviceLockingStep(WizardStep):
                     "lock-enabled",
                     "true",
                 ],
-                check=True,
+                timeout_ms=5000
             )
+
+            # Check if both commands succeeded
+            if not (result1 and result1.returncode == 0 and result2 and result2.returncode == 0):
+                raise Exception("gsettings commands failed")
 
             QMessageBox.information(
                 self,
@@ -231,7 +233,8 @@ class DeviceLockingStep(WizardStep):
 
             self._mark_setup_complete()
 
-        except subprocess.CalledProcessError:
+        except Exception as e:
+            self.logger.error(f"Auto-lock configuration failed: {e}")
             QMessageBox.warning(
                 self,
                 "Auto-Lock Failed",

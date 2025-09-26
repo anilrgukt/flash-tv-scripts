@@ -273,6 +273,17 @@ class ProcessRunner:
                 self._sudo_password = None
                 return False
 
+    def set_sudo_password_from_state(self) -> bool:
+        """Set sudo password from the wizard state instead of prompting."""
+        sudo_password = self.state.get_user_input("sudo_password", "").strip()
+        if sudo_password:
+            with self._password_lock:
+                self._sudo_password = sudo_password
+                self._sudo_password_time = time.time()
+                self.logger.info("Sudo password loaded from state")
+            return True
+        return False
+
     def _monitor_processes(self) -> None:
         """Monitor running processes and clean up completed ones."""
         completed_processes = []

@@ -241,6 +241,14 @@ class LogFileVerificationStep(WizardStep):
 
             self.logger.info("Starting FLASH-TV systemd services")
 
+            # Set sudo password from state for service operations
+            if not self.process_runner.set_sudo_password_from_state():
+                raise FlashTVError(
+                    "Sudo password required for service operations",
+                    ErrorType.VALIDATION_ERROR,
+                    recovery_action="Ensure sudo password is entered in participant setup"
+                )
+
             self.start_services_button.setEnabled(False)
             self.service_status_label.setText("Starting services...")
             self.update_status(StepStatus.AUTOMATION_RUNNING)
@@ -304,6 +312,11 @@ class LogFileVerificationStep(WizardStep):
             username = self.state.get_user_input("username", "")
             self.logger.info("Stopping FLASH-TV systemd services")
 
+            # Set sudo password from state for service operations
+            if not self.process_runner.set_sudo_password_from_state():
+                self.logger.error("Sudo password required for stopping services")
+                return
+
             # Stop log monitoring
             self._stop_log_monitoring()
 
@@ -343,6 +356,11 @@ class LogFileVerificationStep(WizardStep):
         try:
             username = self.state.get_user_input("username", "")
             self.logger.info("Restarting FLASH-TV systemd services")
+
+            # Set sudo password from state for service operations
+            if not self.process_runner.set_sudo_password_from_state():
+                self.logger.error("Sudo password required for restarting services")
+                return
 
             # Use the actual restart_services.sh script
             script_path = f"/home/{username}/flash-tv-scripts/services/restart_services.sh"
@@ -586,11 +604,14 @@ class LogFileVerificationStep(WizardStep):
                 f"/home/{username}/flash-tv-scripts/services/flash_run_on_boot.sh"
             ]
 
-            # Define the replacements
+            # Define the replacements - IMPORTANT: Use combined participant_id + device_id
+            combined_participant_id = f"{participant_id}{device_id}"
             replacements = {
                 "flashsysXXX": username,
-                "123XXX": participant_id
+                "123XXX": combined_participant_id
             }
+
+            self.logger.info(f"Using combined participant ID: {combined_participant_id}")
 
             for service_file in service_files:
                 if os.path.exists(service_file):
@@ -618,7 +639,7 @@ class LogFileVerificationStep(WizardStep):
             self.logger.error(f"Error configuring service files: {e}")
             raise FlashTVError(
                 f"Failed to configure service files: {e}",
-                ErrorType.CONFIG_ERROR,
+                ErrorType.CONFIGURATION_ERROR,
                 recovery_action="Check service file paths and permissions"
             )
 

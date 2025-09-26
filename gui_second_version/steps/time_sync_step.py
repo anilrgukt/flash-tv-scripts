@@ -198,18 +198,24 @@ class TimeSyncStep(WizardStep):
         try:
             self.logger.info("Checking RTC status")
             username = self.state.get_user_input("username", "")
-            
+
             if not username:
                 self.logger.error("Username not available for RTC check")
                 self.details_text.append("❌ Username not available for RTC operations")
+                return
+
+            # Set sudo password from state for RTC operations
+            if not self.process_runner.set_sudo_password_from_state():
+                self.logger.error("Sudo password not available for RTC operations")
+                self.details_text.append("❌ Sudo password required for RTC operations")
                 return
             
             # Check external RTC using the Python script
             self.details_text.append("📡 Checking External RTC (DS3231) status...")
             
             python_path = f"/home/{username}/py38/bin/python"
-            # Get the script path relative to user's home directory
-            rtc_check_script = os.path.expanduser("~/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py")
+            # Get the script path using username from state
+            rtc_check_script = f"/home/{username}/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py"
             
             # Get the data path for start_date.txt
             data_path = self.state.get_user_input("data_path", "")
@@ -294,7 +300,7 @@ class TimeSyncStep(WizardStep):
             # Run the RTC sync script
             python_path = f"/home/{username}/py38/bin/python"
             # Get the script path relative to user's home directory
-            rtc_sync_script = os.path.expanduser("~/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py")
+            rtc_sync_script = f"/home/{username}/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py"
             
             # Get the data path for start_date.txt
             data_path = self.state.get_user_input("data_path", "")
@@ -366,7 +372,7 @@ class TimeSyncStep(WizardStep):
             # Run the RTC set script with start_date.txt path
             python_path = f"/home/{username}/py38/bin/python"
             # Get the script path relative to user's home directory
-            rtc_set_script = os.path.expanduser("~/flash-tv-scripts/python_scripts/set_external_RTC_and_save_start_date.py")
+            rtc_set_script = f"/home/{username}/flash-tv-scripts/python_scripts/set_external_RTC_and_save_start_date.py"
             
             # Get the data path for start_date.txt
             data_path = self.state.get_user_input("data_path", "")
