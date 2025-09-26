@@ -42,11 +42,7 @@ class CordCheckingStep(WizardStep):
 
         main_layout.addWidget(overview_group)
 
-        # Top row: Power and Data connections side by side
-        top_row = QHBoxLayout()
-        top_row.setSpacing(12)
-
-        # Left column: Power Connections
+        # Power Connections section
         power_group = QGroupBox("Power Connections")
         power_layout = QVBoxLayout(power_group)
         power_layout.setContentsMargins(8, 8, 8, 8)
@@ -66,27 +62,7 @@ class CordCheckingStep(WizardStep):
         power_layout.addWidget(self.smart_plug_check)
         power_layout.addStretch()
 
-        # Right column: Data Connections
-        data_group = QGroupBox("Data Connections")
-        data_layout = QVBoxLayout(data_group)
-        data_layout.setContentsMargins(8, 8, 8, 8)
-
-        self.ethernet_check = QCheckBox("✓ Ethernet cable connected to FLASH-TV device")
-        self.camera_data_check = QCheckBox(
-            "✓ Camera USB data cable connected to FLASH-TV"
-        )
-        self.wifi_check = QCheckBox("✓ WiFi connection verified and stable")
-
-        data_layout.addWidget(self.ethernet_check)
-        data_layout.addWidget(self.camera_data_check)
-        data_layout.addWidget(self.wifi_check)
-        data_layout.addStretch()
-
-        # Add both to top row
-        top_row.addWidget(power_group, 1)
-        top_row.addWidget(data_group, 1)
-
-        main_layout.addLayout(top_row)
+        main_layout.addWidget(power_group)
 
         # Middle row: Physical Security and Important Reminders
         middle_row = QHBoxLayout()
@@ -140,9 +116,6 @@ class CordCheckingStep(WizardStep):
             self.camera_power_check,
             self.tv_power_check,
             self.smart_plug_check,
-            self.ethernet_check,
-            self.camera_data_check,
-            self.wifi_check,
             self.camera_mount_check,
             self.cable_management_check,
             self.device_position_check,
@@ -206,9 +179,6 @@ class CordCheckingStep(WizardStep):
             self.camera_power_check.isChecked(),
             self.tv_power_check.isChecked(),
             self.smart_plug_check.isChecked(),
-            self.ethernet_check.isChecked(),
-            self.camera_data_check.isChecked(),
-            self.wifi_check.isChecked(),
             self.camera_mount_check.isChecked(),
             self.cable_management_check.isChecked(),
             self.device_position_check.isChecked(),
@@ -261,9 +231,6 @@ class CordCheckingStep(WizardStep):
                 self.camera_power_check,
                 self.tv_power_check,
                 self.smart_plug_check,
-                self.ethernet_check,
-                self.camera_data_check,
-                self.wifi_check,
                 self.camera_mount_check,
                 self.cable_management_check,
                 self.device_position_check,

@@ -231,6 +231,9 @@ class LogFileVerificationStep(WizardStep):
             # Use the actual start_services.sh script
             script_path = f"/home/{username}/flash-tv-scripts/services/start_services.sh"
 
+            # First configure the service files with participant details
+            self._configure_service_files(username, participant_id, device_id)
+
             self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Running start_services.sh...")
 
             # Run the service start script (it completes quickly, then services run independently)
@@ -553,6 +556,54 @@ class LogFileVerificationStep(WizardStep):
         """Update UI elements periodically."""
         super().update_ui()
         # Services are managed by systemd, no need to monitor processes
+
+    def _configure_service_files(self, username: str, participant_id: str, device_id: str) -> None:
+        """Configure service files by replacing placeholder values with participant details."""
+        try:
+            self.logger.info(f"Configuring service files for participant {participant_id} on device {device_id}")
+
+            # Define the service files that need configuration
+            service_files = [
+                f"/home/{username}/flash-tv-scripts/services/flash-run-on-boot.service",
+                f"/home/{username}/flash-tv-scripts/services/flash-periodic-restart.service",
+                f"/home/{username}/flash-tv-scripts/services/flash_run_on_boot.sh"
+            ]
+
+            # Define the replacements
+            replacements = {
+                "flashsysXXX": username,
+                "123XXX": participant_id
+            }
+
+            for service_file in service_files:
+                if os.path.exists(service_file):
+                    self.logger.info(f"Configuring {service_file}")
+
+                    # Read the current content
+                    with open(service_file, 'r') as f:
+                        content = f.read()
+
+                    # Apply replacements
+                    for placeholder, value in replacements.items():
+                        content = content.replace(placeholder, value)
+
+                    # Write back the configured content
+                    with open(service_file, 'w') as f:
+                        f.write(content)
+
+                    self.logger.info(f"Successfully configured {service_file}")
+                else:
+                    self.logger.warning(f"Service file not found: {service_file}")
+
+            self.logger.info("Service file configuration completed")
+
+        except Exception as e:
+            self.logger.error(f"Error configuring service files: {e}")
+            raise FlashTVError(
+                f"Failed to configure service files: {e}",
+                ErrorType.CONFIG_ERROR,
+                recovery_action="Check service file paths and permissions"
+            )
 
     def _cleanup_step_resources(self) -> None:
         """Clean up step-specific resources."""
