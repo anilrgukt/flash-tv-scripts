@@ -56,11 +56,12 @@ class GazeDetectionTestingStep(WizardStep):
         )
 
         instructions = self.ui_factory.create_label(
-            "Instructions:\n\n"
-            "1. Position the target child in front of the TV\n"
-            "2. Turn on the TV with child-appropriate content\n"
-            "3. Launch the gaze testing application\n"
-            "4. Visually confirm gaze detection is working"
+            "Testing Preparation:\n\n"
+            "1. Position target child 3-6 feet from TV at eye level\n"
+            "2. Turn on TV with engaging content (cartoons work well)\n"
+            "3. Ensure good room lighting (not too dark)\n"
+            "4. Have child look at TV, then away, then back at TV\n"
+            "5. Verify camera can see child's face clearly"
         )
         setup_layout.addWidget(instructions)
 
@@ -89,10 +90,13 @@ class GazeDetectionTestingStep(WizardStep):
 
         test_info = self.ui_factory.create_label(
             "This will start the FLASH-TV gaze detection system.\n\n"
-            "Watch for:\n"
-            "• Face detection boxes around faces\n"
-            "• Gaze direction arrows\n"
-            "• Target child identification"
+            "Arrow Color Meanings:\n"
+            "• GREEN arrow = Looking at TV (gaze detected on-screen)\n"
+            "• BLUE arrow = Looking away from TV (gaze detected off-screen)\n\n"
+            "Face Box Colors:\n"
+            "• BLUE box = Target child (TC)\n"
+            "• GREEN box = Parent or sibling\n"
+            "• WHITE box = Unidentified face"
         )
         launch_layout.addWidget(test_info)
         launch_layout.addStretch()

@@ -64,7 +64,13 @@ def draw_rect_ver(img, dboxes1, dboxes2, save_path, draw_lmarks=False, write_img
     if write_img:
         cv2.imwrite(save_path, cv_img)
 
-    return cv_img
+    # Convert back to RGB before returning (we converted RGB->BGR at start)
+    rgb_img = np.copy(cv_img)
+    tmp_channel = np.copy(rgb_img[:, :, 0])
+    rgb_img[:, :, 0] = rgb_img[:, :, 2]
+    rgb_img[:, :, 2] = tmp_channel
+
+    return rgb_img
 
 
 def draw_gz(frm, gaze_angle, bbx, save_path, gz_label=None, write_img=False, scale=None):
@@ -103,7 +109,11 @@ def draw_gz(frm, gaze_angle, bbx, save_path, gz_label=None, write_img=False, sca
     tmp_ = np.zeros((256, 256)).astype(np.uint8)
     end_loc = int(128 + x), int(128 + y)
     tmp_ = cv2.circle(tmp_, end_loc, 5, color=255, thickness=-1)
-    return cv_img, tmp_
+
+    # Convert back to RGB before returning to maintain consistency
+    # Input was RGB, we converted to BGR for OpenCV operations, now convert back
+    rgb_img = cv_img[:, :, ::-1]
+    return rgb_img, tmp_
 
 
 def draw_gzbox(frm, gaze_angle, dbox, save_path, gz_label=None, write_img=False):

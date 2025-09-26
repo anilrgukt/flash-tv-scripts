@@ -213,11 +213,28 @@ class LogFileVerificationStep(WizardStep):
     def _start_services(self, checked: bool = False) -> None:
         """Start FLASH-TV services using the actual service scripts."""
         try:
+            # Get all required values from state
             username = self.state.get_user_input("username", "")
+            participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
 
             if not username:
                 raise FlashTVError(
                     "Missing username",
+                    ErrorType.VALIDATION_ERROR,
+                    recovery_action="Complete participant setup first"
+                )
+
+            if not participant_id:
+                raise FlashTVError(
+                    "Missing participant ID",
+                    ErrorType.VALIDATION_ERROR,
+                    recovery_action="Complete participant setup first"
+                )
+
+            if not device_id:
+                raise FlashTVError(
+                    "Missing device ID",
                     ErrorType.VALIDATION_ERROR,
                     recovery_action="Complete participant setup first"
                 )
