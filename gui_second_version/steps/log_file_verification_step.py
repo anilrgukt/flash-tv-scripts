@@ -1,11 +1,15 @@
-"""Log file verification step implementation using new framework patterns."""
+"""Service startup and log monitoring step implementation."""
 
 from __future__ import annotations
 
 import os
-import shutil
+import re
+import time
+import subprocess
+from datetime import datetime, timedelta
+from typing import List, Dict, Set
 
-from PyQt6.QtWidgets import QWidget, QMessageBox, QListWidget, QListWidgetItem
+from PyQt6.QtWidgets import QWidget, QMessageBox, QListWidget, QListWidgetItem, QTextEdit
 from PyQt6.QtCore import QTimer
 
 from core import WizardStep
@@ -15,218 +19,221 @@ from utils.ui_factory import ButtonStyle
 
 
 class LogFileVerificationStep(WizardStep):
-    """Step 10: Log File Verification using new framework patterns."""
+    """Step 10: Service Startup and Log Monitoring."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Service monitoring state
+        self.service_running = False
+        self.log_monitoring_active = False
+        self.last_log_check = None
+
+        # Known warnings/errors to ignore
+        self.known_warnings = {
+            "Corrupt JPEG data",
+            "DeprecationWarning",
+            "UserWarning",
+            "Deprecated in NumPy 1.20",
+            "Failed to load image Python extension",
+            "Overload resolution failed:",
+            "M is not a numpy array, neither a scalar",
+            "Expected Ptr<cv::UMat> for argument",
+            "Traceback",
+            "warpAffine",
+            "nimg = face_align.norm_crop(face_img_bgr, pts5)",
+            "facen = model.get_input(face, facelmarks.astype(np.int).reshape(1,5,2), face=True)",
+            "face = io.imread(os.path.join(path, fname))",
+            "detFacesLog, bboxFaces, idxFaces = pipe_frames_data_to_faces",
+            "test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py",
+            "insightface/deploy/face_model.py",
+            "insightface/utils/face_align.py",
+            "RTNETLINK answers: File exists"
+        }
+
+        # Normal messages to ignore
+        self.normal_messages = {
+            "Loading symbol saved by previous version",
+            "Symbol successfully upgraded!",
+            "Running performance tests",
+            "Resource temporarily unavailable",
+        }
+
+        # Log monitoring timer
+        self.log_monitor_timer = QTimer()
+        self.log_monitor_timer.timeout.connect(self._check_logs)
 
     def create_content_widget(self) -> QWidget:
-        """Create the log file verification UI using UI factory."""
+        """Create the service startup and log monitoring UI."""
         content = QWidget()
 
         # Use UI factory for main layout
         main_layout = self.ui_factory.create_main_step_layout()
         content.setLayout(main_layout)
 
-        # Create sections using UI factory
+        # Create sections
         overview_section = self._create_overview_section()
-        top_row = self._create_top_row()
-        middle_row = self._create_middle_row()
+        service_section = self._create_service_section()
+        log_section = self._create_log_section()
         continue_section = self._create_continue_section()
 
         main_layout.addWidget(overview_section)
-        main_layout.addLayout(top_row)
-        main_layout.addLayout(middle_row, 1)
+        main_layout.addWidget(service_section)
+        main_layout.addWidget(log_section, 1)
         main_layout.addLayout(continue_section)
-
-        # Test timer
-        self.test_timer = QTimer()
-        self.test_timer.setSingleShot(True)
-        self.test_timer.timeout.connect(self._test_complete)
 
         return content
 
     def _create_overview_section(self) -> QWidget:
-        """Create the overview section using UI factory."""
+        """Create the overview section."""
         overview_group, overview_layout = self.ui_factory.create_group_box(
-            "Log File Verification Overview"
+            "FLASH-TV Service Management and Log Monitoring"
         )
 
         overview_text = self.ui_factory.create_label(
-            "This step verifies that FLASH-TV is generating log files correctly. "
-            "We'll run a brief test to check data collection and log file creation. "
-            "The test will run for 30 seconds with the target child in view."
+            "This step starts the FLASH-TV data collection services and monitors the logs for any issues. "
+            "The services will run continuously and data collection will begin. "
+            "Logs are monitored in real-time to detect any unexpected errors."
         )
         overview_layout.addWidget(overview_text)
 
         return overview_group
 
-    def _create_top_row(self):
-        """Create the top row with test details and control."""
-        top_row = self.ui_factory.create_horizontal_layout(spacing=12)
+    def _create_service_section(self) -> QWidget:
+        """Create the service control section."""
+        service_group, service_layout = self.ui_factory.create_group_box("Service Control")
 
-        # Test details section
-        test_details_section = self._create_test_details_section()
-        control_section = self._create_control_section()
-
-        top_row.addWidget(test_details_section, 3)  # 60% width
-        top_row.addWidget(control_section, 2)  # 40% width
-
-        return top_row
-
-    def _create_test_details_section(self) -> QWidget:
-        """Create the test details section using UI factory."""
-        test_overview_group, test_overview_layout = self.ui_factory.create_group_box(
-            "Log File Test Details"
+        # Service status
+        self.service_status_label = self.ui_factory.create_status_label(
+            "Services not started", status_type="info"
         )
+        service_layout.addWidget(self.service_status_label)
 
-        test_info = self.ui_factory.create_label(
-            "The test will:\n"
-            "• Start FLASH-TV data collection for 30 seconds\n"
-            "• Check for proper log file generation\n"
-            "• Verify timestamp formatting and data structure\n"
-            "• Confirm gaze detection data is being recorded\n\n"
-            "During the test:\n"
-            "• Have the target child sit in viewing position\n"
-            "• Child should look at the TV occasionally\n"
-            "• Test will run for 30 seconds\n"
-            "• Log files will be checked automatically"
-        )
-        test_overview_layout.addWidget(test_info)
-        test_overview_layout.addStretch()
+        # Service control buttons
+        button_layout = self.ui_factory.create_horizontal_layout(spacing=10)
 
-        return test_overview_group
-
-    def _create_control_section(self) -> QWidget:
-        """Create the control section using UI factory."""
-        control_group, control_layout = self.ui_factory.create_group_box("Test Control")
-
-        self.test_button = self.ui_factory.create_action_button(
-            "🗂️ Run Log File Test",
-            callback=self._run_log_test,
+        self.start_services_button = self.ui_factory.create_action_button(
+            "🚀 Start FLASH-TV Services",
+            callback=self._start_services,
             style=ButtonStyle.PRIMARY,
             height=40,
         )
-        control_layout.addWidget(self.test_button)
+        button_layout.addWidget(self.start_services_button)
 
-        control_layout.addSpacing(10)
-
-        self.test_status_label = self.ui_factory.create_status_label(
-            "🗂️ Log test not started", status_type="info"
+        self.stop_services_button = self.ui_factory.create_action_button(
+            "🛑 Stop Services",
+            callback=self._stop_services,
+            style=ButtonStyle.DANGER,
+            height=40,
+            enabled=False,
         )
-        control_layout.addWidget(self.test_status_label)
-        control_layout.addStretch()
+        button_layout.addWidget(self.stop_services_button)
 
-        return control_group
-
-    def _create_middle_row(self):
-        """Create the middle row with output and results."""
-        middle_row = self.ui_factory.create_horizontal_layout(spacing=12)
-
-        # Output and results sections
-        output_section = self._create_output_section()
-        results_section = self._create_results_section()
-
-        middle_row.addWidget(output_section, 1)  # 50% width
-        middle_row.addWidget(results_section, 1)  # 50% width
-
-        return middle_row
-
-    def _create_output_section(self) -> QWidget:
-        """Create the output section using UI factory."""
-        output_group, output_layout = self.ui_factory.create_group_box("Test Progress")
-
-        self.output_text = self.ui_factory.create_text_area(
-            placeholder="Log file test progress will appear here...", read_only=True
+        self.restart_services_button = self.ui_factory.create_action_button(
+            "🔄 Restart Services",
+            callback=self._restart_services,
+            style=ButtonStyle.SECONDARY,
+            height=40,
+            enabled=False,
         )
-        output_layout.addWidget(self.output_text)
+        button_layout.addWidget(self.restart_services_button)
 
-        return output_group
+        service_layout.addLayout(button_layout)
 
-    def _create_results_section(self) -> QWidget:
-        """Create the results section using UI factory."""
-        results_group, results_layout = self.ui_factory.create_group_box(
-            "Log File Analysis"
+        # Service info
+        service_info = self.ui_factory.create_label(
+            "Services to be started:\n"
+            "• FLASH-TV data collection service\n"
+            "• Log monitoring and error detection\n"
+            "• Periodic restart service (if configured)\n\n"
+            "Data collection will begin immediately after service startup."
         )
+        service_layout.addWidget(service_info)
 
-        self.log_files_list = QListWidget()
-        results_layout.addWidget(self.log_files_list)
+        return service_group
+
+    def _create_log_section(self) -> QWidget:
+        """Create the log monitoring section."""
+        log_group, log_layout = self.ui_factory.create_group_box("Log Monitoring")
+
+        # Log monitoring status
+        self.log_status_label = self.ui_factory.create_status_label(
+            "Log monitoring not active", status_type="info"
+        )
+        log_layout.addWidget(self.log_status_label)
+
+        # Log output area
+        self.log_output = QTextEdit()
+        self.log_output.setReadOnly(True)
+        self.log_output.setMaximumHeight(200)
+        self.log_output.setPlaceholderText("Service logs and error messages will appear here...")
+        log_layout.addWidget(self.log_output)
+
+        # Error summary list
+        error_list_label = self.ui_factory.create_label("Detected Issues:")
+        log_layout.addWidget(error_list_label)
+
+        self.error_list = QListWidget()
+        self.error_list.setMaximumHeight(100)
+        log_layout.addWidget(self.error_list)
 
         # Verification buttons
         verification_layout = self.ui_factory.create_horizontal_layout(spacing=8)
 
-        self.logs_good_button = self.ui_factory.create_action_button(
-            "✅ Log Files Look Good",
-            callback=self._logs_verified,
+        self.services_working_button = self.ui_factory.create_action_button(
+            "✅ Services Running Properly",
+            callback=self._services_verified,
             style=ButtonStyle.SUCCESS,
             height=30,
             enabled=False,
         )
-        verification_layout.addWidget(self.logs_good_button)
+        verification_layout.addWidget(self.services_working_button)
 
-        self.logs_problem_button = self.ui_factory.create_action_button(
-            "❌ Log File Issues",
-            callback=self._logs_have_issues,
+        self.services_issue_button = self.ui_factory.create_action_button(
+            "❌ Service Issues Detected",
+            callback=self._services_have_issues,
             style=ButtonStyle.DANGER,
             height=30,
             enabled=False,
         )
-        verification_layout.addWidget(self.logs_problem_button)
+        verification_layout.addWidget(self.services_issue_button)
 
-        results_layout.addLayout(verification_layout)
+        log_layout.addLayout(verification_layout)
 
-        return results_group
+        return log_group
 
     def _create_continue_section(self):
-        """Create the continue button section using UI factory."""
+        """Create the continue button section."""
         button_layout, self.continue_button = self.ui_factory.create_continue_button(
-            callback=self._on_continue_clicked, text="Log Files Verified - Continue"
+            callback=self._on_continue_clicked, text="Services Verified - Continue"
         )
-
         return button_layout
 
     @handle_step_error
-    def _run_log_test(self, checked: bool = False) -> None:
-        """Run the log file generation test with comprehensive error handling."""
+    def _start_services(self, checked: bool = False) -> None:
+        """Start FLASH-TV services."""
         try:
             participant_id = self.state.get_user_input("participant_id", "")
             device_id = self.state.get_user_input("device_id", "")
             username = self.state.get_user_input("username", "")
-            
-            # Debug logging
-            self.logger.info(f"Retrieved from state - participant_id: '{participant_id}', device_id: '{device_id}', username: '{username}'")
-            
-            # Combine participant_id and device_id (handle empty/None device_id)
-            if device_id:
-                full_participant_id = f"{participant_id}{device_id}"
-            else:
-                full_participant_id = participant_id
-                self.logger.warning(f"Device ID is empty/None - using only participant_id: '{participant_id}'")
-            
-            self.logger.info(f"Constructed full_participant_id: '{full_participant_id}'")
 
             if not participant_id or not username:
-                self.logger.error("Missing participant ID or username for log test")
-                self.output_text.append("❌ Missing required information")
                 raise FlashTVError(
                     "Missing participant ID or username",
                     ErrorType.VALIDATION_ERROR,
-                    recovery_action="Complete participant setup first",
+                    recovery_action="Complete participant setup first"
                 )
 
-            self.logger.info(
-                f"Starting log file test for participant: {participant_id}"
-            )
+            full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
 
-            self.test_button.setEnabled(False)
-            self.test_status_label.setText("🗂️ Starting log file test...")
+            self.logger.info(f"Starting FLASH-TV services for participant: {full_participant_id}")
+
+            self.start_services_button.setEnabled(False)
+            self.service_status_label.setText("🚀 Starting services...")
             self.update_status(StepStatus.AUTOMATION_RUNNING)
 
-            # Clear previous results
-            self.log_files_list.clear()
-            self.output_text.clear()
-
-            # Prepare command for short data collection test
-            # Use expanduser to get the correct path relative to home directory
-            script_path = os.path.expanduser("~/flash-tv-scripts/python_scripts/run_flash_data_collection.py")
-            working_dir = os.path.expanduser("~/flash-tv-scripts/python_scripts")
+            # Start the main data collection service using the same script as data collection
+            script_path = f"/home/{username}/flash-tv-scripts/python_scripts/run_flash_data_collection.py"
 
             command = [
                 f"/home/{username}/py38/bin/python",
@@ -237,204 +244,220 @@ class LogFileVerificationStep(WizardStep):
                 username,
             ]
 
-            # Launch the test process
+            # Launch the service process
             process_info = self.process_runner.run_script(
                 command=command,
-                description=f"Log file test for {full_participant_id}",
-                working_dir=working_dir,
-                process_name="log_test",
+                description=f"FLASH-TV service for {full_participant_id}",
+                working_dir=f"/home/{username}/flash-tv-scripts/python_scripts",
+                process_name="flash_service",
             )
 
             if process_info:
-                self.logger.info("Log file test script started successfully")
-                self.test_status_label.setText("✅ Log test running (30 seconds)")
-                self.output_text.append("Log file test started...")
-                self.output_text.append("Data collection will run for 30 seconds")
-                self.output_text.append("Please have child look at TV occasionally")
+                self.service_running = True
+                self.service_status_label.setText("✅ FLASH-TV services running")
+                self.stop_services_button.setEnabled(True)
+                self.restart_services_button.setEnabled(True)
 
-                # Set timer for 30 seconds
-                self.test_timer.start(30000)
+                # Start log monitoring
+                self._start_log_monitoring()
+
+                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Services started successfully")
+                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Data collection active for {full_participant_id}")
+
+                # Enable verification after a brief startup period
+                QTimer.singleShot(5000, lambda: self.services_working_button.setEnabled(True))
+                QTimer.singleShot(5000, lambda: self.services_issue_button.setEnabled(True))
+
+                self.logger.info("FLASH-TV services started successfully")
             else:
-                self.logger.error("Failed to start log file test script")
-                self.test_status_label.setText("❌ Failed to start log test")
-                self.test_button.setEnabled(True)
-                self.update_status(StepStatus.FAILED)
                 raise FlashTVError(
-                    "Failed to start log file test",
+                    "Failed to start FLASH-TV services",
                     ErrorType.PROCESS_ERROR,
-                    recovery_action="Check script permissions and try again",
+                    recovery_action="Check permissions and script path"
                 )
 
         except Exception as e:
-            self.logger.error(f"Error running log test: {e}")
-            self.test_button.setEnabled(True)
+            self.logger.error(f"Error starting services: {e}")
+            self.start_services_button.setEnabled(True)
+            self.service_status_label.setText("❌ Failed to start services")
             self.update_status(StepStatus.FAILED)
             raise
 
     @handle_step_error
-    def _test_complete(self) -> None:
-        """Handle test completion after 30 seconds with comprehensive error handling."""
+    def _stop_services(self, checked: bool = False) -> None:
+        """Stop FLASH-TV services."""
         try:
-            self.logger.info("Log file test timer completed (30 seconds)")
+            self.logger.info("Stopping FLASH-TV services")
 
-            # Stop the test process
-            process_info = self.state.get_process("log_test")
+            # Stop log monitoring
+            self._stop_log_monitoring()
+
+            # Stop the service process
+            process_info = self.state.get_process("flash_service")
             if process_info and process_info.is_running():
-                self.logger.info("Terminating log test process")
-                self.process_runner.terminate_process("log_test")
+                self.process_runner.terminate_process("flash_service")
 
-            self.test_status_label.setText("✅ Test complete - analyzing log files")
-            self.output_text.append("\n🗂️ Test complete - checking log files...")
+            self.service_running = False
+            self.service_status_label.setText("🛑 Services stopped")
+            self.start_services_button.setEnabled(True)
+            self.stop_services_button.setEnabled(False)
+            self.restart_services_button.setEnabled(False)
 
-            # Analyze log files
-            self._analyze_log_files()
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Services stopped")
+            self.logger.info("FLASH-TV services stopped")
 
         except Exception as e:
-            self.logger.error(f"Error during test completion: {e}")
+            self.logger.error(f"Error stopping services: {e}")
             raise FlashTVError(
-                f"Failed to complete log test: {e}",
+                f"Failed to stop services: {e}",
                 ErrorType.PROCESS_ERROR,
-                recovery_action="Try running the test again",
+                recovery_action="Try using system service commands"
             )
 
     @handle_step_error
-    def _analyze_log_files(self) -> None:
-        """Analyze generated log files with comprehensive error handling."""
+    def _restart_services(self, checked: bool = False) -> None:
+        """Restart FLASH-TV services."""
         try:
+            self.logger.info("Restarting FLASH-TV services")
+            self._stop_services()
+            QTimer.singleShot(2000, self._start_services)  # Wait 2 seconds before restart
+
+        except Exception as e:
+            self.logger.error(f"Error restarting services: {e}")
+            raise
+
+    def _start_log_monitoring(self) -> None:
+        """Start monitoring logs for errors."""
+        try:
+            self.log_monitoring_active = True
+            self.log_status_label.setText("🔍 Monitoring logs for errors...")
+            self.log_monitor_timer.start(5000)  # Check every 5 seconds
+            self.last_log_check = datetime.now()
+
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Log monitoring started")
+            self.logger.info("Log monitoring started")
+
+        except Exception as e:
+            self.logger.error(f"Error starting log monitoring: {e}")
+
+    def _stop_log_monitoring(self) -> None:
+        """Stop monitoring logs."""
+        try:
+            self.log_monitoring_active = False
+            self.log_monitor_timer.stop()
+            self.log_status_label.setText("🛑 Log monitoring stopped")
+
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Log monitoring stopped")
+            self.logger.info("Log monitoring stopped")
+
+        except Exception as e:
+            self.logger.error(f"Error stopping log monitoring: {e}")
+
+    def _check_logs(self) -> None:
+        """Check logs for new errors (excluding known minor errors)."""
+        try:
+            if not self.log_monitoring_active:
+                return
+
             participant_id = self.state.get_user_input("participant_id", "")
             device_id = self.state.get_user_input("device_id", "")
             username = self.state.get_user_input("username", "")
-            
-            # Debug logging
-            self.logger.info(f"Retrieved from state for analysis - participant_id: '{participant_id}', device_id: '{device_id}', username: '{username}'")
-            
-            # Combine participant_id and device_id (handle empty/None device_id)
-            if device_id:
-                full_participant_id = f"{participant_id}{device_id}"
-            else:
-                full_participant_id = participant_id
-                self.logger.warning(f"Device ID is empty/None for analysis - using only participant_id: '{participant_id}'")
-            
-            self.logger.info(f"Constructed full_participant_id for analysis: '{full_participant_id}'")
 
             if not participant_id or not username:
-                self.logger.warning(
-                    "Missing participant ID or username for log analysis"
-                )
                 return
 
-            self.logger.info(f"Analyzing log files for participant: {full_participant_id}")
-
+            full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
             data_path = f"/home/{username}/data/{full_participant_id}_data"
 
             if not os.path.exists(data_path):
-                self.logger.error(f"Data directory not found: {data_path}")
-                self.output_text.append(f"❌ Data directory not found: {data_path}")
-                self.logs_problem_button.setEnabled(True)
-                raise FlashTVError(
-                    f"Data directory not found: {data_path}",
-                    ErrorType.SYSTEM_ERROR,
-                    recovery_action="Check data path configuration",
-                )
+                return
 
             # Look for log files
-            log_files = []
+            current_time = datetime.now()
+            new_errors = []
+
             for file in os.listdir(data_path):
-                if file.startswith(f"{full_participant_id}_flash_log") and file.endswith(
-                    ".txt"
-                ):
-                    log_files.append(file)
+                if file.startswith(f"{full_participant_id}_flash_log") and file.endswith(".txt"):
+                    log_path = os.path.join(data_path, file)
 
-            if not log_files:
-                self.logger.warning("No log files found in data directory")
-                self.output_text.append("❌ No log files found")
-                self.logs_problem_button.setEnabled(True)
-                raise FlashTVError(
-                    "No log files found",
-                    ErrorType.SYSTEM_ERROR,
-                    recovery_action="Run the test again or check data permissions",
-                )
+                    # Check if file was modified since last check
+                    if self.last_log_check and os.path.getmtime(log_path) > self.last_log_check.timestamp():
+                        new_errors.extend(self._scan_log_file(log_path))
 
-            # Analyze each log file
-            self.logger.info(f"Found {len(log_files)} log files for analysis")
-            self.output_text.append(f"✅ Found {len(log_files)} log file(s)")
+            # Update last check time
+            self.last_log_check = current_time
 
-            for log_file in log_files:
-                log_path = os.path.join(data_path, log_file)
+            # Display new errors (filtering out known minor ones)
+            for error in new_errors:
+                if not self._is_known_minor_error(error):
+                    self.error_list.addItem(QListWidgetItem(f"[{current_time.strftime('%H:%M:%S')}] {error}"))
+                    self.log_output.append(f"[{current_time.strftime('%H:%M:%S')}] ERROR: {error}")
 
-                # Check file size
-                file_size = os.path.getsize(log_path)
-
-                # Add to list widget
-                item = QListWidgetItem(f"{log_file} ({file_size} bytes)")
-                self.log_files_list.addItem(item)
-
-                # Basic content check
-                if file_size > 0:
-                    try:
-                        with open(log_path, "r") as f:
-                            lines = f.readlines()
-                            if len(lines) > 1:  # Header + at least one data line
-                                self.output_text.append(
-                                    f"✅ {log_file}: {len(lines)} lines"
-                                )
-                            else:
-                                self.output_text.append(
-                                    f"⚠️ {log_file}: Only {len(lines)} lines"
-                                )
-                    except Exception as file_error:
-                        self.logger.error(
-                            f"Error reading log file {log_file}: {file_error}"
-                        )
-                        self.output_text.append(
-                            f"❌ Error reading {log_file}: {file_error}"
-                        )
-                else:
-                    self.logger.warning(f"Log file {log_file} is empty")
-                    self.output_text.append(f"⚠️ {log_file}: Empty file")
-
-            # Enable verification buttons
-            self.logs_good_button.setEnabled(True)
-            self.logs_problem_button.setEnabled(True)
-
-            self.output_text.append("\n🔍 Please verify the log files look correct")
-            self.logger.info("Log file analysis completed successfully")
+            # Update status
+            error_count = self.error_list.count()
+            if error_count == 0:
+                self.log_status_label.setText("✅ No issues detected")
+            else:
+                self.log_status_label.setText(f"⚠️ {error_count} issue(s) detected")
 
         except Exception as e:
-            self.logger.error(f"Error analyzing log files: {e}")
-            self.output_text.append(f"Error analyzing logs: {e}")
-            self.logs_problem_button.setEnabled(True)
-            raise
+            self.logger.error(f"Error checking logs: {e}")
+
+    def _scan_log_file(self, log_path: str) -> List[str]:
+        """Scan a log file for error patterns."""
+        errors = []
+        try:
+            with open(log_path, 'r') as f:
+                lines = f.readlines()
+
+            for line in lines:
+                line = line.strip()
+                # Look for common error patterns
+                if any(pattern in line.lower() for pattern in ['error', 'exception', 'failed', 'critical']):
+                    errors.append(line)
+
+        except Exception as e:
+            self.logger.error(f"Error scanning log file {log_path}: {e}")
+
+        return errors
+
+    def _is_known_minor_error(self, error_message: str) -> bool:
+        """Check if an error is a known warning or normal message that should be ignored."""
+        # Check if it's a known warning
+        for pattern in self.known_warnings:
+            if pattern in error_message or pattern.lower() in error_message.lower():
+                return True
+
+        # Check if it's a normal message
+        for pattern in self.normal_messages:
+            if pattern in error_message or pattern.lower() in error_message.lower():
+                return True
+
+        return False
 
     @handle_step_error
-    def _logs_verified(self) -> None:
-        """Handle log verification confirmation with comprehensive validation."""
+    def _services_verified(self) -> None:
+        """Handle service verification confirmation."""
         try:
-            self.logger.info("User initiated log file verification")
-
             reply = QMessageBox.question(
                 self,
-                "Confirm Log Files",
-                "Please confirm the log files meet these criteria:\n\n"
-                "✓ At least one log file was generated\n"
-                "✓ Log files contain data (not empty)\n"
-                "✓ File names include participant ID\n"
-                "✓ Multiple lines of data were recorded\n\n"
-                "Are the log files properly generated?",
+                "Confirm Services",
+                "Please confirm that:\n\n"
+                "✓ FLASH-TV services are running properly\n"
+                "✓ No critical errors in the logs\n"
+                "✓ Data collection appears to be working\n"
+                "✓ Any detected issues are minor/expected\n\n"
+                "Are the services running correctly?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
 
             if reply == QMessageBox.StandardButton.Yes:
-                self.logger.info("User confirmed log files are properly generated")
+                self.logger.info("User confirmed services are running properly")
 
-                # Clean up test files/folders
-                self._cleanup_test_data()
+                # Mark as complete but keep services running
+                self.state.set_user_input("services_verified", True)
+                self.state.set_user_input("services_running", True)
 
-                # Mark as complete
-                self.state.set_user_input("log_files_verified", True)
-                self.state.set_user_input("log_test_complete", True)
-
-                # Persist state
                 if self.state_manager:
                     self.state_manager.save_state(self.state)
 
@@ -443,190 +466,100 @@ class LogFileVerificationStep(WizardStep):
 
                 QMessageBox.information(
                     self,
-                    "Verification Complete",
-                    "Log file verification completed successfully!\n"
-                    "FLASH-TV is properly generating data logs.",
+                    "Services Verified",
+                    "FLASH-TV services verified and running!\n"
+                    "Data collection will continue in the background.\n\n"
+                    "Note: Services will continue running after this wizard completes."
                 )
-                self.logger.info("Log file verification completed successfully")
-            else:
-                self.logger.info(
-                    "User did not confirm log files are properly generated"
-                )
-                self.output_text.append("\n⚠️ Please check log file generation settings")
 
         except Exception as e:
-            self.logger.error(f"Error during log verification: {e}")
-            raise FlashTVError(
-                f"Failed to complete log verification: {e}",
-                ErrorType.PROCESS_ERROR,
-                recovery_action="Try the verification again",
-            )
+            self.logger.error(f"Error during service verification: {e}")
+            raise
 
     @handle_step_error
-    def _logs_have_issues(self) -> None:
-        """Handle log file issues with comprehensive error handling."""
+    def _services_have_issues(self) -> None:
+        """Handle service issues."""
         try:
-            self.logger.warning("User reported log file issues")
-
-            # Stop any running process
-            process_info = self.state.get_process("log_test")
-            if process_info and process_info.is_running():
-                self.logger.info("Terminating log test process due to issues")
-                self.process_runner.terminate_process("log_test")
-
-            self.test_status_label.setText("❌ Log file issues detected")
-            self.test_button.setEnabled(True)
-            self.update_status(StepStatus.FAILED)
+            self.logger.warning("User reported service issues")
 
             QMessageBox.information(
                 self,
-                "Log Issues",
-                "Log file generation issues detected.\n\n"
-                "Common issues:\n"
-                "• No log files created\n"
-                "• Empty log files\n"
-                "• Permission problems\n"
-                "• Data path issues\n\n"
-                "Check face gallery and camera setup, then rerun the test.",
+                "Service Issues",
+                "Service issues detected.\n\n"
+                "Common troubleshooting steps:\n"
+                "• Check camera connection\n"
+                "• Verify face gallery setup\n"
+                "• Check file permissions\n"
+                "• Review error messages above\n"
+                "• Try restarting services\n\n"
+                "Fix issues and restart services before continuing."
             )
 
-            self.output_text.append("\n❌ Test failed - troubleshooting needed")
-            self.output_text.append(
-                "Check: data permissions, face gallery, camera connection"
-            )
-
-            # Reset verification buttons
-            self.logs_good_button.setEnabled(False)
-            self.logs_problem_button.setEnabled(False)
+            self.update_status(StepStatus.FAILED)
 
         except Exception as e:
-            self.logger.error(f"Error handling log file issues: {e}")
-            raise FlashTVError(
-                f"Failed to handle log file issues: {e}",
-                ErrorType.PROCESS_ERROR,
-                recovery_action="Try restarting the test",
-            )
-
-    def _cleanup_test_data(self) -> None:
-        """Clean up test data files with error handling."""
-        try:
-            participant_id = self.state.get_user_input("participant_id", "")
-            device_id = self.state.get_user_input("device_id", "")
-            username = self.state.get_user_input("username", "")
-            
-            # Combine participant_id and device_id (handle empty/None device_id)
-            if device_id:
-                full_participant_id = f"{participant_id}{device_id}"
-            else:
-                full_participant_id = participant_id
-                self.logger.warning(f"Device ID is empty/None for cleanup - using only participant_id: '{participant_id}'")
-
-            if participant_id and username:
-                self.output_text.append("\n🧹 Cleaning up test data...")
-                self.logger.info("Starting test data cleanup")
-
-                # Clean up any test image folders
-                test_folders = ["test_res", "test_frames", "temp_images"]
-                cleaned_folders = 0
-
-                for folder in test_folders:
-                    if os.path.exists(folder):
-                        shutil.rmtree(folder)
-                        self.output_text.append(f"Removed {folder}/")
-                        cleaned_folders += 1
-                        self.logger.debug(f"Removed test folder: {folder}")
-
-                self.output_text.append("✅ Test cleanup completed")
-                self.logger.info(
-                    f"Test data cleanup completed - removed {cleaned_folders} folders"
-                )
-
-        except Exception as e:
-            self.logger.error(f"Error during test data cleanup: {e}")
-            self.output_text.append(f"⚠️ Cleanup error: {e}")
-            # Don't raise error - cleanup failure shouldn't block progress
+            self.logger.error(f"Error handling service issues: {e}")
+            raise
 
     @handle_step_error
     def _on_continue_clicked(self, checked: bool = False) -> None:
-        """Handle continue button click with validation."""
+        """Handle continue button click."""
         try:
-            if self.state.get_user_input("log_files_verified", False):
-                self.logger.info("Log file verification step completed successfully")
+            if self.state.get_user_input("services_verified", False):
+                self.logger.info("Service verification step completed successfully")
 
-                # Final state persistence
                 if self.state_manager:
                     self.state_manager.save_state(self.state)
 
                 self.request_next_step.emit()
             else:
-                self.logger.warning("Continue clicked but log files not verified")
+                self.logger.warning("Continue clicked but services not verified")
 
         except Exception as e:
             self.logger.error(f"Error during continue action: {e}")
-            raise FlashTVError(
-                f"Failed to complete log verification step: {e}",
-                ErrorType.PROCESS_ERROR,
-                recovery_action="Verify log files first",
-            )
+            raise
 
     @handle_step_error
     def activate_step(self) -> None:
-        """Activate the log file verification step with state restoration."""
+        """Activate the service management step."""
         super().activate_step()
+        self.logger.info("Service management step activated")
 
-        self.logger.info("Log file verification step activated")
-
-        # Check if already verified
-        if self.state.get_user_input("log_files_verified", False):
-            self.test_status_label.setText("✅ Log files already verified")
+        # Check if services already verified
+        if self.state.get_user_input("services_verified", False):
+            self.service_status_label.setText("✅ Services already verified")
             self.continue_button.setEnabled(True)
             self.update_status(StepStatus.COMPLETED)
-            self.logger.info("Log files already verified, skipping")
 
     def update_ui(self) -> None:
-        """Update UI elements periodically with framework integration."""
+        """Update UI elements periodically."""
         super().update_ui()
 
-        # Check log test process status
-        process_info = self.state.get_process("log_test")
-        if process_info and not process_info.is_running():
-            status = process_info.get_status()
-            if status.value == "completed":
-                self.logger.info("Log test process ended normally")
-                self.output_text.append("\n⚠️ Log test process ended")
-                self.output_text.append("Please verify if testing was successful")
-            else:
-                self.logger.warning(f"Log test process ended with status: {status}")
+        # Check service process status
+        process_info = self.state.get_process("flash_service")
+        if process_info and not process_info.is_running() and self.service_running:
+            self.service_running = False
+            self.service_status_label.setText("❌ Service stopped unexpectedly")
+            self.start_services_button.setEnabled(True)
+            self.stop_services_button.setEnabled(False)
+            self.restart_services_button.setEnabled(False)
 
-            # Reset test button
-            self.test_button.setEnabled(True)
-            # Remove completed process
-            self.state.remove_process("log_test")
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Service stopped unexpectedly")
+            self.error_list.addItem(QListWidgetItem("Service stopped unexpectedly"))
 
     def _cleanup_step_resources(self) -> None:
         """Clean up step-specific resources."""
         try:
-            # Stop test timer if active
-            if self.test_timer.isActive():
-                self.test_timer.stop()
-                self.logger.info("Stopped test timer during cleanup")
+            # Stop log monitoring
+            self._stop_log_monitoring()
 
-            # Stop any running log test process
-            process_info = self.state.get_process("log_test")
-            if process_info and process_info.is_running():
-                self.logger.info("Terminating log test process during cleanup")
-                self.process_runner.terminate_process("log_test")
+            # Note: We intentionally do NOT stop the service here
+            # The service should continue running after the wizard completes
 
-            # Final state save before cleanup
             if self.state_manager:
                 self.state_manager.save_state(self.state)
 
-            self.logger.info("Log file verification step cleanup completed")
+            self.logger.info("Service management step cleanup completed")
 
         except Exception as e:
             self.logger.error(f"Error during step cleanup: {e}")
-
-    def cleanup(self) -> None:
-        """Clean up resources when step is destroyed."""
-        self._cleanup_step_resources()
-        super().cleanup()

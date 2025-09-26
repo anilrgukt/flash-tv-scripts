@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QWidget, QMessageBox
+import os
+import subprocess
+from PyQt6.QtWidgets import QWidget, QMessageBox, QInputDialog
 
 from core import WizardStep
 from core.exceptions import handle_step_error, FlashTVError, ErrorType
@@ -64,12 +66,16 @@ class WiFiConnectionStep(WizardStep):
 
         instructions_text = (
             "To connect to WiFi:\n\n"
-            "1. Click 'Open Network Settings' below\n"
-            "2. Connect to your WiFi network using the system settings\n"
-            "3. Close the network settings window\n"
-            "4. Click 'Continue' to proceed"
+            "Option 1 - Auto-Connect (Recommended):\n"
+            "• Click 'Auto-Connect to Hotspot' to automatically connect\n"
+            "• If credentials are not in .bashrc, you'll be prompted to enter them\n"
+            "• Supports HOTSPOT1_PSK, HOTSPOT2_PSK, and HOTSPOT3_PSK\n\n"
+            "Option 2 - Manual Setup:\n"
+            "• Click 'Manual Network Settings' to configure manually\n"
+            "• Connect to your WiFi network using the system settings\n\n"
+            "Click 'Continue' when connected to proceed"
         )
-        
+
         instructions_label = self.ui_factory.create_label(instructions_text)
         instructions_layout.addWidget(instructions_label)
 
@@ -81,12 +87,23 @@ class WiFiConnectionStep(WizardStep):
             "Connection Controls"
         )
 
-        # Open Network Settings button
-        self.network_settings_button = self.ui_factory.create_action_button(
-            "Open Network Settings",
-            callback=self._open_network_settings,
+        # Auto-connect to hotspot button
+        self.auto_connect_button = self.ui_factory.create_action_button(
+            "Auto-Connect to Hotspot",
+            callback=self._auto_connect_hotspot,
             style=ButtonStyle.PRIMARY,
             height=50,
+        )
+        controls_layout.addWidget(self.auto_connect_button)
+
+        controls_layout.addSpacing(10)
+
+        # Open Network Settings button (fallback)
+        self.network_settings_button = self.ui_factory.create_action_button(
+            "Manual Network Settings",
+            callback=self._open_network_settings,
+            style=ButtonStyle.SECONDARY,
+            height=40,
         )
         controls_layout.addWidget(self.network_settings_button)
 
@@ -160,6 +177,122 @@ class WiFiConnectionStep(WizardStep):
                 "Error",
                 "Could not open network settings automatically. "
                 "Please open your system's network settings manually to connect to WiFi."
+            )
+
+    @handle_step_error
+    def _auto_connect_hotspot(self, checked: bool = False) -> None:
+        """Auto-connect to hotspot using the setup_wifi_connection.py script."""
+        try:
+            self.logger.info("Starting auto-connect to hotspot")
+
+            # Update status
+            self.wifi_status_label.setText("Attempting to connect to hotspot...")
+
+            # Check if credentials are in .bashrc first
+            bashrc_path = os.path.expanduser("~/.bashrc")
+            has_credentials = False
+
+            if os.path.exists(bashrc_path):
+                with open(bashrc_path, 'r') as f:
+                    content = f.read()
+                    if "HOTSPOT1_PSK" in content or "HOTSPOT2_PSK" in content or "HOTSPOT3_PSK" in content:
+                        has_credentials = True
+
+            if not has_credentials:
+                # Prompt for credentials
+                hotspot_configs = []
+                for i in range(1, 4):
+                    reply = QMessageBox.question(
+                        self,
+                        f"Configure HOTSPOT{i}",
+                        f"Do you want to configure HOTSPOT{i}?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                    )
+
+                    if reply == QMessageBox.StandardButton.Yes:
+                        password, ok = QInputDialog.getText(
+                            self,
+                            f"HOTSPOT{i} Password",
+                            f"Enter the password for HOTSPOT{i}:",
+                            echo=QInputDialog.EchoMode.Normal
+                        )
+
+                        if ok and password:
+                            hotspot_configs.append(f"export HOTSPOT{i}_PSK='{password}'")
+
+                # Write credentials to .bashrc if any were provided
+                if hotspot_configs:
+                    with open(bashrc_path, 'a') as f:
+                        f.write("\n# FLASH-TV Hotspot Credentials\n")
+                        for config in hotspot_configs:
+                            f.write(config + "\n")
+                    self.logger.info("Saved hotspot credentials to .bashrc")
+
+            # Run the setup_wifi_connection.py script
+            script_path = os.path.join(
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                "python_scripts",
+                "setup_wifi_connection.py"
+            )
+
+            if not os.path.exists(script_path):
+                raise FileNotFoundError(f"WiFi setup script not found: {script_path}")
+
+            self.logger.info(f"Running WiFi setup script: {script_path}")
+
+            # Run the script using Python
+            result = subprocess.run(
+                ["python3", script_path],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+
+            if result.returncode == 0:
+                self.wifi_status_label.setText("✅ Successfully connected to hotspot!")
+                self.logger.info("WiFi connection successful")
+                self.state.set_user_input("wifi_ssid", "HOTSPOT_CONNECTED")
+                self.continue_button.setEnabled(True)
+                self.update_status(StepStatus.COMPLETED)
+
+                QMessageBox.information(
+                    self,
+                    "Connection Successful",
+                    "Successfully connected to hotspot!\n\nClick 'Continue' to proceed."
+                )
+            else:
+                error_msg = result.stderr if result.stderr else "Unknown error"
+                self.logger.error(f"WiFi connection failed: {error_msg}")
+                self.wifi_status_label.setText("❌ Failed to connect to hotspot")
+
+                reply = QMessageBox.warning(
+                    self,
+                    "Connection Failed",
+                    f"Failed to connect to hotspot.\n\nError: {error_msg}\n\n"
+                    "Would you like to try manual network settings instead?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                )
+
+                if reply == QMessageBox.StandardButton.Yes:
+                    self._open_network_settings()
+
+        except subprocess.TimeoutExpired:
+            self.logger.error("WiFi connection timeout")
+            self.wifi_status_label.setText("❌ Connection timeout")
+            QMessageBox.warning(
+                self,
+                "Connection Timeout",
+                "WiFi connection attempt timed out.\n\n"
+                "Please try manual network settings or check your hotspot configuration."
+            )
+        except Exception as e:
+            self.logger.error(f"Error during auto-connect: {e}")
+            self.wifi_status_label.setText("❌ Auto-connect failed")
+            QMessageBox.warning(
+                self,
+                "Auto-Connect Error",
+                f"Failed to auto-connect to hotspot: {e}\n\n"
+                "Please try manual network settings instead."
             )
 
     @handle_step_error

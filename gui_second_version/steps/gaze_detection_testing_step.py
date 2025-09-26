@@ -268,8 +268,7 @@ class GazeDetectionTestingStep(WizardStep):
 
             # Prepare command for gaze test - use the new real-time testing script
             script_path = os.path.join(
-                os.path.dirname(os.getcwd()),
-                "python_scripts",
+                f"/home/{username}/flash-tv-scripts/python_scripts",
                 "run_flash_gaze_test.py",
             )
 
@@ -286,7 +285,7 @@ class GazeDetectionTestingStep(WizardStep):
             process_info = self.process_runner.run_script(
                 command=command,
                 description=f"Gaze detection test for {full_participant_id}",
-                working_dir=os.path.dirname(script_path),
+                working_dir=f"/home/{username}/flash-tv-scripts/python_scripts",
                 process_name="gaze_test",
             )
 
