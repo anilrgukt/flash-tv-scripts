@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
+import os
+import time
+import shutil
+import subprocess
+from glob import glob
+from datetime import datetime
 
-from PyQt6.QtWidgets import QWidget, QMessageBox
+from PyQt6.QtWidgets import QWidget, QMessageBox, QLineEdit
 from PyQt6.QtCore import QTimer
 
 from core import WizardStep
@@ -119,6 +125,16 @@ class SmartPlugVerifyStep(WizardStep):
             "Verification Controls"
         )
 
+        # Room name input
+        room_label = self.ui_factory.create_label("Room Name:")
+        control_layout.addWidget(room_label)
+
+        self.room_name_input = QLineEdit()
+        self.room_name_input.setPlaceholderText("e.g., Living Room, Bedroom, etc.")
+        control_layout.addWidget(self.room_name_input)
+
+        control_layout.addSpacing(10)
+
         # Launch browser button
         self.launch_browser_button = self.ui_factory.create_action_button(
             "🚀 Launch Browser Automation",
@@ -127,6 +143,16 @@ class SmartPlugVerifyStep(WizardStep):
             height=40,
         )
         control_layout.addWidget(self.launch_browser_button)
+
+        # Power cycle confirmation button
+        self.power_cycle_button = self.ui_factory.create_action_button(
+            "📸 I've Cycled Power - Capture Screenshot",
+            callback=self._capture_power_baseline,
+            style=ButtonStyle.SECONDARY,
+            height=40,
+            enabled=False,
+        )
+        control_layout.addWidget(self.power_cycle_button)
 
         # Data verified button
         self.data_verified_button = self.ui_factory.create_action_button(
@@ -150,10 +176,12 @@ class SmartPlugVerifyStep(WizardStep):
 
         instruction_label = self.ui_factory.create_label(
             "After browser opens:\n\n"
-            "1. Turn TV OFF and wait 10 seconds\n"
-            "2. Turn TV ON and wait 10 seconds\n"
-            "3. Verify power changes show in Home Assistant\n"
-            "4. Click 'Data Verified' when you see the changes"
+            "1. Enter the room name in the textbox\n"
+            "2. Turn TV OFF and wait 10 seconds\n"
+            "3. Turn TV ON and wait 10 seconds\n"
+            "4. Click 'I've Cycled Power' to capture screenshot\n"
+            "5. Verify power changes show in Home Assistant\n"
+            "6. Click 'Data Verified' when you see the changes"
         )
         instruction_layout.addWidget(instruction_label)
         instruction_layout.addStretch()
@@ -210,7 +238,7 @@ class SmartPlugVerifyStep(WizardStep):
                 self.plug_monitor_status.setText(
                     "📊 Smart plug data monitoring status: Browser opened"
                 )
-                self.data_verified_button.setEnabled(True)
+                self.power_cycle_button.setEnabled(True)
 
                 # Start status monitoring
                 self.status_timer.start(5000)  # Check every 5 seconds
@@ -234,6 +262,172 @@ class SmartPlugVerifyStep(WizardStep):
         finally:
             self.launch_browser_button.setEnabled(True)
 
+    @handle_step_error
+    def _capture_power_baseline(self, checked: bool = False) -> None:
+        """Capture screenshot after power cycling and save to participant's data folder."""
+        try:
+            # Validate room name is entered
+            room_name = self.room_name_input.text().strip()
+            if not room_name:
+                QMessageBox.warning(
+                    self,
+                    "Room Name Required",
+                    "Please enter the room name before capturing the screenshot."
+                )
+                return
+
+            self.logger.info(f"Capturing power baseline screenshot for room: {room_name}")
+
+            # Get participant info
+            participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
+            username = self.state.get_user_input("username", "")
+
+            full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
+
+            self.output_text.append("📸 Preparing to capture screenshot...")
+            self.power_cycle_button.setEnabled(False)
+
+            # Wait a moment for user to see the message
+            QTimer.singleShot(2000, lambda: self._perform_screenshot_capture(
+                full_participant_id, room_name, username
+            ))
+
+        except Exception as e:
+            self.logger.error(f"Error initiating screenshot capture: {e}")
+            self.power_cycle_button.setEnabled(True)
+            raise
+
+    def _perform_screenshot_capture(self, participant_id: str, room_name: str, username: str) -> None:
+        """Actually perform the screenshot capture and file operations."""
+        try:
+            # Refresh the Home Assistant page first
+            self.output_text.append("🔄 Refreshing Home Assistant page...")
+
+            # Open/refresh the page
+            home_assistant_url = "http://localhost:8123/history"
+            subprocess.run(["xdg-open", home_assistant_url], capture_output=True)
+
+            # Wait for page to load
+            time.sleep(3)
+
+            # Take screenshot using gnome-screenshot or scrot
+            self.output_text.append("📸 Capturing screenshot...")
+
+            # Try gnome-screenshot first
+            screenshot_taken = False
+            temp_screenshot = "/tmp/smart_plug_screenshot.png"
+
+            # Try gnome-screenshot
+            result = subprocess.run(
+                ["gnome-screenshot", "-f", temp_screenshot],
+                capture_output=True
+            )
+
+            if result.returncode == 0:
+                screenshot_taken = True
+                self.logger.info("Screenshot captured with gnome-screenshot")
+            else:
+                # Try scrot as fallback
+                result = subprocess.run(
+                    ["scrot", temp_screenshot],
+                    capture_output=True
+                )
+                if result.returncode == 0:
+                    screenshot_taken = True
+                    self.logger.info("Screenshot captured with scrot")
+
+            if not screenshot_taken:
+                # Try to find any recent screenshot file
+                self.output_text.append("🔍 Looking for screenshot file...")
+
+                # Common screenshot locations
+                screenshot_dirs = [
+                    f"/home/{username}/Pictures",
+                    f"/home/{username}/Pictures/Screenshots",
+                    f"/home/{username}/Downloads",
+                    "/tmp",
+                    f"/tmp/TemporaryItems",
+                ]
+
+                # Look for recent screenshot files
+                found_screenshot = None
+                for directory in screenshot_dirs:
+                    if os.path.exists(directory):
+                        pattern_list = [
+                            os.path.join(directory, "*[Ss]creenshot*.png"),
+                            os.path.join(directory, "*[Ss]creen*.png"),
+                            os.path.join(directory, "*.png")
+                        ]
+
+                        for pattern in pattern_list:
+                            files = glob(pattern)
+                            # Get files created in the last 30 seconds
+                            recent_files = [
+                                f for f in files
+                                if os.path.exists(f) and
+                                (time.time() - os.path.getctime(f)) < 30
+                            ]
+
+                            if recent_files:
+                                # Use the most recent file
+                                found_screenshot = max(recent_files, key=os.path.getctime)
+                                break
+
+                        if found_screenshot:
+                            break
+
+                if found_screenshot:
+                    temp_screenshot = found_screenshot
+                    screenshot_taken = True
+                    self.logger.info(f"Found screenshot at: {temp_screenshot}")
+                    self.output_text.append(f"✅ Found screenshot: {os.path.basename(temp_screenshot)}")
+
+            if screenshot_taken and os.path.exists(temp_screenshot):
+                # Create destination path
+                data_path = f"/home/{username}/data/{participant_id}_data"
+                os.makedirs(data_path, exist_ok=True)
+
+                # Create filename with participant ID and room name
+                screenshot_filename = f"{participant_id} {room_name} TV Power Baseline.png"
+                destination_path = os.path.join(data_path, screenshot_filename)
+
+                # Move and rename the screenshot
+                shutil.move(temp_screenshot, destination_path)
+
+                self.output_text.append(f"✅ Screenshot saved: {screenshot_filename}")
+                self.output_text.append(f"📁 Location: {data_path}")
+
+                self.logger.info(f"Screenshot saved to: {destination_path}")
+
+                # Enable the data verified button
+                self.data_verified_button.setEnabled(True)
+
+                QMessageBox.information(
+                    self,
+                    "Screenshot Captured",
+                    f"Power baseline screenshot captured successfully!\n\n"
+                    f"Saved as: {screenshot_filename}\n"
+                    f"Location: {data_path}"
+                )
+            else:
+                raise FlashTVError(
+                    "Failed to capture screenshot",
+                    ErrorType.PROCESS_ERROR,
+                    recovery_action="Try taking a manual screenshot and save it to the data folder"
+                )
+
+        except Exception as e:
+            self.logger.error(f"Error during screenshot capture: {e}")
+            self.output_text.append(f"❌ Screenshot capture failed: {e}")
+            QMessageBox.warning(
+                self,
+                "Screenshot Failed",
+                f"Failed to capture screenshot: {e}\n\n"
+                "Please take a manual screenshot and save it to the data folder."
+            )
+        finally:
+            self.power_cycle_button.setEnabled(True)
 
     @handle_step_error
     def _enable_manual_verification(self) -> None:

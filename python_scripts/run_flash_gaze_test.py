@@ -45,11 +45,18 @@ def process_frame(frame_rgb, bbox_list, flash_tv, loc_lims, num_locs, current_ti
                 # Extract gaze data
                 o1, e1, o2, e2 = gaze_data
                 
-                # Convert to numpy arrays (same as demo script)
-                o1 = o1.cpu().data.numpy()
-                e1 = e1.cpu().data.numpy()
-                o2 = o2.cpu().data.numpy()
-                e2 = e2.cpu().data.numpy()
+                # Convert to numpy arrays - handle both tensors and numpy arrays
+                if hasattr(o1, 'cpu'):  # PyTorch tensor
+                    o1 = o1.cpu().data.numpy()
+                    e1 = e1.cpu().data.numpy()
+                    o2 = o2.cpu().data.numpy()
+                    e2 = e2.cpu().data.numpy()
+                elif hasattr(o1, 'asnumpy'):  # MXNet NDArray
+                    o1 = o1.asnumpy()
+                    e1 = e1.asnumpy()
+                    o2 = o2.asnumpy()
+                    e2 = e2.asnumpy()
+                # If already numpy arrays, leave them as is
                 
                 # Combine models (same weighting as demo script)
                 combined_gaze = 0.9 * o1 + 0.1 * o2
@@ -185,7 +192,7 @@ def main():
     print(f"Username: {username}")
     print(f"Press 'q' to quit the test")
     print()
-    print("🎯 Status Categories:")
+    print("Status Categories:")
     print("   GREEN arrow = Gaze-det-TV (target child gaze looking at TV)")
     print("   BLUE arrow = Gaze-det-no-TV (target child gaze NOT looking at TV)")
     print("   RED box = Gaze-no-det (target child detected but no gaze estimation)")
@@ -205,9 +212,9 @@ def main():
             frame_res_hw=None,
             output_res_hw=None
         )
-        print("✅ FLASH-TV models loaded successfully!")
+        print("FLASH-TV models loaded successfully!")
     except Exception as e:
-        print(f"❌ Error initializing FLASH-TV: {e}")
+        print(f"Error initializing FLASH-TV: {e}")
         print("Please check that all model files are properly installed.")
         sys.exit(1)
     
@@ -219,9 +226,9 @@ def main():
             setting="center-big-med"
         )
         num_locs = loc_lims.shape[0]
-        print(f"✅ TV gaze thresholds loaded ({num_locs} spatial regions)")
+        print(f"TV gaze thresholds loaded ({num_locs} spatial regions)")
     except Exception as e:
-        print(f"❌ Error loading TV gaze thresholds: {e}")
+        print(f"Error loading TV gaze thresholds: {e}")
         print("Using fallback simple threshold...")
         loc_lims = None
         num_locs = 0
@@ -242,9 +249,9 @@ def main():
         if not cap.isOpened():
             raise Exception("Could not open camera")
             
-        print(f"✅ Camera initialized (device: /dev/video{camera_idx})")
+        print(f"Camera initialized (device: /dev/video{camera_idx})")
     except Exception as e:
-        print(f"❌ Error initializing camera: {e}")
+        print(f"Error initializing camera: {e}")
         sys.exit(1)
     
     # Frame buffer setup
@@ -258,10 +265,10 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     
     # Main testing loop
-    print("\n🎯 Starting real-time gaze detection test...")
+    print("\nStarting real-time gaze detection test...")
     print("Look at different areas to test gaze detection")
     print()
-    print("🎮 Controls:")
+    print("Controls:")
     print("   SPACE = Pause/Resume streaming")
     print("   LEFT ARROW = Previous frame (when paused)")
     print("   RIGHT ARROW = Next frame (when paused)")
@@ -280,39 +287,39 @@ def main():
             key = cv2.waitKey(1) & 0xFF
             
             if key == ord('q'):
-                print("\n🛑 Test stopped by user")
+                print("\nTest stopped by user")
                 break
             elif key == ord(' '):  # Space bar - pause/resume
                 is_paused = not is_paused
                 if is_paused:
                     current_frame_idx = len(frame_buffer) - 1 if frame_buffer else 0
-                    print(f"⏸️  PAUSED - Frame {current_frame_idx + 1}/{len(frame_buffer)}")
+                    print(f"PAUSED - Frame {current_frame_idx + 1}/{len(frame_buffer)}")
                 else:
                     current_frame_idx = -1
-                    print("▶️  RESUMED - Live streaming")
+                    print("RESUMED - Live streaming")
                 continue
             elif key == 27 or key == ord('r'):  # ESC or R - return to live
                 if is_paused:
                     is_paused = False
                     current_frame_idx = -1
-                    print("▶️  RESUMED - Live streaming")
+                    print("RESUMED - Live streaming")
                 continue
             elif key == 83 and is_paused:  # Right arrow - next frame
                 if current_frame_idx < len(frame_buffer) - 1:
                     current_frame_idx += 1
-                    print(f"⏭️  Frame {current_frame_idx + 1}/{len(frame_buffer)}")
+                    print(f"Frame {current_frame_idx + 1}/{len(frame_buffer)}")
             elif key == 81 and is_paused:  # Left arrow - previous frame
                 if current_frame_idx > 0:
                     current_frame_idx -= 1
-                    print(f"⏮️  Frame {current_frame_idx + 1}/{len(frame_buffer)}")
+                    print(f"Frame {current_frame_idx + 1}/{len(frame_buffer)}")
             elif key == 80 and is_paused:  # Home - first frame
                 if frame_buffer:
                     current_frame_idx = 0
-                    print(f"⏪ First frame - Frame {current_frame_idx + 1}/{len(frame_buffer)}")
+                    print(f"First frame - Frame {current_frame_idx + 1}/{len(frame_buffer)}")
             elif key == 87 and is_paused:  # End - last frame
                 if frame_buffer:
                     current_frame_idx = len(frame_buffer) - 1
-                    print(f"⏩ Last frame - Frame {current_frame_idx + 1}/{len(frame_buffer)}")
+                    print(f"Last frame - Frame {current_frame_idx + 1}/{len(frame_buffer)}")
             
             # Display logic
             if is_paused and frame_buffer and 0 <= current_frame_idx < len(frame_buffer):
@@ -332,7 +339,7 @@ def main():
                 # Live streaming mode - capture and process new frame
                 ret, frame = cap.read()
                 if not ret:
-                    print("❌ Failed to capture frame from camera")
+                    print("Failed to capture frame from camera")
                     break
                 
                 frame_count += 1
@@ -379,26 +386,26 @@ def main():
             if not is_paused and frame_count % 100 == 0:
                 elapsed = time.time() - start_time
                 fps = frame_count / elapsed
-                print(f"\n📊 Summary: {frame_count} frames processed in {elapsed:.1f}s (avg {fps:.1f} FPS)")
-                
+                print(f"\nSummary: {frame_count} frames processed in {elapsed:.1f}s (avg {fps:.1f} FPS)")
+
     except KeyboardInterrupt:
-        print("\n🛑 Test interrupted by user (Ctrl+C)")
+        print("\nTest interrupted by user (Ctrl+C)")
     except Exception as e:
-        print(f"\n❌ Error during testing: {e}")
+        print(f"\nError during testing: {e}")
         import traceback
         traceback.print_exc()
     finally:
         # Cleanup
-        print("\n🧹 Cleaning up...")
+        print("\nCleaning up...")
         cap.release()
         cv2.destroyAllWindows()
-        
+
         elapsed = time.time() - start_time
         if elapsed > 0:
             avg_fps = frame_count / elapsed
-            print(f"📊 Final stats: {frame_count} frames in {elapsed:.1f}s (avg {avg_fps:.1f} FPS)")
-        
-        print("✅ FLASH-TV gaze test completed")
+            print(f"Final stats: {frame_count} frames in {elapsed:.1f}s (avg {avg_fps:.1f} FPS)")
+
+        print("FLASH-TV gaze test completed")
 
 if __name__ == "__main__":
     main()

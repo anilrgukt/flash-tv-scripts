@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 import subprocess
-from PyQt6.QtWidgets import QWidget, QMessageBox, QInputDialog
+from PyQt6.QtWidgets import QWidget, QMessageBox, QInputDialog, QLineEdit
 
 from core import WizardStep
 from core.exceptions import handle_step_error, FlashTVError, ErrorType
@@ -214,7 +214,7 @@ class WiFiConnectionStep(WizardStep):
                             self,
                             f"HOTSPOT{i} Password",
                             f"Enter the password for HOTSPOT{i}:",
-                            echo=QInputDialog.EchoMode.Normal
+                            QLineEdit.EchoMode.Normal
                         )
 
                         if ok and password:
