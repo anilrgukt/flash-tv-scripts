@@ -413,7 +413,7 @@ class Steps:
         7: "Point of View Picture",
         8: "Face Gallery Building",
         9: "Gaze Detection Testing",
-        10: "Log File Verification",
+        10: "Starting and Verifying Long Term FLASH-TV Services",
         11: "Cord and Connection Check",
         12: "Screen Locking and Final Setup",
     }

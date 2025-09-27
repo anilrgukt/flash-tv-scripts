@@ -225,8 +225,10 @@ class TimeSyncStep(WizardStep):
             else:
                 start_date_file = os.path.join(data_path, "start_date.txt")
             
-            result = self.process_runner.run_command(
-                ["sudo", python_path, rtc_check_script, "check", start_date_file], timeout_ms=15000
+            result, error = self.process_runner.run_sudo_command(
+                [python_path, rtc_check_script, "check", start_date_file],
+                "Check external RTC status",
+                timeout_ms=15000
             )
             
             if result and result.returncode == 0:
@@ -248,8 +250,10 @@ class TimeSyncStep(WizardStep):
             
             # Check internal RTC (needs sudo)
             self.details_text.append("💻 Checking Internal RTC status...")
-            hwclock_result = self.process_runner.run_command(
-                ["sudo", "hwclock", "--show"], timeout_ms=5000
+            hwclock_result, error = self.process_runner.run_sudo_command(
+                ["hwclock", "--show"],
+                "Check internal RTC status",
+                timeout_ms=5000
             )
             
             if hwclock_result and hwclock_result.returncode == 0:
@@ -281,14 +285,19 @@ class TimeSyncStep(WizardStep):
             username = self.state.get_user_input("username", "")
             if not username:
                 raise FlashTVError("Username not available", ErrorType.VALIDATION_ERROR)
-            
+
+            # Set sudo password from state for RTC operations
+            if not self.process_runner.set_sudo_password_from_state():
+                self.logger.error("Sudo password not available for RTC operations")
+                raise FlashTVError("Sudo password required for RTC operations", ErrorType.VALIDATION_ERROR)
+
             reply = QMessageBox.question(
                 self,
                 "Sync from External RTC",
                 "This will set the system time from the External RTC (DS3231). Continue?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
-            
+
             if reply != QMessageBox.StandardButton.Yes:
                 self.logger.info("User cancelled RTC sync")
                 return
@@ -353,14 +362,19 @@ class TimeSyncStep(WizardStep):
             username = self.state.get_user_input("username", "")
             if not username:
                 raise FlashTVError("Username not available", ErrorType.VALIDATION_ERROR)
-            
+
+            # Set sudo password from state for RTC operations
+            if not self.process_runner.set_sudo_password_from_state():
+                self.logger.error("Sudo password not available for RTC operations")
+                raise FlashTVError("Sudo password required for RTC operations", ErrorType.VALIDATION_ERROR)
+
             reply = QMessageBox.question(
                 self,
                 "Set External RTC",
                 "This will set the External RTC (DS3231) to the current system time. Continue?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
-            
+
             if reply != QMessageBox.StandardButton.Yes:
                 self.logger.info("User cancelled RTC setting")
                 return

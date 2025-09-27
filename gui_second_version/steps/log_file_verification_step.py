@@ -19,7 +19,7 @@ from utils.ui_factory import ButtonStyle
 
 
 class LogFileVerificationStep(WizardStep):
-    """Step 10: Service Startup and Log Monitoring."""
+    """Step 10: Starting and Verifying Long Term FLASH-TV Services."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -259,16 +259,77 @@ class LogFileVerificationStep(WizardStep):
             # First configure the service files with participant details
             self._configure_service_files(username, participant_id, device_id)
 
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Running start_services.sh...")
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Starting FLASH-TV services...")
 
-            # Run the service start script (it completes quickly, then services run independently)
-            result = self.process_runner.run_command(
-                ["bash", script_path],
-                working_dir=f"/home/{username}/flash-tv-scripts/services",
-                timeout_ms=60000,  # 1 minute should be enough for script to complete
+            # Run each service command individually using sudo support
+            all_success = True
+
+            # Enable flash-periodic-restart.service
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Enabling flash-periodic-restart.service...")
+            result, error = self.process_runner.run_sudo_command(
+                ["systemctl", "enable", "flash-periodic-restart.service"],
+                "Enable flash-periodic-restart service",
+                timeout_ms=15000
             )
+            if not (result and result.returncode == 0):
+                all_success = False
+                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Failed to enable flash-periodic-restart.service: {error}")
 
-            if result and result.returncode == 0:
+            # Enable flash-run-on-boot.service
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Enabling flash-run-on-boot.service...")
+            result, error = self.process_runner.run_sudo_command(
+                ["systemctl", "enable", "flash-run-on-boot.service"],
+                "Enable flash-run-on-boot service",
+                timeout_ms=15000
+            )
+            if not (result and result.returncode == 0):
+                all_success = False
+                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Failed to enable flash-run-on-boot.service: {error}")
+
+            # Start flash-periodic-restart.service
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Starting flash-periodic-restart.service...")
+            result, error = self.process_runner.run_sudo_command(
+                ["systemctl", "start", "flash-periodic-restart.service"],
+                "Start flash-periodic-restart service",
+                timeout_ms=15000
+            )
+            if not (result and result.returncode == 0):
+                all_success = False
+                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Failed to start flash-periodic-restart.service: {error}")
+
+            # Start flash-run-on-boot.service
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Starting flash-run-on-boot.service...")
+            result, error = self.process_runner.run_sudo_command(
+                ["systemctl", "start", "flash-run-on-boot.service"],
+                "Start flash-run-on-boot service",
+                timeout_ms=15000
+            )
+            if not (result and result.returncode == 0):
+                all_success = False
+                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Failed to start flash-run-on-boot.service: {error}")
+
+            # Start Home Assistant Docker container
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Starting Home Assistant Docker container...")
+            result = self.process_runner.run_command(
+                ["docker", "compose", "up", "-d"],
+                working_dir=f"/home/{username}/homeassistant-compose",
+                timeout_ms=30000
+            )
+            if not (result and result.returncode == 0):
+                all_success = False
+                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Failed to start Home Assistant container")
+
+            # Check service status
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Checking service status...")
+            result, error = self.process_runner.run_sudo_command(
+                ["systemctl", "status", "--no-pager", "flash-periodic-restart.service", "flash-run-on-boot.service"],
+                "Check service status",
+                timeout_ms=10000
+            )
+            if result and result.stdout:
+                self.log_output.append(f"Service Status:\n{result.stdout}")
+
+            if all_success:
                 self.service_running = True
                 self.service_status_label.setText("FLASH-TV services running")
                 self.stop_services_button.setEnabled(True)
@@ -320,16 +381,41 @@ class LogFileVerificationStep(WizardStep):
             # Stop log monitoring
             self._stop_log_monitoring()
 
-            # Use the actual stop_services.sh script
-            script_path = f"/home/{username}/flash-tv-scripts/services/stop_services.sh"
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Stopping FLASH-TV services...")
 
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Running stop_services.sh...")
+            # Stop flash-periodic-restart.service
+            result, error = self.process_runner.run_sudo_command(
+                ["systemctl", "stop", "flash-periodic-restart.service"],
+                "Stop flash-periodic-restart service",
+                timeout_ms=15000
+            )
 
-            # Run the service stop script
+            # Stop flash-run-on-boot.service
+            result, error = self.process_runner.run_sudo_command(
+                ["systemctl", "stop", "flash-run-on-boot.service"],
+                "Stop flash-run-on-boot service",
+                timeout_ms=15000
+            )
+
+            # Disable flash-periodic-restart.service
+            result, error = self.process_runner.run_sudo_command(
+                ["systemctl", "disable", "flash-periodic-restart.service"],
+                "Disable flash-periodic-restart service",
+                timeout_ms=15000
+            )
+
+            # Disable flash-run-on-boot.service
+            result, error = self.process_runner.run_sudo_command(
+                ["systemctl", "disable", "flash-run-on-boot.service"],
+                "Disable flash-run-on-boot service",
+                timeout_ms=15000
+            )
+
+            # Stop Home Assistant Docker container
             result = self.process_runner.run_command(
-                ["bash", script_path],
-                working_dir=f"/home/{username}/flash-tv-scripts/services",
-                timeout_ms=60000,  # 1 minute should be enough
+                ["docker", "compose", "down"],
+                working_dir=f"/home/{username}/homeassistant-compose",
+                timeout_ms=30000
             )
 
             self.service_running = False
@@ -362,17 +448,37 @@ class LogFileVerificationStep(WizardStep):
                 self.logger.error("Sudo password required for restarting services")
                 return
 
-            # Use the actual restart_services.sh script
-            script_path = f"/home/{username}/flash-tv-scripts/services/restart_services.sh"
+            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Restarting FLASH-TV services...")
 
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Running restart_services.sh...")
-
-            # Run the service restart script
-            result = self.process_runner.run_command(
-                ["bash", script_path],
-                working_dir=f"/home/{username}/flash-tv-scripts/services",
-                timeout_ms=90000,  # 1.5 minutes for restart
+            # Restart flash-periodic-restart.service
+            result, error = self.process_runner.run_sudo_command(
+                ["systemctl", "restart", "flash-periodic-restart.service"],
+                "Restart flash-periodic-restart service",
+                timeout_ms=15000
             )
+
+            # Restart flash-run-on-boot.service
+            result, error = self.process_runner.run_sudo_command(
+                ["systemctl", "restart", "flash-run-on-boot.service"],
+                "Restart flash-run-on-boot service",
+                timeout_ms=15000
+            )
+
+            # Restart Home Assistant Docker container
+            result = self.process_runner.run_command(
+                ["docker", "compose", "restart"],
+                working_dir=f"/home/{username}/homeassistant-compose",
+                timeout_ms=30000
+            )
+
+            # Check service status
+            result, error = self.process_runner.run_sudo_command(
+                ["systemctl", "status", "--no-pager", "flash-periodic-restart.service", "flash-run-on-boot.service"],
+                "Check service status",
+                timeout_ms=10000
+            )
+            if result and result.stdout:
+                self.log_output.append(f"Service Status:\n{result.stdout}")
 
             self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Restart services script executed")
             self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Restarting systemd services and Docker containers")

@@ -124,11 +124,11 @@ class StepFactory:
                 prerequisites=[1, 2, 3, 4, 5, 6, 7, 8],
                 validation_rules=[],
             ),
-            # Step 10: Log File Verification
+            # Step 10: Starting and Verifying Long Term FLASH-TV Services
             StepDefinition(
                 step_id=10,
-                title="Log File Verification",
-                description="Verify log file generation and data collection.",
+                title="Starting and Verifying Long Term FLASH-TV Services",
+                description="Start and verify FLASH-TV services for long-term data collection.",
                 content_type=StepContentType.AUTOMATED,
                 prerequisites=[1, 2, 3, 4, 5, 6, 7, 8, 9],
                 validation_rules=[],
