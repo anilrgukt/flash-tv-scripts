@@ -549,6 +549,11 @@ class TimeSyncStep(WizardStep):
             self.update_status(StepStatus.AUTOMATION_RUNNING)
             self.sync_button.setEnabled(False)
 
+            # Set sudo password from state for time sync operations
+            if not self.process_runner.set_sudo_password_from_state():
+                self.logger.error("Sudo password not available for time sync operations")
+                raise FlashTVError("Sudo password required for time sync operations", ErrorType.VALIDATION_ERROR)
+
             # Enable NTP
             result1, error1 = self.process_runner.run_sudo_command(
                 ["timedatectl", "set-ntp", "1"], "enable time synchronization"
@@ -643,6 +648,11 @@ class TimeSyncStep(WizardStep):
             if dialog.exec() == QDialog.DialogCode.Accepted:
                 new_datetime = datetime_edit.dateTime().toString("yyyy-MM-dd HH:mm:ss")
                 self.logger.info(f"User selected time: {new_datetime}")
+
+                # Set sudo password from state for manual time operations
+                if not self.process_runner.set_sudo_password_from_state():
+                    self.logger.error("Sudo password not available for manual time setting")
+                    raise FlashTVError("Sudo password required for manual time setting", ErrorType.VALIDATION_ERROR)
 
                 # CRITICAL FIX: Disable NTP FIRST before setting time manually
                 self.details_text.append("📡 Disabling NTP before manual time setting...")

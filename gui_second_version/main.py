@@ -172,22 +172,29 @@ class FlashTVSetupWizard(QMainWindow):
                 # Load existing state
                 loaded_state = self.state_manager.load_state()
                 if loaded_state:
+                    self.logger.info(f"Loading session with current_step: {loaded_state.current_step}")
                     self.state = loaded_state
                     # Update process runner with loaded state
                     self.process_runner.state = self.state
+                    self.logger.info(f"Session recovered - will navigate to step {self.state.current_step}")
                     if status_bar := self.statusBar():
                         status_bar.showMessage("Session recovered successfully")
                 else:
+                    self.logger.warning("Failed to load existing session state")
                     if status_bar := self.statusBar():
                         status_bar.showMessage("Failed to recover session")
             else:
                 # Clear state and start fresh
+                self.logger.info("User chose to start fresh session")
                 self.state_manager.clear_state()
                 if status_bar := self.statusBar():
                     status_bar.showMessage("Starting new setup session")
+        else:
+            self.logger.info("No existing session detected, starting fresh")
 
     def navigate_to_step(self, step_id: int) -> None:
         """Navigate to a specific step."""
+        self.logger.info(f"Navigating to step {step_id}")
         if step_id < 1 or step_id > Steps.TOTAL:
             self.logger.warning(f"Invalid step ID: {step_id}")
             return

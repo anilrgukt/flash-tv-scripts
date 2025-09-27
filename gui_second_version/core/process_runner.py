@@ -276,14 +276,12 @@ class ProcessRunner:
     def set_sudo_password_from_state(self) -> bool:
         """Set sudo password from the wizard state instead of prompting."""
         sudo_password = self.state.get_user_input("sudo_password", "").strip()
-        self.logger.info(f"DEBUG: Retrieved sudo password from state: {'***' if sudo_password else 'EMPTY'}")
         if sudo_password:
             with self._password_lock:
                 self._sudo_password = sudo_password
                 self._sudo_password_time = time.time()
                 self.logger.info("Sudo password loaded from state")
             return True
-        self.logger.error("CRITICAL: No sudo password found in state!")
         return False
 
     def _monitor_processes(self) -> None:
@@ -536,9 +534,7 @@ class ProcessRunner:
             # Get sudo password from cache (should be set by set_sudo_password_from_state)
             with self._password_lock:
                 password = self._sudo_password
-            self.logger.info(f"DEBUG: run_sudo_command using cached password: {'***' if password else 'NONE'}")
             if password is None:
-                self.logger.error("CRITICAL: No cached sudo password available in run_sudo_command!")
                 return None, "Sudo password required but not provided"
             
             # Prepare sudo command
