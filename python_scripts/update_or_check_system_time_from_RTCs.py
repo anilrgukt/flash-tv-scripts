@@ -32,7 +32,7 @@ def retry_function(function: Callable, max_retries: int, sleep_interval: int, er
 
 def reboot(interval: int, max_retries: int) -> None:
     def reboot_operation():
-        subprocess.run(["sudo", "reboot"], check=True)
+        subprocess.run(["reboot"], check=True)
 
     retry_function(reboot_operation, max_retries, interval, f"{interval} interval reboot attempt failed")
 
@@ -122,7 +122,7 @@ def check_all_datetimes() -> None:
     print(run_command_and_ignore_exceptions(["timedatectl"], "Unable to run timedatectl for system time info"))
 
     print(
-        f"Time from internal RTC rtc0 (PSEQ_RTC, being used) is: {run_command_and_ignore_exceptions(['sudo', 'hwclock', '-r'], 'Unable to obtain time from internal RTC rtc0 (PSEQ_RTC, being used) for validation')}"
+        f"Time from internal RTC rtc0 (PSEQ_RTC, being used) is: {run_command_and_ignore_exceptions(['hwclock', '-r'], 'Unable to obtain time from internal RTC rtc0 (PSEQ_RTC, being used) for validation')}"
     )
 
     bus = SMBus(I2C_BUS_NUMBER)
@@ -131,7 +131,7 @@ def check_all_datetimes() -> None:
         bus.close()
 
     print(
-        f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command_and_ignore_exceptions(['sudo', 'hwclock', '--rtc', '/dev/rtc1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)')}"
+        f"Time from internal RTC rtc1 (tegra-RTC, not being used) is: {run_command_and_ignore_exceptions(['hwclock', '--rtc', '/dev/rtc1'], 'Unable to obtain time from internal RTC rtc1 (tegra-RTC, not being used)')}"
     )
 
 
@@ -148,13 +148,13 @@ def set_datetime_from_external_rtc(bus: SMBus) -> None:
         # This is an error message, not a valid time string
         raise Exception(f"External RTC returned invalid time: {time_string}")
 
-    command = ["sudo", "timedatectl", "set-time", time_string]
+    command = ["timedatectl", "set-time", time_string]
     run_command_and_raise_exceptions(command, "Failed to set time from external RTC", success_message)
 
 
 def set_datetime_from_internal_rtc() -> None:
     success_message = "The system time was set from the internal RTC"
-    command = ["sudo", "hwclock", "-s"]
+    command = ["hwclock", "-s"]
     run_command_and_raise_exceptions(command, "Failed to set time from internal RTC", success_message)
 
 
