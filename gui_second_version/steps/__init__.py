@@ -7,7 +7,7 @@ from steps.cord_checking_step import CordCheckingStep
 from steps.device_locking_step import DeviceLockingStep
 from steps.gallery_creation_step import GalleryCreationStep
 from steps.gaze_detection_testing_step import GazeDetectionTestingStep
-from steps.log_file_verification_step import LogFileVerificationStep
+from steps.service_startup_step import ServiceStartupStep
 from steps.participant_setup_step import ParticipantSetupStep
 from steps.pov_picture_step import POVPictureStep
 from steps.smart_plug_physical_step import SmartPlugPhysicalStep
@@ -22,7 +22,7 @@ __all__ = [
     "DeviceLockingStep",
     "GalleryCreationStep",
     "GazeDetectionTestingStep",
-    "LogFileVerificationStep",
+    "ServiceStartupStep",
     "POVPictureStep",
     "ParticipantSetupStep",
     "SmartPlugPhysicalStep",

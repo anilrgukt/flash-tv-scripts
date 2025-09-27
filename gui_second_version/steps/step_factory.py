@@ -18,7 +18,7 @@ from steps.camera_setup_step import CameraSetupStep
 from steps.pov_picture_step import POVPictureStep
 from steps.gallery_creation_step import GalleryCreationStep
 from steps.gaze_detection_testing_step import GazeDetectionTestingStep
-from steps.log_file_verification_step import LogFileVerificationStep
+from steps.service_startup_step import ServiceStartupStep
 from steps.cord_checking_step import CordCheckingStep
 from steps.device_locking_step import DeviceLockingStep
 
@@ -168,7 +168,7 @@ class StepFactory:
             7: POVPictureStep,
             8: GalleryCreationStep,
             9: GazeDetectionTestingStep,
-            10: LogFileVerificationStep,
+            10: ServiceStartupStep,
             11: CordCheckingStep,
             12: DeviceLockingStep,
         }
