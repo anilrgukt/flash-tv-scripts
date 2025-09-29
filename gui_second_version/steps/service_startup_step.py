@@ -742,6 +742,49 @@ class ServiceStartupStep(WizardStep):
 
             self.logger.info("Service file configuration completed")
 
+            # Copy configured service files to /etc/systemd/system/
+            self.logger.info("Copying service files to system directory")
+            service_files_to_copy = [
+                f"/home/{username}/flash-tv-scripts/services/flash-run-on-boot.service",
+                f"/home/{username}/flash-tv-scripts/services/flash-periodic-restart.service"
+            ]
+
+            for service_file in service_files_to_copy:
+                service_name = os.path.basename(service_file)
+                result, error = self.process_runner.run_sudo_command(
+                    ["cp", service_file, f"/etc/systemd/system/{service_name}"],
+                    f"Copy {service_name} to system directory",
+                    timeout_ms=10000
+                )
+
+                if error:
+                    self.logger.error(f"Failed to copy {service_name}: {error}")
+                    raise FlashTVError(
+                        f"Failed to copy {service_name} to system directory: {error}",
+                        ErrorType.PROCESS_ERROR,
+                        recovery_action="Check sudo permissions"
+                    )
+                else:
+                    self.logger.info(f"Successfully copied {service_name} to /etc/systemd/system/")
+
+            # Reload systemctl daemon
+            self.logger.info("Reloading systemctl daemon")
+            result, error = self.process_runner.run_sudo_command(
+                ["systemctl", "daemon-reload"],
+                "Reload systemctl daemon",
+                timeout_ms=10000
+            )
+
+            if error:
+                self.logger.error(f"Failed to reload systemctl daemon: {error}")
+                raise FlashTVError(
+                    f"Failed to reload systemctl daemon: {error}",
+                    ErrorType.PROCESS_ERROR,
+                    recovery_action="Check systemctl permissions"
+                )
+            else:
+                self.logger.info("Successfully reloaded systemctl daemon")
+
         except Exception as e:
             self.logger.error(f"Error configuring service files: {e}")
             raise FlashTVError(
