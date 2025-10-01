@@ -168,7 +168,7 @@ class ServiceStartupStep(WizardStep):
         self.stderr_output = QTextEdit()
         self.stderr_output.setReadOnly(True)
         self.stderr_output.setPlaceholderText("stderr log will appear here...")
-        self.stderr_output.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+        self.stderr_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         stderr_column_layout.addWidget(self.stderr_output)
 
         columns_layout.addLayout(stderr_column_layout)
@@ -182,6 +182,7 @@ class ServiceStartupStep(WizardStep):
         self.gaze_main_output = QTextEdit()
         self.gaze_main_output.setReadOnly(True)
         self.gaze_main_output.setPlaceholderText("Waiting for data...")
+        self.gaze_main_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         main_column_layout.addWidget(self.gaze_main_output)
 
         columns_layout.addLayout(main_column_layout)
@@ -195,6 +196,7 @@ class ServiceStartupStep(WizardStep):
         self.gaze_rot_output = QTextEdit()
         self.gaze_rot_output.setReadOnly(True)
         self.gaze_rot_output.setPlaceholderText("Waiting for data...")
+        self.gaze_rot_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         rot_column_layout.addWidget(self.gaze_rot_output)
 
         columns_layout.addLayout(rot_column_layout)
@@ -207,6 +209,7 @@ class ServiceStartupStep(WizardStep):
 
         self.gaze_reg_output = QTextEdit()
         self.gaze_reg_output.setReadOnly(True)
+        self.gaze_reg_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         self.gaze_reg_output.setPlaceholderText("Waiting for data...")
         reg_column_layout.addWidget(self.gaze_reg_output)
 
@@ -594,38 +597,22 @@ class ServiceStartupStep(WizardStep):
 
             # Process each line and highlight errors
             for line in content.splitlines():
-                # Check if line contains error patterns
-                is_error = any(pattern in line for pattern in [
-                    'Traceback (most recent call last)',
-                    'Exception:',
-                    'Error:',
-                    'CRITICAL:',
-                    'ERROR:',
-                    'Failed to',
-                    'Could not',
-                    'Unable to',
-                    'No such file',
-                    'Permission denied',
-                    'Connection refused',
-                    'Segmentation fault',
-                    'RuntimeError',
-                    'ValueError',
-                    'KeyError',
-                    'IndexError',
-                    'AttributeError',
-                    'OSError',
-                    'IOError'
-                ])
+                # Skip empty lines
+                if not line.strip():
+                    self.stderr_output.append(line)
+                    continue
 
-                # Skip known minor errors
-                if is_error and not self._is_known_minor_error(line):
-                    # Highlight error lines in red
-                    self.stderr_output.setTextColor(self.stderr_output.palette().color(self.stderr_output.foregroundRole()))
-                    self.stderr_output.append(f'<span style="color: red;">{line}</span>')
-                else:
+                # Check if this is a known warning or normal message
+                is_known_safe = self._is_known_minor_error(line)
+
+                if is_known_safe:
                     # Normal lines in default color
                     self.stderr_output.setTextColor(self.stderr_output.palette().color(self.stderr_output.foregroundRole()))
                     self.stderr_output.append(line)
+                else:
+                    # Everything else is an error - highlight in red
+                    self.stderr_output.setTextColor(self.stderr_output.palette().color(self.stderr_output.foregroundRole()))
+                    self.stderr_output.append(f'<span style="color: red;">{line}</span>')
 
             # Auto-scroll to bottom
             self.stderr_output.verticalScrollBar().setValue(
@@ -910,7 +897,7 @@ class ServiceStartupStep(WizardStep):
 
             if len(parts) >= 13:
                 # Extract key fields
-                timestamp = parts[0].split('_')[-1] if '_' in parts[0] else parts[0]  # Get time part only
+                timestamp = parts[0]  # Full timestamp
                 frame_num = parts[1]
                 num_faces = parts[2]
                 tc_present = parts[3]  # 0 or 1

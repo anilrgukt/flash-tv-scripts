@@ -219,11 +219,15 @@ class TimeSyncStep(WizardStep):
             
             # Get the data path for start_date.txt
             data_path = self.state.get_user_input("data_path", "")
+            participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
+            combined_id = f"{participant_id}{device_id}"
+
             if not data_path:
                 # If no data path, use a temporary placeholder
-                start_date_file = "/tmp/start_date.txt"
+                start_date_file = f"/tmp/{combined_id}_start_date.txt"
             else:
-                start_date_file = os.path.join(data_path, "start_date.txt")
+                start_date_file = os.path.join(data_path, f"{combined_id}_start_date.txt")
             
             result, error = self.process_runner.run_sudo_command(
                 [python_path, rtc_check_script, "check", start_date_file],
@@ -313,6 +317,10 @@ class TimeSyncStep(WizardStep):
             
             # Get the data path for start_date.txt
             data_path = self.state.get_user_input("data_path", "")
+            participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
+            combined_id = f"{participant_id}{device_id}"
+
             if not data_path:
                 self.logger.error("Data path not available for RTC sync")
                 self.update_status(StepStatus.FAILED)
@@ -321,8 +329,8 @@ class TimeSyncStep(WizardStep):
                     ErrorType.VALIDATION_ERROR,
                     recovery_action="Complete participant setup first",
                 )
-            
-            start_date_file = os.path.join(data_path, "start_date.txt")
+
+            start_date_file = os.path.join(data_path, f"{combined_id}_start_date.txt")
             
             # Use run_sudo_command for immediate execution
             result, error = self.process_runner.run_sudo_command(
@@ -390,6 +398,10 @@ class TimeSyncStep(WizardStep):
             
             # Get the data path for start_date.txt
             data_path = self.state.get_user_input("data_path", "")
+            participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
+            combined_id = f"{participant_id}{device_id}"
+
             if not data_path:
                 self.logger.error("Data path not available")
                 raise FlashTVError(
@@ -397,8 +409,8 @@ class TimeSyncStep(WizardStep):
                     ErrorType.VALIDATION_ERROR,
                     recovery_action="Complete participant setup first",
                 )
-            
-            start_date_file = os.path.join(data_path, "start_date.txt")
+
+            start_date_file = os.path.join(data_path, f"{combined_id}_start_date.txt")
             
             # Use run_sudo_command for immediate execution instead of run_script
             # This avoids the process being terminated prematurely
