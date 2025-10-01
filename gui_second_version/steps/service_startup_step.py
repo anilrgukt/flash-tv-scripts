@@ -892,22 +892,25 @@ class ServiceStartupStep(WizardStep):
         """Format gaze data line for display."""
         try:
             # Format: timestamp frame_num num_faces tc_present pitch yaw roll tc_angle x1 y1 x2 y2 label
-            # All space-separated
+            # Timestamp format: "2025-10-01 18:24:01.063242" (has spaces!)
+            # We need to parse timestamp carefully since it contains spaces
+
+            # Split the line but reconstruct timestamp from first two parts
             parts = line.split()
 
-            if len(parts) >= 13:
-                # Extract key fields
-                timestamp = parts[0]  # Full timestamp
-                frame_num = parts[1]
-                num_faces = parts[2]
-                tc_present = parts[3]  # 0 or 1
+            if len(parts) >= 15:  # 2 parts for timestamp + 13 other fields
+                # Extract key fields - timestamp is parts[0] + space + parts[1]
+                timestamp = f"{parts[0]} {parts[1]}"  # Full timestamp with date and time
+                frame_num = parts[2]
+                num_faces = parts[3]
+                tc_present = parts[4]  # 0 or 1
 
-                # Gaze data (pitch, yaw, roll) - parts[4:7]
-                pitch = parts[4] if parts[4] != "None" else "N/A"
-                yaw = parts[5] if parts[5] != "None" else "N/A"
+                # Gaze data (pitch, yaw, roll) - now shifted by 1 due to timestamp
+                pitch = parts[5] if parts[5] != "None" else "N/A"
+                yaw = parts[6] if parts[6] != "None" else "N/A"
 
                 # Label - last element
-                label = parts[-1] if len(parts) > 12 else "unknown"
+                label = parts[-1] if len(parts) > 14 else "unknown"
 
                 # Format based on detection status
                 if label == "Gaze-det":
