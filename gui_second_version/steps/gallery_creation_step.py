@@ -379,6 +379,46 @@ class GalleryCreationStep(WizardStep):
         finally:
             self.validate_button.setEnabled(True)
 
+    def _create_notes_section(self) -> QWidget:
+        """Create notes section for gallery creation observations."""
+        from PyQt6.QtWidgets import QTextEdit
+
+        notes_group, notes_layout = self.ui_factory.create_group_box("Gallery Notes")
+
+        notes_label = self.ui_factory.create_label(
+            "Document observations (photo quality issues, difficult subjects, lighting conditions):"
+        )
+        notes_layout.addWidget(notes_label)
+
+        self.notes_text = QTextEdit()
+        self.notes_text.setMaximumHeight(100)
+        self.notes_text.setPlaceholderText(
+            "Example: Target child photos clear, parent2 difficult due to glasses glare, sibling1 moved during capture..."
+        )
+        notes_layout.addWidget(self.notes_text)
+
+        return notes_group
+
+    def _create_notes_section(self) -> QWidget:
+        """Create notes section for gallery creation observations."""
+        from PyQt6.QtWidgets import QTextEdit
+
+        notes_group, notes_layout = self.ui_factory.create_group_box("Gallery Notes")
+
+        notes_label = self.ui_factory.create_label(
+            "Document observations (photo quality issues, difficult subjects, lighting conditions):"
+        )
+        notes_layout.addWidget(notes_label)
+
+        self.notes_text = QTextEdit()
+        self.notes_text.setMaximumHeight(100)
+        self.notes_text.setPlaceholderText(
+            "Example: Target child photos clear, parent2 difficult due to glasses glare, sibling1 moved during capture..."
+        )
+        notes_layout.addWidget(self.notes_text)
+
+        return notes_group
+
     @handle_step_error
     def _on_continue_clicked(self, checked: bool = False) -> None:
         """Handle continue button click with validation."""
@@ -424,6 +464,16 @@ class GalleryCreationStep(WizardStep):
         super().activate_step()
 
         self.logger.info("Gallery creation step activated")
+
+        # Load any saved notes
+        saved_notes = self.state.get_user_input("gallery_creation_notes", "")
+        if saved_notes:
+            self.notes_text.setText(saved_notes)
+
+        # Load any saved notes
+        saved_notes = self.state.get_user_input("gallery_creation_notes", "")
+        if saved_notes:
+            self.notes_text.setText(saved_notes)
         
         # Auto-generate gallery path from participant info
         self._load_existing_gallery_path()

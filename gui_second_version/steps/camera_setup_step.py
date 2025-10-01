@@ -433,6 +433,46 @@ class CameraSetupStep(WizardStep):
                     # Skip devices with non-numeric suffixes
                     pass
 
+    def _create_notes_section(self) -> QWidget:
+        """Create notes section for camera setup observations."""
+        from PyQt6.QtWidgets import QTextEdit
+
+        notes_group, notes_layout = self.ui_factory.create_group_box("Setup Notes")
+
+        notes_label = self.ui_factory.create_label(
+            "Document observations (camera position, angle adjustments, field of view, issues):"
+        )
+        notes_layout.addWidget(notes_label)
+
+        self.notes_text = QTextEdit()
+        self.notes_text.setMaximumHeight(100)
+        self.notes_text.setPlaceholderText(
+            "Example: Camera mounted 6ft high, angled down 15 degrees, covers full couch area, slight IR reflection from window..."
+        )
+        notes_layout.addWidget(self.notes_text)
+
+        return notes_group
+
+    def _create_notes_section(self) -> QWidget:
+        """Create notes section for camera setup observations."""
+        from PyQt6.QtWidgets import QTextEdit
+
+        notes_group, notes_layout = self.ui_factory.create_group_box("Setup Notes")
+
+        notes_label = self.ui_factory.create_label(
+            "Document observations (camera position, angle adjustments, field of view, issues):"
+        )
+        notes_layout.addWidget(notes_label)
+
+        self.notes_text = QTextEdit()
+        self.notes_text.setMaximumHeight(100)
+        self.notes_text.setPlaceholderText(
+            "Example: Camera mounted 6ft high, angled down 15 degrees, covers full couch area, slight IR reflection from window..."
+        )
+        notes_layout.addWidget(self.notes_text)
+
+        return notes_group
+
     @handle_step_error
     def _on_continue_clicked(self, checked: bool = False) -> None:
         """Handle continue button click with validation."""

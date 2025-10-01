@@ -275,3 +275,78 @@ class WizardStep(QWidget):
         Override in subclasses for custom cleanup logic.
         """
         pass
+
+    def _save_notes_to_file(self, step_name: str, notes: str) -> bool:
+        """
+        Safely save notes to the participant's notes file.
+
+        Args:
+            step_name: Name of the step (e.g., "Cord Checking", "Device Locking")
+            notes: The notes content to save
+
+        Returns:
+            bool: True if saved successfully, False otherwise
+        """
+        import os
+        from datetime import datetime
+
+        try:
+            # Validate inputs
+            if not notes or not notes.strip():
+                self.logger.debug(f"No notes to save for {step_name}")
+                return True  # Not an error, just nothing to save
+
+            notes = notes.strip()
+
+            # Sanitize notes (remove null bytes, limit length)
+            notes = notes.replace('\x00', '')  # Remove null bytes
+            max_length = 50000  # 50KB limit for notes
+            if len(notes) > max_length:
+                self.logger.warning(f"Notes exceeded {max_length} characters, truncating")
+                notes = notes[:max_length] + "\n[... truncated ...]"
+
+            # Get participant information from state
+            participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
+            username = self.state.get_user_input("username", "")
+
+            # Validate required fields
+            if not all([participant_id, device_id, username]):
+                self.logger.warning(
+                    f"Cannot save notes for {step_name}: missing participant info "
+                    f"(participant_id={participant_id}, device_id={device_id}, username={username})"
+                )
+                return False
+
+            # Construct safe file path
+            combined_id = f"{participant_id}{device_id}"
+            data_folder = os.path.join("/home", username, "data", f"{combined_id}_data")
+
+            # Ensure data folder exists
+            os.makedirs(data_folder, exist_ok=True)
+
+            notes_file = os.path.join(data_folder, f"{combined_id}_notes.txt")
+
+            # Generate timestamp
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            # Safely append notes to file
+            with open(notes_file, "a", encoding="utf-8") as f:
+                f.write(f"\n{'=' * 60}\n")
+                f.write(f"{step_name} Notes - {timestamp}\n")
+                f.write(f"{'=' * 60}\n")
+                f.write(notes)
+                f.write("\n\n")
+
+            self.logger.info(f"Saved {step_name} notes to {notes_file}")
+            return True
+
+        except PermissionError as e:
+            self.logger.error(f"Permission denied saving notes for {step_name}: {e}")
+            return False
+        except OSError as e:
+            self.logger.error(f"OS error saving notes for {step_name}: {e}")
+            return False
+        except Exception as e:
+            self.logger.error(f"Unexpected error saving notes for {step_name}: {e}")
+            return False

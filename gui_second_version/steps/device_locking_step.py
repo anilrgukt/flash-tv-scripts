@@ -271,6 +271,8 @@ class DeviceLockingStep(WizardStep):
         instructions = self.instructions_text.toPlainText().strip()
         if instructions:
             self.state.set_user_input("final_instructions", instructions)
+            # Save instructions to file using safe base class method
+            self._save_notes_to_file("Device Locking", instructions)
 
         # Mark as complete
         self.state.set_user_input("device_locked", True)

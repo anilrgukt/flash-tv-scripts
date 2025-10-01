@@ -209,6 +209,8 @@ class CordCheckingStep(WizardStep):
         notes = self.notes_text.toPlainText().strip()
         if notes:
             self.state.set_user_input("cord_checking_notes", notes)
+            # Save notes to file using safe base class method
+            self._save_notes_to_file("Cord Checking", notes)
 
         # Mark cord checking as complete
         self.state.set_user_input("cords_verified", True)

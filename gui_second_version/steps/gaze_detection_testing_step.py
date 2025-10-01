@@ -33,6 +33,10 @@ class GazeDetectionTestingStep(WizardStep):
         main_layout.addLayout(middle_row)
         main_layout.addLayout(bottom_row)
 
+        # Add notes section
+        notes_section = self._create_notes_section()
+        main_layout.addWidget(notes_section)
+
         return content
 
     def _create_top_row(self):
@@ -202,6 +206,26 @@ class GazeDetectionTestingStep(WizardStep):
         help_layout.addStretch()
 
         return help_group
+
+    def _create_notes_section(self) -> QWidget:
+        """Create notes section for gaze testing observations."""
+        from PyQt6.QtWidgets import QTextEdit
+
+        notes_group, notes_layout = self.ui_factory.create_group_box("Testing Notes")
+
+        notes_label = self.ui_factory.create_label(
+            "Document observations (detection accuracy, environmental factors, issues):"
+        )
+        notes_layout.addWidget(notes_label)
+
+        self.notes_text = QTextEdit()
+        self.notes_text.setMaximumHeight(100)
+        self.notes_text.setPlaceholderText(
+            "Example: Gaze detection accurate when child centered, issues with side angles, bright window behind TV affects detection..."
+        )
+        notes_layout.addWidget(self.notes_text)
+
+        return notes_group
 
     def _create_continue_section(self) -> QWidget:
         """Create the continue section using UI factory."""
@@ -508,6 +532,12 @@ The gaze detection system tracks where the target child is looking relative to t
             if self.state.get_user_input("gaze_detection_verified", False):
                 self.logger.info("Gaze detection test step completed successfully")
 
+                # Save notes if any
+                notes = self.notes_text.toPlainText().strip()
+                if notes:
+                    self.state.set_user_input("gaze_detection_notes", notes)
+                    self._save_notes_to_file("Gaze Detection Testing", notes)
+
                 # Final state persistence
                 if self.state_manager:
                     self.state_manager.save_state(self.state)
@@ -530,6 +560,11 @@ The gaze detection system tracks where the target child is looking relative to t
         super().activate_step()
 
         self.logger.info("Gaze detection testing step activated")
+
+        # Load any saved notes
+        saved_notes = self.state.get_user_input("gaze_detection_notes", "")
+        if saved_notes:
+            self.notes_text.setText(saved_notes)
 
         # Check if already verified
         if self.state.get_user_input("gaze_detection_verified", False):

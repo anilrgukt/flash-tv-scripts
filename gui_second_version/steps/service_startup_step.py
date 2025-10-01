@@ -188,7 +188,7 @@ class ServiceStartupStep(WizardStep):
 
         # Column 3: Rotation model gaze output
         rot_column_layout = self.ui_factory.create_vertical_layout()
-        rot_label = self.ui_factory.create_label("Rotation Model:")
+        rot_label = self.ui_factory.create_label("Rot Model:")
         rot_label.setStyleSheet("font-weight: bold;")
         rot_column_layout.addWidget(rot_label)
 
@@ -201,7 +201,7 @@ class ServiceStartupStep(WizardStep):
 
         # Column 4: Secondary model gaze output
         reg_column_layout = self.ui_factory.create_vertical_layout()
-        reg_label = self.ui_factory.create_label("Secondary Model:")
+        reg_label = self.ui_factory.create_label("Reg Model:")
         reg_label.setStyleSheet("font-weight: bold;")
         reg_column_layout.addWidget(reg_label)
 
@@ -296,13 +296,13 @@ class ServiceStartupStep(WizardStep):
             # First configure the service files with participant details
             self._configure_service_files(username, participant_id, device_id)
 
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Starting FLASH-TV services...")
+            self.logger.info("Starting FLASH-TV services...")
 
             # Run each service command individually using sudo support
             all_success = True
 
             # Enable flash-periodic-restart.service
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Enabling flash-periodic-restart.service...")
+            self.logger.info("Enabling flash-periodic-restart.service...")
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "enable", "flash-periodic-restart.service"],
                 "Enable flash-periodic-restart service",
@@ -310,10 +310,10 @@ class ServiceStartupStep(WizardStep):
             )
             if not (result and result.returncode == 0):
                 all_success = False
-                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Failed to enable flash-periodic-restart.service: {error}")
+                # Removed old log_output widget
 
             # Enable flash-run-on-boot.service
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Enabling flash-run-on-boot.service...")
+            # Removed old log_output widget
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "enable", "flash-run-on-boot.service"],
                 "Enable flash-run-on-boot service",
@@ -321,10 +321,10 @@ class ServiceStartupStep(WizardStep):
             )
             if not (result and result.returncode == 0):
                 all_success = False
-                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Failed to enable flash-run-on-boot.service: {error}")
+                # Removed old log_output widget
 
             # Start flash-periodic-restart.service
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Starting flash-periodic-restart.service...")
+            # Removed old log_output widget
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "start", "flash-periodic-restart.service"],
                 "Start flash-periodic-restart service",
@@ -332,10 +332,10 @@ class ServiceStartupStep(WizardStep):
             )
             if not (result and result.returncode == 0):
                 all_success = False
-                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Failed to start flash-periodic-restart.service: {error}")
+                # Removed old log_output widget
 
             # Start flash-run-on-boot.service
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Starting flash-run-on-boot.service...")
+            # Removed old log_output widget
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "start", "flash-run-on-boot.service"],
                 "Start flash-run-on-boot service",
@@ -343,10 +343,10 @@ class ServiceStartupStep(WizardStep):
             )
             if not (result and result.returncode == 0):
                 all_success = False
-                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Failed to start flash-run-on-boot.service: {error}")
+                # Removed old log_output widget
 
             # Start Home Assistant Docker container
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Starting Home Assistant Docker container...")
+            # Removed old log_output widget
             result = self.process_runner.run_command(
                 ["docker", "compose", "up", "-d"],
                 working_dir=f"/home/{username}/homeassistant-compose",
@@ -354,17 +354,17 @@ class ServiceStartupStep(WizardStep):
             )
             if not (result and result.returncode == 0):
                 all_success = False
-                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Failed to start Home Assistant container")
+                # Removed old log_output widget
 
             # Check service status
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Checking service status...")
+            # Removed old log_output widget
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "status", "--no-pager", "flash-periodic-restart.service", "flash-run-on-boot.service"],
                 "Check service status",
                 timeout_ms=10000
             )
             if result and result.stdout:
-                self.log_output.append(f"Service Status:\n{result.stdout}")
+                # Removed old log_output widget
 
             if all_success:
                 self.service_running = True
@@ -375,12 +375,12 @@ class ServiceStartupStep(WizardStep):
                 # Start log monitoring
                 self._start_log_monitoring()
 
-                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Services started successfully")
-                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Systemd services and Docker containers are now running")
+                # Removed old log_output widget
+                # Removed old log_output widget
 
                 # Show script output if available
                 if result.stdout:
-                    self.log_output.append(f"Script output: {result.stdout}")
+                    # Removed old log_output widget
 
                 # Enable verification immediately since services are now started
                 self.services_working_button.setEnabled(True)
@@ -389,7 +389,7 @@ class ServiceStartupStep(WizardStep):
                 self.logger.info("FLASH-TV services started successfully")
             else:
                 error_msg = result.stderr if result else "Script execution failed"
-                self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Service start failed: {error_msg}")
+                # Removed old log_output widget
                 raise FlashTVError(
                     f"Failed to start FLASH-TV services: {error_msg}",
                     ErrorType.PROCESS_ERROR,
@@ -418,7 +418,7 @@ class ServiceStartupStep(WizardStep):
             # Stop log monitoring
             self._stop_log_monitoring()
 
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Stopping FLASH-TV services...")
+            # Removed old log_output widget
 
             # Stop flash-periodic-restart.service
             result, error = self.process_runner.run_sudo_command(
@@ -461,8 +461,8 @@ class ServiceStartupStep(WizardStep):
             self.stop_services_button.setEnabled(False)
             self.restart_services_button.setEnabled(False)
 
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Stop services script executed")
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Stopping systemd services and Docker containers")
+            # Removed old log_output widget
+            # Removed old log_output widget
             self.logger.info("FLASH-TV service stop script executed")
 
         except Exception as e:
@@ -475,65 +475,60 @@ class ServiceStartupStep(WizardStep):
 
     @handle_step_error
     def _restart_services(self, checked: bool = False) -> None:
-        """Restart FLASH-TV services using the actual service scripts."""
+        """Restart FLASH-TV services using the restart script."""
         try:
             username = self.state.get_user_input("username", "")
-            self.logger.info("Restarting FLASH-TV systemd services")
+            self.logger.info("Restarting FLASH-TV services")
 
             # Set sudo password from state for service operations
             if not self.process_runner.set_sudo_password_from_state():
                 self.logger.error("Sudo password required for restarting services")
                 return
 
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Restarting FLASH-TV services...")
-
-            # Restart flash-periodic-restart.service
+            # Run the restart services script
+            script_path = f"/home/{username}/flash-tv-scripts/services/restart_services.sh"
             result, error = self.process_runner.run_sudo_command(
-                ["systemctl", "restart", "flash-periodic-restart.service"],
-                "Restart flash-periodic-restart service",
-                timeout_ms=15000
-            )
-
-            # Restart flash-run-on-boot.service
-            result, error = self.process_runner.run_sudo_command(
-                ["systemctl", "restart", "flash-run-on-boot.service"],
-                "Restart flash-run-on-boot service",
-                timeout_ms=15000
-            )
-
-            # Restart Home Assistant Docker container
-            result = self.process_runner.run_command(
-                ["docker", "compose", "restart"],
-                working_dir=f"/home/{username}/homeassistant-compose",
+                ["bash", script_path],
+                "Restart FLASH-TV services",
                 timeout_ms=30000
             )
 
-            # Check service status
-            result, error = self.process_runner.run_sudo_command(
-                ["systemctl", "status", "--no-pager", "flash-periodic-restart.service", "flash-run-on-boot.service"],
-                "Check service status",
-                timeout_ms=10000
-            )
-            if result and result.stdout:
-                self.log_output.append(f"Service Status:\n{result.stdout}")
+            if error:
+                raise FlashTVError(
+                    f"Failed to restart services: {error}",
+                    ErrorType.PROCESS_ERROR,
+                    recovery_action="Check service script and try manual restart"
+                )
 
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Restart services script executed")
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Restarting systemd services and Docker containers")
-            self.logger.info("FLASH-TV service restart script executed")
+            # Services are now restarted - update UI
+            self.service_running = True
+            self.service_status_label.setText("FLASH-TV services restarted")
+
+            # Keep buttons in correct state (restart/stop enabled, start disabled)
+            self.start_services_button.setEnabled(False)
+            self.stop_services_button.setEnabled(True)
+            self.restart_services_button.setEnabled(True)
+
+            # Restart log monitoring since services are fresh
+            self._stop_log_monitoring()
+            self._start_log_monitoring()
+
+            self.logger.info("FLASH-TV services restarted successfully")
 
         except Exception as e:
             self.logger.error(f"Error restarting services: {e}")
+            self.service_status_label.setText("Service restart failed")
             raise
 
     def _start_log_monitoring(self) -> None:
         """Start monitoring logs for errors."""
         try:
             self.log_monitoring_active = True
-            self.log_status_label.setText("🔍 Monitoring logs for errors...")
+            # Removed old log_status_label widget
             self.log_monitor_timer.start(5000)  # Check every 5 seconds
             self.last_log_check = datetime.now()
 
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Log monitoring started")
+            # Removed old log_output widget
             self.logger.info("Log monitoring started")
 
         except Exception as e:
@@ -544,9 +539,9 @@ class ServiceStartupStep(WizardStep):
         try:
             self.log_monitoring_active = False
             self.log_monitor_timer.stop()
-            self.log_status_label.setText("🛑 Log monitoring stopped")
+            # Removed old log_status_label widget
 
-            self.log_output.append(f"[{datetime.now().strftime('%H:%M:%S')}] Log monitoring stopped")
+            # Removed old log_output widget
             self.logger.info("Log monitoring stopped")
 
         except Exception as e:
@@ -855,7 +850,7 @@ class ServiceStartupStep(WizardStep):
 
                         # Update the appropriate label
                         if file_type in self.gaze_status_labels:
-                            label_prefix = {"main": "Main Model:", "rot": "Rotation Model:", "reg": "Secondary Model:"}[file_type]
+                            label_prefix = {"main": "Main Model:", "rot": "Rot Model:", "reg": "Reg Model:"}[file_type]
                             self.gaze_status_labels[file_type].setText(f"{label_prefix} {formatted_data}")
 
                             # Color code based on gaze status
@@ -883,7 +878,7 @@ class ServiceStartupStep(WizardStep):
                 # No recent files found
                 for file_type in ["main", "rot", "reg"]:
                     if file_type in self.gaze_status_labels:
-                        label_prefix = {"main": "Main Model:", "rot": "Rotation Model:", "reg": "Secondary Model:"}[file_type]
+                        label_prefix = {"main": "Main Model:", "rot": "Rot Model:", "reg": "Reg Model:"}[file_type]
                         self.gaze_status_labels[file_type].setText(f"{label_prefix} Waiting for data...")
                         self.gaze_status_labels[file_type].setStyleSheet(
                             "font-family: monospace; padding: 5px; background-color: #f0f0f0; margin: 2px;"
@@ -964,7 +959,7 @@ class ServiceStartupStep(WizardStep):
         return False
 
     @handle_step_error
-    def _services_verified(self) -> None:
+    def _services_verified(self, checked: bool = False) -> None:
         """Handle service verification confirmation."""
         try:
             reply = QMessageBox.question(
@@ -1005,7 +1000,7 @@ class ServiceStartupStep(WizardStep):
             raise
 
     @handle_step_error
-    def _services_have_issues(self) -> None:
+    def _services_have_issues(self, checked: bool = False) -> None:
         """Handle service issues."""
         try:
             self.logger.warning("User reported service issues")

@@ -68,6 +68,10 @@ class POVPictureStep(WizardStep):
 
         main_layout.addLayout(content_row, 1)
 
+        # Notes section
+        notes_section = self._create_notes_section()
+        main_layout.addWidget(notes_section)
+
         # Continue button
         continue_section = self._create_continue_section()
         main_layout.addLayout(continue_section)
@@ -172,12 +176,32 @@ class POVPictureStep(WizardStep):
 
         return status_group
 
+    def _create_notes_section(self) -> QWidget:
+        """Create notes section for POV picture observations."""
+        from PyQt6.QtWidgets import QTextEdit
+
+        notes_group, notes_layout = self.ui_factory.create_group_box("Setup Notes")
+
+        notes_label = self.ui_factory.create_label(
+            "Document any observations (TV placement, viewing angle, lighting, room layout):"
+        )
+        notes_layout.addWidget(notes_label)
+
+        self.notes_text = QTextEdit()
+        self.notes_text.setMaximumHeight(100)
+        self.notes_text.setPlaceholderText(
+            "Example: TV mounted at 5ft height, 10ft from couch, window on left causing glare in afternoon..."
+        )
+        notes_layout.addWidget(self.notes_text)
+
+        return notes_group
+
     def _create_continue_section(self):
         """Create the continue button section."""
         button_layout, self.continue_button = self.ui_factory.create_continue_button(
             callback=self._on_continue_clicked, text="POV Picture Complete - Continue"
         )
-        
+
         # Initially disabled until workflow complete
         self.continue_button.setEnabled(False)
 
@@ -624,7 +648,13 @@ TECHNICAL DETAILS:
         try:
             if self.state.get_user_input("pov_picture_complete", False):
                 self.logger.info("POV picture step completed via iPad workflow")
-                
+
+                # Save notes if any
+                notes = self.notes_text.toPlainText().strip()
+                if notes:
+                    self.state.set_user_input("pov_picture_notes", notes)
+                    self._save_notes_to_file("POV Picture", notes)
+
                 # Final state persistence
                 if self.state_manager:
                     self.state_manager.save_state(self.state)
@@ -651,6 +681,11 @@ TECHNICAL DETAILS:
         """Activate the POV picture step."""
         super().activate_step()
         self.logger.info("POV picture step activated")
+
+        # Load any saved notes
+        saved_notes = self.state.get_user_input("pov_picture_notes", "")
+        if saved_notes:
+            self.notes_text.setText(saved_notes)
 
         # Check if step was previously completed
         if self.state.get_user_input("pov_picture_complete", False):
