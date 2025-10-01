@@ -364,7 +364,7 @@ class ServiceStartupStep(WizardStep):
                 timeout_ms=10000
             )
             if result and result.stdout:
-                # Removed old log_output widget
+                pass  # Status checked, log output removed
 
             if all_success:
                 self.service_running = True
