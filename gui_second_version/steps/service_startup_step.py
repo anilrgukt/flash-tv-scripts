@@ -153,31 +153,68 @@ class ServiceStartupStep(WizardStep):
         return service_group
 
     def _create_log_section(self) -> QWidget:
-        """Create the log monitoring section."""
-        log_group, log_layout = self.ui_factory.create_group_box("Log Monitoring")
+        """Create the 4-column log monitoring section."""
+        log_group, log_layout = self.ui_factory.create_group_box("Service Monitoring")
 
-        # Log monitoring status
-        self.log_status_label = self.ui_factory.create_status_label(
-            "Log monitoring not active", status_type="info"
-        )
-        log_layout.addWidget(self.log_status_label)
+        # Create horizontal layout for 4 columns
+        columns_layout = self.ui_factory.create_horizontal_layout()
 
-        # Log output area
-        self.log_output = QTextEdit()
-        self.log_output.setReadOnly(True)
-        self.log_output.setMaximumHeight(200)
-        self.log_output.setPlaceholderText("Service logs and error messages will appear here...")
-        log_layout.addWidget(self.log_output)
+        # Column 1: Full stderr log (scrollable, copy-pastable, errors highlighted in red)
+        stderr_column_layout = self.ui_factory.create_vertical_layout()
+        stderr_label = self.ui_factory.create_label("stderr Log:")
+        stderr_label.setStyleSheet("font-weight: bold;")
+        stderr_column_layout.addWidget(stderr_label)
 
-        # Error summary list
-        error_list_label = self.ui_factory.create_label("Detected Issues:")
-        log_layout.addWidget(error_list_label)
+        self.stderr_output = QTextEdit()
+        self.stderr_output.setReadOnly(True)
+        self.stderr_output.setPlaceholderText("stderr log will appear here...")
+        self.stderr_output.setLineWrapMode(QTextEdit.LineWrapMode.NoWrap)
+        stderr_column_layout.addWidget(self.stderr_output)
 
-        self.error_list = QListWidget()
-        self.error_list.setMaximumHeight(100)
-        log_layout.addWidget(self.error_list)
+        columns_layout.addLayout(stderr_column_layout)
 
-        # Verification buttons
+        # Column 2: Main model gaze output
+        main_column_layout = self.ui_factory.create_vertical_layout()
+        main_label = self.ui_factory.create_label("Main Model:")
+        main_label.setStyleSheet("font-weight: bold;")
+        main_column_layout.addWidget(main_label)
+
+        self.gaze_main_output = QTextEdit()
+        self.gaze_main_output.setReadOnly(True)
+        self.gaze_main_output.setPlaceholderText("Waiting for data...")
+        main_column_layout.addWidget(self.gaze_main_output)
+
+        columns_layout.addLayout(main_column_layout)
+
+        # Column 3: Rotation model gaze output
+        rot_column_layout = self.ui_factory.create_vertical_layout()
+        rot_label = self.ui_factory.create_label("Rotation Model:")
+        rot_label.setStyleSheet("font-weight: bold;")
+        rot_column_layout.addWidget(rot_label)
+
+        self.gaze_rot_output = QTextEdit()
+        self.gaze_rot_output.setReadOnly(True)
+        self.gaze_rot_output.setPlaceholderText("Waiting for data...")
+        rot_column_layout.addWidget(self.gaze_rot_output)
+
+        columns_layout.addLayout(rot_column_layout)
+
+        # Column 4: Secondary model gaze output
+        reg_column_layout = self.ui_factory.create_vertical_layout()
+        reg_label = self.ui_factory.create_label("Secondary Model:")
+        reg_label.setStyleSheet("font-weight: bold;")
+        reg_column_layout.addWidget(reg_label)
+
+        self.gaze_reg_output = QTextEdit()
+        self.gaze_reg_output.setReadOnly(True)
+        self.gaze_reg_output.setPlaceholderText("Waiting for data...")
+        reg_column_layout.addWidget(self.gaze_reg_output)
+
+        columns_layout.addLayout(reg_column_layout)
+
+        log_layout.addLayout(columns_layout)
+
+        # Verification buttons at the bottom
         verification_layout = self.ui_factory.create_horizontal_layout(spacing=8)
 
         self.services_working_button = self.ui_factory.create_action_button(
@@ -534,36 +571,156 @@ class ServiceStartupStep(WizardStep):
             if not os.path.exists(data_path):
                 return
 
-            # Look for log files
+            # Look for stderr log files specifically
             current_time = datetime.now()
-            new_errors = []
 
-            for file in os.listdir(data_path):
-                if file.startswith(f"{full_participant_id}_flash_log") and file.endswith(".txt"):
-                    log_path = os.path.join(data_path, file)
+            # Check stderr log file and display full content with red highlighting
+            stderr_log_file = os.path.join(data_path, f"{full_participant_id}_flash_logstderr.log")
+            if os.path.exists(stderr_log_file):
+                self._display_stderr_log(stderr_log_file)
 
-                    # Check if file was modified since last check
-                    if self.last_log_check and os.path.getmtime(log_path) > self.last_log_check.timestamp():
-                        new_errors.extend(self._scan_log_file(log_path))
+            # Check gaze output files and update the 3 gaze columns
+            self._update_gaze_columns(data_path, full_participant_id)
 
             # Update last check time
             self.last_log_check = current_time
 
-            # Display new errors (filtering out known minor ones)
-            for error in new_errors:
-                if not self._is_known_minor_error(error):
-                    self.error_list.addItem(QListWidgetItem(f"[{current_time.strftime('%H:%M:%S')}] {error}"))
-                    self.log_output.append(f"[{current_time.strftime('%H:%M:%S')}] ERROR: {error}")
-
-            # Update status
-            error_count = self.error_list.count()
-            if error_count == 0:
-                self.log_status_label.setText("✅ No issues detected")
-            else:
-                self.log_status_label.setText(f"⚠️ {error_count} issue(s) detected")
-
         except Exception as e:
             self.logger.error(f"Error checking logs: {e}")
+
+    def _display_stderr_log(self, log_path: str) -> None:
+        """Display the full stderr log with errors highlighted in red."""
+        try:
+            with open(log_path, 'r', errors='ignore') as f:
+                content = f.read()
+
+            # Clear current content
+            self.stderr_output.clear()
+
+            # Process each line and highlight errors
+            for line in content.splitlines():
+                # Check if line contains error patterns
+                is_error = any(pattern in line for pattern in [
+                    'Traceback (most recent call last)',
+                    'Exception:',
+                    'Error:',
+                    'CRITICAL:',
+                    'ERROR:',
+                    'Failed to',
+                    'Could not',
+                    'Unable to',
+                    'No such file',
+                    'Permission denied',
+                    'Connection refused',
+                    'Segmentation fault',
+                    'RuntimeError',
+                    'ValueError',
+                    'KeyError',
+                    'IndexError',
+                    'AttributeError',
+                    'OSError',
+                    'IOError'
+                ])
+
+                # Skip known minor errors
+                if is_error and not self._is_known_minor_error(line):
+                    # Highlight error lines in red
+                    self.stderr_output.setTextColor(self.stderr_output.palette().color(self.stderr_output.foregroundRole()))
+                    self.stderr_output.append(f'<span style="color: red;">{line}</span>')
+                else:
+                    # Normal lines in default color
+                    self.stderr_output.setTextColor(self.stderr_output.palette().color(self.stderr_output.foregroundRole()))
+                    self.stderr_output.append(line)
+
+            # Auto-scroll to bottom
+            self.stderr_output.verticalScrollBar().setValue(
+                self.stderr_output.verticalScrollBar().maximum()
+            )
+
+        except Exception as e:
+            self.logger.error(f"Error displaying stderr log {log_path}: {e}")
+
+    def _update_gaze_columns(self, data_path: str, full_participant_id: str) -> None:
+        """Update the 3 gaze output columns with latest data."""
+        try:
+            import glob
+
+            # Find the most recent gaze log files
+            base_pattern = os.path.join(data_path, f"{full_participant_id}_flash_log_*.txt")
+            all_gaze_files = glob.glob(base_pattern)
+
+            # Group files by timestamp
+            file_groups = {}
+            for filepath in all_gaze_files:
+                filename = os.path.basename(filepath)
+                if "_flash_log_" in filename:
+                    parts = filename.split("_flash_log_")
+                    if len(parts) == 2:
+                        timestamp_part = parts[1].replace(".txt", "").replace("_rot", "").replace("_reg", "")
+                        base_name = f"{full_participant_id}_flash_log_{timestamp_part}"
+
+                        if base_name not in file_groups:
+                            file_groups[base_name] = {}
+
+                        if filepath.endswith("_rot.txt"):
+                            file_groups[base_name]["rot"] = filepath
+                        elif filepath.endswith("_reg.txt"):
+                            file_groups[base_name]["reg"] = filepath
+                        elif filepath.endswith(f"{timestamp_part}.txt"):
+                            file_groups[base_name]["main"] = filepath
+
+            # Find the most recent complete set
+            most_recent_group = None
+            most_recent_time = None
+
+            for base_name, files in file_groups.items():
+                if "main" in files:
+                    mtime = os.path.getmtime(files["main"])
+                    if most_recent_time is None or mtime > most_recent_time:
+                        most_recent_time = mtime
+                        most_recent_group = files
+
+            # Update each column with formatted gaze data
+            if most_recent_group:
+                # Update main model column
+                if "main" in most_recent_group:
+                    last_line = self._get_last_data_line(most_recent_group["main"])
+                    formatted = self._format_gaze_data(last_line, "main")
+                    self._update_gaze_column_display(self.gaze_main_output, formatted, last_line)
+
+                # Update rotation model column
+                if "rot" in most_recent_group:
+                    last_line = self._get_last_data_line(most_recent_group["rot"])
+                    formatted = self._format_gaze_data(last_line, "rot")
+                    self._update_gaze_column_display(self.gaze_rot_output, formatted, last_line)
+
+                # Update secondary model column
+                if "reg" in most_recent_group:
+                    last_line = self._get_last_data_line(most_recent_group["reg"])
+                    formatted = self._format_gaze_data(last_line, "reg")
+                    self._update_gaze_column_display(self.gaze_reg_output, formatted, last_line)
+            else:
+                # No files found
+                self.gaze_main_output.setPlainText("Waiting for data...")
+                self.gaze_rot_output.setPlainText("Waiting for data...")
+                self.gaze_reg_output.setPlainText("Waiting for data...")
+
+        except Exception as e:
+            self.logger.error(f"Error updating gaze columns: {e}")
+
+    def _update_gaze_column_display(self, widget: QTextEdit, formatted_text: str, raw_line: str) -> None:
+        """Update a gaze column widget with color coding."""
+        widget.setPlainText(formatted_text)
+
+        # Color code based on status
+        if "TC gaze detected" in formatted_text or "Gaze-det" in raw_line:
+            widget.setStyleSheet("background-color: #90EE90; padding: 5px;")  # Green
+        elif "TC present but no gaze" in formatted_text or "Gaze-no-det" in raw_line:
+            widget.setStyleSheet("background-color: #FFFFE0; padding: 5px;")  # Yellow
+        elif "No faces detected" in formatted_text or "No-face-detected" in raw_line:
+            widget.setStyleSheet("background-color: #FFB6C1; padding: 5px;")  # Light red
+        else:
+            widget.setStyleSheet("background-color: #f0f0f0; padding: 5px;")  # Gray
 
     def _scan_log_file(self, log_path: str) -> List[str]:
         """Scan a log file for error patterns."""
@@ -582,6 +739,215 @@ class ServiceStartupStep(WizardStep):
             self.logger.error(f"Error scanning log file {log_path}: {e}")
 
         return errors
+
+    def _scan_log_file_complete(self, log_path: str) -> List[str]:
+        """Scan entire stderr log file for error patterns."""
+        errors = []
+
+        try:
+            with open(log_path, 'r', errors='ignore') as f:
+                content = f.read()
+
+            # Parse the entire file looking for error patterns
+            for line in content.splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+
+                # Look for actual FLASH-TV errors and Python exceptions
+                # Be more selective since stderr will have lots of warnings
+                if any(pattern in line for pattern in [
+                    'Traceback (most recent call last)',  # Python traceback start
+                    'Exception:',  # Python exceptions
+                    'Error:',  # General errors
+                    'CRITICAL:',  # Critical log messages
+                    'ERROR:',  # Error log messages
+                    'Failed to detect',  # FLASH-TV specific failures
+                    'Failed to load',
+                    'Failed to initialize',
+                    'Could not find',
+                    'Could not open',
+                    'Unable to access',
+                    'No such file or directory',
+                    'Permission denied',
+                    'Connection refused',
+                    'Camera not found',
+                    'Device not found',
+                    'Segmentation fault',
+                    'Assertion failed',
+                    'CUDA out of memory',
+                    'RuntimeError',
+                    'ValueError',
+                    'KeyError',
+                    'IndexError',
+                    'AttributeError',
+                    'OSError',
+                    'IOError',
+                    'ImportError',
+                    'ModuleNotFoundError'
+                ]):
+                    # Store the error line
+                    errors.append(line)
+
+        except Exception as e:
+            self.logger.error(f"Error scanning stderr log file {log_path}: {e}")
+
+        return errors
+
+    def _check_gaze_output_files(self, data_path: str, full_participant_id: str) -> None:
+        """Check gaze output files and display the last line of each."""
+        try:
+            import glob
+            from datetime import datetime, timedelta
+
+            # Find the most recent gaze log files (within last 24 hours)
+            current_time = datetime.now()
+            cutoff_time = current_time - timedelta(hours=24)
+
+            # Pattern for gaze log files: {participant_id}_flash_log_YYYY-MM-DD_HH-MM-SS*.txt
+            base_pattern = os.path.join(data_path, f"{full_participant_id}_flash_log_*.txt")
+            all_gaze_files = glob.glob(base_pattern)
+
+            # Group files by timestamp
+            file_groups = {}
+            for filepath in all_gaze_files:
+                # Extract timestamp from filename
+                filename = os.path.basename(filepath)
+                # Pattern: P1-3999028_flash_log_2025-09-29_14-32-43.txt or _rot.txt or _reg.txt
+                if "_flash_log_" in filename:
+                    # Extract the base filename without suffix
+                    parts = filename.split("_flash_log_")
+                    if len(parts) == 2:
+                        timestamp_part = parts[1].replace(".txt", "").replace("_rot", "").replace("_reg", "")
+                        base_name = f"{full_participant_id}_flash_log_{timestamp_part}"
+
+                        if base_name not in file_groups:
+                            file_groups[base_name] = {}
+
+                        # Determine file type
+                        if filepath.endswith("_rot.txt"):
+                            file_groups[base_name]["rot"] = filepath
+                        elif filepath.endswith("_reg.txt"):
+                            file_groups[base_name]["reg"] = filepath
+                        elif filepath.endswith(f"{timestamp_part}.txt"):
+                            file_groups[base_name]["main"] = filepath
+
+            # Find the most recent complete set
+            most_recent_group = None
+            most_recent_time = None
+
+            for base_name, files in file_groups.items():
+                # Check if we have all three files
+                if "main" in files and "rot" in files and "reg" in files:
+                    # Get modification time of main file
+                    mtime = os.path.getmtime(files["main"])
+                    if most_recent_time is None or mtime > most_recent_time:
+                        most_recent_time = mtime
+                        most_recent_group = files
+
+            # If we found a recent set, display the last lines
+            if most_recent_group:
+                for file_type, filepath in most_recent_group.items():
+                    last_line = self._get_last_data_line(filepath)
+                    if last_line:
+                        # Parse and format the gaze data
+                        formatted_data = self._format_gaze_data(last_line, file_type)
+
+                        # Update the appropriate label
+                        if file_type in self.gaze_status_labels:
+                            label_prefix = {"main": "Main Model:", "rot": "Rotation Model:", "reg": "Secondary Model:"}[file_type]
+                            self.gaze_status_labels[file_type].setText(f"{label_prefix} {formatted_data}")
+
+                            # Color code based on gaze status
+                            if "TC gaze detected" in formatted_data or "Gaze-det" in formatted_data:
+                                # Target child detected with gaze - green
+                                self.gaze_status_labels[file_type].setStyleSheet(
+                                    "font-family: monospace; padding: 5px; background-color: #90EE90; margin: 2px;"
+                                )
+                            elif "TC present but no gaze" in formatted_data or "Gaze-no-det" in formatted_data:
+                                # Target child present but no gaze detected - yellow
+                                self.gaze_status_labels[file_type].setStyleSheet(
+                                    "font-family: monospace; padding: 5px; background-color: #FFFFE0; margin: 2px;"
+                                )
+                            elif "No faces detected" in formatted_data or "No-face-detected" in formatted_data:
+                                # No faces detected - light red/pink
+                                self.gaze_status_labels[file_type].setStyleSheet(
+                                    "font-family: monospace; padding: 5px; background-color: #FFB6C1; margin: 2px;"
+                                )
+                            else:
+                                # Unknown status - default gray
+                                self.gaze_status_labels[file_type].setStyleSheet(
+                                    "font-family: monospace; padding: 5px; background-color: #f0f0f0; margin: 2px;"
+                                )
+            else:
+                # No recent files found
+                for file_type in ["main", "rot", "reg"]:
+                    if file_type in self.gaze_status_labels:
+                        label_prefix = {"main": "Main Model:", "rot": "Rotation Model:", "reg": "Secondary Model:"}[file_type]
+                        self.gaze_status_labels[file_type].setText(f"{label_prefix} Waiting for data...")
+                        self.gaze_status_labels[file_type].setStyleSheet(
+                            "font-family: monospace; padding: 5px; background-color: #f0f0f0; margin: 2px;"
+                        )
+
+        except Exception as e:
+            self.logger.error(f"Error checking gaze output files: {e}")
+
+    def _get_last_data_line(self, filepath: str) -> str:
+        """Get the last non-empty line from a gaze log file."""
+        try:
+            with open(filepath, 'r') as f:
+                lines = f.readlines()
+                # Find the last non-empty line
+                for line in reversed(lines):
+                    line = line.strip()
+                    if line and not line.startswith("#"):  # Skip comments
+                        return line
+        except Exception as e:
+            self.logger.debug(f"Could not read last line from {filepath}: {e}")
+        return ""
+
+    def _format_gaze_data(self, line: str, file_type: str) -> str:
+        """Format gaze data line for display."""
+        try:
+            # Format: timestamp frame_num num_faces tc_present pitch yaw roll tc_angle x1 y1 x2 y2 label
+            # All space-separated
+            parts = line.split()
+
+            if len(parts) >= 13:
+                # Extract key fields
+                timestamp = parts[0].split('_')[-1] if '_' in parts[0] else parts[0]  # Get time part only
+                frame_num = parts[1]
+                num_faces = parts[2]
+                tc_present = parts[3]  # 0 or 1
+
+                # Gaze data (pitch, yaw, roll) - parts[4:7]
+                pitch = parts[4] if parts[4] != "None" else "N/A"
+                yaw = parts[5] if parts[5] != "None" else "N/A"
+
+                # Label - last element
+                label = parts[-1] if len(parts) > 12 else "unknown"
+
+                # Format based on detection status
+                if label == "Gaze-det":
+                    # Target child detected with gaze
+                    if pitch != "N/A" and yaw != "N/A":
+                        return f"[{timestamp}] TC gaze detected - Pitch: {pitch[:6]}, Yaw: {yaw[:6]}"
+                    else:
+                        return f"[{timestamp}] TC detected with gaze"
+                elif label == "Gaze-no-det":
+                    # Target child present but no gaze detection
+                    return f"[{timestamp}] TC present but no gaze (faces: {num_faces})"
+                elif label == "No-face-detected":
+                    # No faces detected at all
+                    return f"[{timestamp}] No faces detected"
+                else:
+                    # Unknown label
+                    return f"[{timestamp}] Status: {label} (faces: {num_faces}, TC: {tc_present})"
+            else:
+                return f"Invalid format (only {len(parts)} fields)"
+        except Exception as e:
+            self.logger.debug(f"Error formatting gaze data: {e}")
+            return "Parse error"
 
     def _is_known_minor_error(self, error_message: str) -> bool:
         """Check if an error is a known warning or normal message that should be ignored."""
