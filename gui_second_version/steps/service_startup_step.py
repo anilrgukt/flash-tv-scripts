@@ -898,19 +898,19 @@ class ServiceStartupStep(WizardStep):
             # Split the line but reconstruct timestamp from first two parts
             parts = line.split()
 
-            if len(parts) >= 15:  # 2 parts for timestamp + 13 other fields
+            if len(parts) >= 14:  # 2 parts for timestamp + 12 data fields
                 # Extract key fields - timestamp is parts[0] + space + parts[1]
                 timestamp = f"{parts[0]} {parts[1]}"  # Full timestamp with date and time
                 frame_num = parts[2]
                 num_faces = parts[3]
                 tc_present = parts[4]  # 0 or 1
 
-                # Gaze data (pitch, yaw, roll) - now shifted by 1 due to timestamp
+                # Gaze data (pitch, yaw, roll) - parts[5:8]
                 pitch = parts[5] if parts[5] != "None" else "N/A"
                 yaw = parts[6] if parts[6] != "None" else "N/A"
 
-                # Label - last element
-                label = parts[-1] if len(parts) > 14 else "unknown"
+                # Label - last element (parts[13])
+                label = parts[-1] if len(parts) >= 14 else "unknown"
 
                 # Format based on detection status
                 if label == "Gaze-det":
