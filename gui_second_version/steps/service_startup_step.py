@@ -380,7 +380,7 @@ class ServiceStartupStep(WizardStep):
 
                 # Show script output if available
                 if result.stdout:
-                    # Removed old log_output widget
+                    pass  # Script output available, log output removed
 
                 # Enable verification immediately since services are now started
                 self.services_working_button.setEnabled(True)
