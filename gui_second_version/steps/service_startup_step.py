@@ -151,7 +151,7 @@ class GazeArrowWidget(QWidget):
 
             # Draw with word wrap, centered
             painter.drawText(5, text_start_y + 40, width - 10, 60,
-                           Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.TextWordWrap,
+                           Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap,
                            self.status_text)
 
 
