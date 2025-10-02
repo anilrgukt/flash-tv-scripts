@@ -6,16 +6,120 @@ import os
 import re
 import time
 import subprocess
+import math
 from datetime import datetime, timedelta
-from typing import List, Dict, Set
+from typing import List, Dict, Set, Optional, Tuple
 
-from PyQt6.QtWidgets import QWidget, QMessageBox, QListWidget, QListWidgetItem, QTextEdit
-from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QWidget, QMessageBox, QListWidget, QListWidgetItem, QTextEdit, QLabel, QVBoxLayout
+from PyQt6.QtCore import QTimer, Qt, QPointF
+from PyQt6.QtGui import QPainter, QPen, QColor, QPolygonF, QPainterPath, QFont
 
 from core import WizardStep
 from core.exceptions import handle_step_error, FlashTVError, ErrorType
 from models import StepStatus
 from utils.ui_factory import ButtonStyle
+
+
+class GazeArrowWidget(QWidget):
+    """Widget that draws a gaze direction arrow based on pitch/yaw angles."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.pitch_deg = 0.0
+        self.yaw_deg = 0.0
+        self.watching_tv = False
+        self.has_data = False
+        self.setMinimumSize(200, 200)
+        self.setMaximumSize(250, 250)
+
+    def set_gaze(self, pitch_deg: float, yaw_deg: float, watching_tv: bool):
+        """Update the gaze arrow display."""
+        self.pitch_deg = pitch_deg
+        self.yaw_deg = yaw_deg
+        self.watching_tv = watching_tv
+        self.has_data = True
+        self.update()  # Trigger repaint
+
+    def clear_gaze(self):
+        """Clear the gaze display."""
+        self.has_data = False
+        self.update()
+
+    def paintEvent(self, event):
+        """Draw the gaze arrow."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+
+        # Get widget dimensions
+        width = self.width()
+        height = self.height()
+        center_x = width / 2
+        center_y = height / 2
+
+        # Draw background circle
+        painter.setPen(QPen(QColor(200, 200, 200), 2))
+        painter.setBrush(QColor(240, 240, 240))
+        radius = min(width, height) / 2 - 10
+        painter.drawEllipse(int(center_x - radius), int(center_y - radius),
+                          int(radius * 2), int(radius * 2))
+
+        if not self.has_data:
+            # Draw "No Data" text
+            painter.setPen(QColor(100, 100, 100))
+            painter.setFont(QFont("Arial", 12))
+            painter.drawText(event.rect(), Qt.AlignmentFlag.AlignCenter, "No Data")
+            return
+
+        # Draw center point (face position)
+        painter.setPen(QPen(QColor(0, 0, 0), 2))
+        painter.setBrush(QColor(0, 0, 0))
+        painter.drawEllipse(int(center_x - 5), int(center_y - 5), 10, 10)
+
+        # Calculate arrow endpoint based on gaze angles
+        # Using the same formula as draw_gz in visualizer.py
+        # x = -40 * cos(yaw) * sin(pitch)
+        # y = -40 * sin(yaw)
+
+        pitch_rad = self.pitch_deg / 57.2958  # Convert back to radians
+        yaw_rad = self.yaw_deg / 57.2958
+
+        # Scale factor for visualization
+        arrow_length = radius * 0.6
+
+        x = -arrow_length * math.cos(yaw_rad) * math.sin(pitch_rad)
+        y = -arrow_length * math.sin(yaw_rad)
+
+        end_x = center_x + x
+        end_y = center_y + y
+
+        # Choose color based on watching TV status (using center-big-med evaluation)
+        if self.watching_tv:
+            arrow_color = QColor(0, 255, 0)  # Green - watching TV
+        else:
+            arrow_color = QColor(0, 0, 255)  # Blue - looking away
+
+        # Draw arrow line
+        painter.setPen(QPen(arrow_color, 3))
+        painter.drawLine(int(center_x), int(center_y), int(end_x), int(end_y))
+
+        # Draw arrowhead
+        arrow_size = 15
+        angle = math.atan2(y, x)
+
+        p1 = QPointF(end_x, end_y)
+        p2 = QPointF(end_x - arrow_size * math.cos(angle - math.pi / 6),
+                     end_y - arrow_size * math.sin(angle - math.pi / 6))
+        p3 = QPointF(end_x - arrow_size * math.cos(angle + math.pi / 6),
+                     end_y - arrow_size * math.sin(angle + math.pi / 6))
+
+        painter.setBrush(arrow_color)
+        painter.drawPolygon(QPolygonF([p1, p2, p3]))
+
+        # Draw angle labels
+        painter.setPen(QColor(0, 0, 0))
+        painter.setFont(QFont("Arial", 9))
+        label_text = f"P:{self.pitch_deg:+.1f}° Y:{self.yaw_deg:+.1f}°"
+        painter.drawText(5, height - 5, label_text)
 
 
 class ServiceStartupStep(WizardStep):
@@ -28,6 +132,37 @@ class ServiceStartupStep(WizardStep):
         self.service_running = False
         self.log_monitoring_active = False
         self.last_log_check = None
+
+        # Load location limits file for gaze evaluation with "center-big-med" setting
+        self.loc_lims = None
+        try:
+            import numpy as np
+            limits_path = "/mnt/d/Scripts/flash-tv-scripts/python_scripts/4331_v3r50reg_reg_testlims_35_53_7_9.npy"
+            loc_lims = np.load(limits_path).reshape(-1, 4)  # Shape: (120, 4)
+
+            # Apply "center-big-med" transformation (same as demo script)
+            # pos=center, size=big, height=med
+            drl = (loc_lims[:, 1] - loc_lims[:, 0]) / 2.0
+            dtb = (loc_lims[:, 3] - loc_lims[:, 2]) / 2.0
+
+            slr = 1.1    # center position
+            stb = 1.1
+            rls_sc = 0.3  # big TV
+            tbs_sc = 0.2  # big TV
+
+            rls = drl * rls_sc
+            tbs = dtb * tbs_sc
+
+            loc_lims[:, 0] = slr * loc_lims[:, 0] - rls  # phi_min
+            loc_lims[:, 1] = slr * loc_lims[:, 1] + rls  # phi_max
+            loc_lims[:, 2] = stb * loc_lims[:, 2] - tbs  # theta_min
+            loc_lims[:, 3] = stb * loc_lims[:, 3] + tbs  # theta_max
+
+            self.loc_lims = loc_lims
+            self.logger.info(f"Loaded location limits with center-big-med setting: shape {self.loc_lims.shape}")
+        except Exception as e:
+            self.logger.warning(f"Could not load location limits file: {e}")
+            self.loc_lims = None
 
         # Known warnings/errors to ignore
         self.known_warnings = {
@@ -173,44 +308,56 @@ class ServiceStartupStep(WizardStep):
 
         columns_layout.addLayout(stderr_column_layout)
 
-        # Column 2: Main model gaze output
+        # Column 2: Main model gaze output with arrow
         main_column_layout = self.ui_factory.create_vertical_layout()
         main_label = self.ui_factory.create_label("Main Model:")
         main_label.setStyleSheet("font-weight: bold;")
         main_column_layout.addWidget(main_label)
 
+        self.gaze_main_arrow = GazeArrowWidget()
+        main_column_layout.addWidget(self.gaze_main_arrow)
+
         self.gaze_main_output = QTextEdit()
         self.gaze_main_output.setReadOnly(True)
         self.gaze_main_output.setPlaceholderText("Waiting for data...")
         self.gaze_main_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        self.gaze_main_output.setMaximumHeight(100)
         main_column_layout.addWidget(self.gaze_main_output)
 
         columns_layout.addLayout(main_column_layout)
 
-        # Column 3: Rotation model gaze output
+        # Column 3: Rotation model gaze output with arrow
         rot_column_layout = self.ui_factory.create_vertical_layout()
         rot_label = self.ui_factory.create_label("Rot Model:")
         rot_label.setStyleSheet("font-weight: bold;")
         rot_column_layout.addWidget(rot_label)
 
+        self.gaze_rot_arrow = GazeArrowWidget()
+        rot_column_layout.addWidget(self.gaze_rot_arrow)
+
         self.gaze_rot_output = QTextEdit()
         self.gaze_rot_output.setReadOnly(True)
         self.gaze_rot_output.setPlaceholderText("Waiting for data...")
         self.gaze_rot_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
+        self.gaze_rot_output.setMaximumHeight(100)
         rot_column_layout.addWidget(self.gaze_rot_output)
 
         columns_layout.addLayout(rot_column_layout)
 
-        # Column 4: Secondary model gaze output
+        # Column 4: Secondary model gaze output with arrow
         reg_column_layout = self.ui_factory.create_vertical_layout()
         reg_label = self.ui_factory.create_label("Reg Model:")
         reg_label.setStyleSheet("font-weight: bold;")
         reg_column_layout.addWidget(reg_label)
 
+        self.gaze_reg_arrow = GazeArrowWidget()
+        reg_column_layout.addWidget(self.gaze_reg_arrow)
+
         self.gaze_reg_output = QTextEdit()
         self.gaze_reg_output.setReadOnly(True)
         self.gaze_reg_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         self.gaze_reg_output.setPlaceholderText("Waiting for data...")
+        self.gaze_reg_output.setMaximumHeight(100)
         reg_column_layout.addWidget(self.gaze_reg_output)
 
         columns_layout.addLayout(reg_column_layout)
@@ -667,20 +814,20 @@ class ServiceStartupStep(WizardStep):
                 # Update main model column
                 if "main" in most_recent_group:
                     last_line = self._get_last_data_line(most_recent_group["main"])
-                    formatted = self._format_gaze_data(last_line, "main")
-                    self._update_gaze_column_display(self.gaze_main_output, formatted, last_line)
+                    formatted, gaze_data = self._format_gaze_data(last_line, "main")
+                    self._update_gaze_column_display(self.gaze_main_output, self.gaze_main_arrow, formatted, last_line, gaze_data)
 
                 # Update rotation model column
                 if "rot" in most_recent_group:
                     last_line = self._get_last_data_line(most_recent_group["rot"])
-                    formatted = self._format_gaze_data(last_line, "rot")
-                    self._update_gaze_column_display(self.gaze_rot_output, formatted, last_line)
+                    formatted, gaze_data = self._format_gaze_data(last_line, "rot")
+                    self._update_gaze_column_display(self.gaze_rot_output, self.gaze_rot_arrow, formatted, last_line, gaze_data)
 
                 # Update secondary model column
                 if "reg" in most_recent_group:
                     last_line = self._get_last_data_line(most_recent_group["reg"])
-                    formatted = self._format_gaze_data(last_line, "reg")
-                    self._update_gaze_column_display(self.gaze_reg_output, formatted, last_line)
+                    formatted, gaze_data = self._format_gaze_data(last_line, "reg")
+                    self._update_gaze_column_display(self.gaze_reg_output, self.gaze_reg_arrow, formatted, last_line, gaze_data)
             else:
                 # No files found
                 self.gaze_main_output.setPlainText("Waiting for data...")
@@ -690,19 +837,29 @@ class ServiceStartupStep(WizardStep):
         except Exception as e:
             self.logger.error(f"Error updating gaze columns: {e}")
 
-    def _update_gaze_column_display(self, widget: QTextEdit, formatted_text: str, raw_line: str) -> None:
-        """Update a gaze column widget with color coding."""
-        widget.setPlainText(formatted_text)
+    def _update_gaze_column_display(self, text_widget: QTextEdit, arrow_widget: GazeArrowWidget,
+                                    formatted_text: str, raw_line: str, gaze_data: Optional[Tuple[float, float, bool]]) -> None:
+        """Update a gaze column widget with color coding and arrow display."""
+        text_widget.setPlainText(formatted_text)
 
-        # Color code based on status
-        if "TC gaze detected" in formatted_text or "Gaze-det" in raw_line:
-            widget.setStyleSheet("background-color: #90EE90; padding: 5px;")  # Green
-        elif "TC present but no gaze" in formatted_text or "Gaze-no-det" in raw_line:
-            widget.setStyleSheet("background-color: #FFFFE0; padding: 5px;")  # Yellow
-        elif "No faces detected" in formatted_text or "No-face-detected" in raw_line:
-            widget.setStyleSheet("background-color: #FFB6C1; padding: 5px;")  # Light red
+        # Update arrow widget if we have gaze data
+        if gaze_data:
+            pitch_deg, yaw_deg, watching_tv = gaze_data
+            arrow_widget.set_gaze(pitch_deg, yaw_deg, watching_tv)
         else:
-            widget.setStyleSheet("background-color: #f0f0f0; padding: 5px;")  # Gray
+            arrow_widget.clear_gaze()
+
+        # Color code text based on status
+        if "WATCHING TV" in formatted_text or "Gaze-det" in raw_line:
+            text_widget.setStyleSheet("background-color: #90EE90; padding: 5px;")  # Green
+        elif "LOOKING AWAY" in formatted_text:
+            text_widget.setStyleSheet("background-color: #87CEEB; padding: 5px;")  # Sky blue
+        elif "TC PRESENT" in formatted_text or "Gaze-no-det" in raw_line:
+            text_widget.setStyleSheet("background-color: #FFFFE0; padding: 5px;")  # Yellow
+        elif "NO FACES" in formatted_text or "No-face-detected" in raw_line:
+            text_widget.setStyleSheet("background-color: #FFB6C1; padding: 5px;")  # Light red
+        else:
+            text_widget.setStyleSheet("background-color: #f0f0f0; padding: 5px;")  # Gray
 
     def _scan_log_file(self, log_path: str) -> List[str]:
         """Scan a log file for error patterns."""
@@ -888,51 +1045,147 @@ class ServiceStartupStep(WizardStep):
             self.logger.debug(f"Could not read last line from {filepath}: {e}")
         return ""
 
-    def _format_gaze_data(self, line: str, file_type: str) -> str:
-        """Format gaze data line for display."""
+    def _get_grid_position(self, bbox_top: float, bbox_left: float, bbox_bottom: float, bbox_right: float) -> int:
+        """Calculate grid cell index from bounding box position.
+
+        Grid is 12 rows × 10 columns = 120 cells on a 342×608 frame.
+        """
+        # Grid parameters
+        pH = 35  # Cell height
+        pW = 53  # Cell width
+
+        # Calculate face center
+        center_x = (bbox_left + bbox_right) / 2
+        center_y = (bbox_top + bbox_bottom) / 2
+
+        # Determine grid cell
+        grid_x = int(center_x / pW)  # 0-9 (10 columns)
+        grid_y = int(center_y / pH)  # 0-11 (12 rows)
+
+        # Clamp to valid range
+        grid_x = max(0, min(9, grid_x))
+        grid_y = max(0, min(11, grid_y))
+
+        grid_index = grid_y * 10 + grid_x
+        return grid_index
+
+    def _evaluate_watching_tv(self, pitch_rad: float, yaw_rad: float, grid_index: int) -> bool:
+        """Evaluate if gaze angles indicate watching TV using position-specific thresholds.
+
+        Args:
+            pitch_rad: Horizontal gaze angle in radians
+            yaw_rad: Vertical gaze angle in radians
+            grid_index: Grid cell index (0-119)
+
+        Returns:
+            True if watching TV, False otherwise
+        """
+        if self.loc_lims is None:
+            # Fallback: use simple angle threshold
+            pitch_deg = pitch_rad * 57.2958
+            yaw_deg = yaw_rad * 57.2958
+            return abs(pitch_deg) < 20 and abs(yaw_deg) < 20
+
+        # Get position-specific limits (in degrees)
+        lims = self.loc_lims[grid_index]
+        phi_min, phi_max, theta_min, theta_max = lims
+
+        # Convert limits from degrees to radians
+        phi_min_rad = (phi_min / 180.0) * math.pi
+        phi_max_rad = (phi_max / 180.0) * math.pi
+        theta_min_rad = (theta_min / 180.0) * math.pi
+        theta_max_rad = (theta_max / 180.0) * math.pi
+
+        # Check if BOTH angles are within bounds
+        phi_ok = phi_min_rad < pitch_rad < phi_max_rad
+        theta_ok = theta_min_rad < yaw_rad < theta_max_rad
+
+        return phi_ok and theta_ok
+
+    def _format_gaze_data(self, line: str, file_type: str) -> Tuple[str, Optional[Tuple[float, float, bool]]]:
+        """Format gaze data line for display with TV watching interpretation.
+
+        Returns:
+            Tuple of (formatted_text, gaze_data) where gaze_data is (pitch_deg, yaw_deg, watching_tv) or None
+        """
         try:
             # Format: timestamp frame_num num_faces tc_present pitch yaw roll tc_angle x1 y1 x2 y2 label
             # Timestamp format: "2025-10-01 18:24:01.063242" (has spaces!)
-            # We need to parse timestamp carefully since it contains spaces
-
-            # Split the line but reconstruct timestamp from first two parts
             parts = line.split()
 
             if len(parts) >= 14:  # 2 parts for timestamp + 12 data fields
-                # Extract key fields - timestamp is parts[0] + space + parts[1]
-                timestamp = f"{parts[0]} {parts[1]}"  # Full timestamp with date and time
+                # Extract key fields
+                timestamp = f"{parts[0]} {parts[1]}"  # Full timestamp
                 frame_num = parts[2]
                 num_faces = parts[3]
                 tc_present = parts[4]  # 0 or 1
 
-                # Gaze data (pitch, yaw, roll) - parts[5:8]
-                pitch = parts[5] if parts[5] != "None" else "N/A"
-                yaw = parts[6] if parts[6] != "None" else "N/A"
+                # Gaze data (pitch, yaw, confidence) - parts[5:8]
+                # Format from logs: gaze_data1 = [pitch, yaw, confidence]
+                pitch_str = parts[5]
+                yaw_str = parts[6]
+                confidence_str = parts[7]
 
-                # Label - last element (parts[13])
-                label = parts[-1] if len(parts) >= 14 else "unknown"
+                # Bounding box (top, left, bottom, right) - parts[9:13]
+                tc_angle_str = parts[8]
+                bbox_top_str = parts[9]
+                bbox_left_str = parts[10]
+                bbox_bottom_str = parts[11]
+                bbox_right_str = parts[12]
+
+                label = parts[-1]
 
                 # Format based on detection status
                 if label == "Gaze-det":
-                    # Target child detected with gaze
-                    if pitch != "N/A" and yaw != "N/A":
-                        return f"[{timestamp}] TC gaze detected - Pitch: {pitch[:6]}, Yaw: {yaw[:6]}"
+                    # Target child detected with gaze - interpret the angles
+                    if pitch_str != "None" and yaw_str != "None" and bbox_top_str != "None":
+                        try:
+                            pitch = float(pitch_str)  # radians
+                            yaw = float(yaw_str)     # radians
+
+                            # Parse bounding box
+                            bbox_top = float(bbox_top_str)
+                            bbox_left = float(bbox_left_str)
+                            bbox_bottom = float(bbox_bottom_str)
+                            bbox_right = float(bbox_right_str)
+
+                            # Calculate grid position
+                            grid_index = self._get_grid_position(bbox_top, bbox_left, bbox_bottom, bbox_right)
+
+                            # Evaluate if watching TV using hardcoded "center-big-med" thresholds
+                            watching_tv = self._evaluate_watching_tv(pitch, yaw, grid_index)
+
+                            # Convert radians to degrees for display
+                            pitch_deg = pitch * 57.2958
+                            yaw_deg = yaw * 57.2958
+
+                            # Format output with TV watching status
+                            time_only = timestamp.split()[1][:12]  # Show time with milliseconds
+                            status = "🟢 WATCHING TV" if watching_tv else "🔵 LOOKING AWAY"
+
+                            formatted = (f"[{time_only}]\n"
+                                       f"{status}\n"
+                                       f"P:{pitch_deg:+.1f}° Y:{yaw_deg:+.1f}°")
+
+                            return formatted, (pitch_deg, yaw_deg, watching_tv)
+                        except ValueError:
+                            return f"[{timestamp.split()[1][:12]}] TC gaze detected\n(parse error)", None
                     else:
-                        return f"[{timestamp}] TC detected with gaze"
+                        return f"[{timestamp.split()[1][:12]}] TC detected\n(no gaze data)", None
                 elif label == "Gaze-no-det":
-                    # Target child present but no gaze detection
-                    return f"[{timestamp}] TC present but no gaze (faces: {num_faces})"
+                    time_only = timestamp.split()[1][:12]
+                    return f"[{time_only}]\n🟡 TC PRESENT\nNo gaze detected\n({num_faces} faces)", None
                 elif label == "No-face-detected":
-                    # No faces detected at all
-                    return f"[{timestamp}] No faces detected"
+                    time_only = timestamp.split()[1][:12]
+                    return f"[{time_only}]\n🔴 NO FACES\nNo detection", None
                 else:
-                    # Unknown label
-                    return f"[{timestamp}] Status: {label} (faces: {num_faces}, TC: {tc_present})"
+                    time_only = timestamp.split()[1][:12]
+                    return f"[{time_only}]\n⚪ {label}\n({num_faces} faces)", None
             else:
-                return f"Invalid format (only {len(parts)} fields)"
+                return f"Invalid format\n({len(parts)} fields)", None
         except Exception as e:
             self.logger.debug(f"Error formatting gaze data: {e}")
-            return "Parse error"
+            return "Parse error", None
 
     def _is_known_minor_error(self, error_message: str) -> bool:
         """Check if an error is a known warning or normal message that should be ignored."""
