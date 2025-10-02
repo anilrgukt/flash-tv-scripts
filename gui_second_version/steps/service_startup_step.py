@@ -29,20 +29,26 @@ class GazeArrowWidget(QWidget):
         self.yaw_deg = 0.0
         self.watching_tv = False
         self.has_data = False
-        self.setMinimumSize(200, 200)
-        self.setMaximumSize(250, 250)
+        self.timestamp = ""
+        self.status_text = ""
+        self.setMinimumSize(200, 280)
+        self.setMaximumSize(250, 320)
 
-    def set_gaze(self, pitch_deg: float, yaw_deg: float, watching_tv: bool):
+    def set_gaze(self, pitch_deg: float, yaw_deg: float, watching_tv: bool, timestamp: str = "", status: str = ""):
         """Update the gaze arrow display."""
         self.pitch_deg = pitch_deg
         self.yaw_deg = yaw_deg
         self.watching_tv = watching_tv
         self.has_data = True
+        self.timestamp = timestamp
+        self.status_text = status
         self.update()  # Trigger repaint
 
     def clear_gaze(self):
         """Clear the gaze display."""
         self.has_data = False
+        self.timestamp = ""
+        self.status_text = ""
         self.update()
 
     def paintEvent(self, event):
@@ -53,44 +59,49 @@ class GazeArrowWidget(QWidget):
         # Get widget dimensions
         width = self.width()
         height = self.height()
-        center_x = width / 2
-        center_y = height / 2
+
+        # Position circle in upper portion of widget
+        circle_radius = 90  # Fixed radius for circle
+        circle_center_x = width / 2
+        circle_center_y = 100  # Fixed position from top
 
         # Draw background circle
         painter.setPen(QPen(QColor(200, 200, 200), 2))
         painter.setBrush(QColor(240, 240, 240))
-        radius = min(width, height) / 2 - 10
-        painter.drawEllipse(int(center_x - radius), int(center_y - radius),
-                          int(radius * 2), int(radius * 2))
+        painter.drawEllipse(int(circle_center_x - circle_radius), int(circle_center_y - circle_radius),
+                          int(circle_radius * 2), int(circle_radius * 2))
 
         if not self.has_data:
-            # Draw "No Data" text
+            # Draw "No Data" text centered in circle
             painter.setPen(QColor(100, 100, 100))
             painter.setFont(QFont("Arial", 12))
-            painter.drawText(event.rect(), Qt.AlignmentFlag.AlignCenter, "No Data")
+            painter.drawText(int(circle_center_x - 50), int(circle_center_y - 10), 100, 20,
+                           Qt.AlignmentFlag.AlignCenter, "No Data")
             return
 
         # Draw center point (face position)
         painter.setPen(QPen(QColor(0, 0, 0), 2))
         painter.setBrush(QColor(0, 0, 0))
-        painter.drawEllipse(int(center_x - 5), int(center_y - 5), 10, 10)
+        painter.drawEllipse(int(circle_center_x - 5), int(circle_center_y - 5), 10, 10)
 
         # Calculate arrow endpoint based on gaze angles
-        # Using the same formula as draw_gz in visualizer.py
+        # Using the EXACT same formula as draw_gz in visualizer.py
         # x = -40 * cos(yaw) * sin(pitch)
         # y = -40 * sin(yaw)
+        # The magnitude varies naturally based on the angles
 
         pitch_rad = self.pitch_deg / 57.2958  # Convert back to radians
         yaw_rad = self.yaw_deg / 57.2958
 
-        # Scale factor for visualization
-        arrow_length = radius * 0.6
+        # Scale factor: 40 pixels in original, scale to widget size
+        scale = circle_radius / 100  # Scale based on circle radius
+        base_length = 40 * scale
 
-        x = -arrow_length * math.cos(yaw_rad) * math.sin(pitch_rad)
-        y = -arrow_length * math.sin(yaw_rad)
+        x = -base_length * math.cos(yaw_rad) * math.sin(pitch_rad)
+        y = -base_length * math.sin(yaw_rad)
 
-        end_x = center_x + x
-        end_y = center_y + y
+        end_x = circle_center_x + x
+        end_y = circle_center_y + y
 
         # Choose color based on watching TV status (using center-big-med evaluation)
         if self.watching_tv:
@@ -100,7 +111,7 @@ class GazeArrowWidget(QWidget):
 
         # Draw arrow line
         painter.setPen(QPen(arrow_color, 3))
-        painter.drawLine(int(center_x), int(center_y), int(end_x), int(end_y))
+        painter.drawLine(int(circle_center_x), int(circle_center_y), int(end_x), int(end_y))
 
         # Draw arrowhead
         arrow_size = 15
@@ -115,11 +126,33 @@ class GazeArrowWidget(QWidget):
         painter.setBrush(arrow_color)
         painter.drawPolygon(QPolygonF([p1, p2, p3]))
 
-        # Draw angle labels
+        # Draw captions below the circle - all centered
+        text_start_y = int(circle_center_y + circle_radius + 10)
+
+        # Draw pitch/yaw angles - centered
         painter.setPen(QColor(0, 0, 0))
-        painter.setFont(QFont("Arial", 9))
-        label_text = f"P:{self.pitch_deg:+.1f}° Y:{self.yaw_deg:+.1f}°"
-        painter.drawText(5, height - 5, label_text)
+        painter.setFont(QFont("Arial", 9, QFont.Weight.Bold))
+        angle_text = f"P:{self.pitch_deg:+.1f}° Y:{self.yaw_deg:+.1f}°"
+        painter.drawText(0, text_start_y, width, 20, Qt.AlignmentFlag.AlignHCenter, angle_text)
+
+        # Draw timestamp if available - centered
+        if self.timestamp:
+            painter.setFont(QFont("Arial", 8))
+            painter.drawText(0, text_start_y + 20, width, 20, Qt.AlignmentFlag.AlignHCenter, self.timestamp)
+
+        # Draw status text if available - centered with word wrap
+        if self.status_text:
+            painter.setFont(QFont("Arial", 8))
+            # Color code the status text
+            if "LOOKING AWAY" in self.status_text or "👁️" in self.status_text:
+                painter.setPen(QColor(0, 0, 255))  # Blue
+            elif "WATCHING TV" in self.status_text or "📺" in self.status_text:
+                painter.setPen(QColor(0, 128, 0))  # Green
+
+            # Draw with word wrap, centered
+            painter.drawText(5, text_start_y + 40, width - 10, 60,
+                           Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.TextWordWrap,
+                           self.status_text)
 
 
 class ServiceStartupStep(WizardStep):
@@ -312,16 +345,16 @@ class ServiceStartupStep(WizardStep):
         main_column_layout = self.ui_factory.create_vertical_layout()
         main_label = self.ui_factory.create_label("Main Model:")
         main_label.setStyleSheet("font-weight: bold;")
+        main_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_column_layout.addWidget(main_label)
 
         self.gaze_main_arrow = GazeArrowWidget()
-        main_column_layout.addWidget(self.gaze_main_arrow)
+        main_column_layout.addWidget(self.gaze_main_arrow, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.gaze_main_output = QTextEdit()
         self.gaze_main_output.setReadOnly(True)
         self.gaze_main_output.setPlaceholderText("Waiting for data...")
         self.gaze_main_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
-        self.gaze_main_output.setMaximumHeight(100)
         main_column_layout.addWidget(self.gaze_main_output)
 
         columns_layout.addLayout(main_column_layout)
@@ -330,16 +363,16 @@ class ServiceStartupStep(WizardStep):
         rot_column_layout = self.ui_factory.create_vertical_layout()
         rot_label = self.ui_factory.create_label("Rot Model:")
         rot_label.setStyleSheet("font-weight: bold;")
+        rot_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         rot_column_layout.addWidget(rot_label)
 
         self.gaze_rot_arrow = GazeArrowWidget()
-        rot_column_layout.addWidget(self.gaze_rot_arrow)
+        rot_column_layout.addWidget(self.gaze_rot_arrow, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.gaze_rot_output = QTextEdit()
         self.gaze_rot_output.setReadOnly(True)
         self.gaze_rot_output.setPlaceholderText("Waiting for data...")
         self.gaze_rot_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
-        self.gaze_rot_output.setMaximumHeight(100)
         rot_column_layout.addWidget(self.gaze_rot_output)
 
         columns_layout.addLayout(rot_column_layout)
@@ -348,16 +381,16 @@ class ServiceStartupStep(WizardStep):
         reg_column_layout = self.ui_factory.create_vertical_layout()
         reg_label = self.ui_factory.create_label("Reg Model:")
         reg_label.setStyleSheet("font-weight: bold;")
+        reg_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         reg_column_layout.addWidget(reg_label)
 
         self.gaze_reg_arrow = GazeArrowWidget()
-        reg_column_layout.addWidget(self.gaze_reg_arrow)
+        reg_column_layout.addWidget(self.gaze_reg_arrow, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.gaze_reg_output = QTextEdit()
         self.gaze_reg_output.setReadOnly(True)
-        self.gaze_reg_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         self.gaze_reg_output.setPlaceholderText("Waiting for data...")
-        self.gaze_reg_output.setMaximumHeight(100)
+        self.gaze_reg_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         reg_column_layout.addWidget(self.gaze_reg_output)
 
         columns_layout.addLayout(reg_column_layout)
@@ -813,21 +846,24 @@ class ServiceStartupStep(WizardStep):
             if most_recent_group:
                 # Update main model column
                 if "main" in most_recent_group:
-                    last_line = self._get_last_data_line(most_recent_group["main"])
+                    recent_lines = self._get_recent_data_lines(most_recent_group["main"])
+                    last_line = recent_lines[-1] if recent_lines else ""
                     formatted, gaze_data = self._format_gaze_data(last_line, "main")
-                    self._update_gaze_column_display(self.gaze_main_output, self.gaze_main_arrow, formatted, last_line, gaze_data)
+                    self._update_gaze_column_display(self.gaze_main_output, self.gaze_main_arrow, formatted, recent_lines, gaze_data)
 
                 # Update rotation model column
                 if "rot" in most_recent_group:
-                    last_line = self._get_last_data_line(most_recent_group["rot"])
+                    recent_lines = self._get_recent_data_lines(most_recent_group["rot"])
+                    last_line = recent_lines[-1] if recent_lines else ""
                     formatted, gaze_data = self._format_gaze_data(last_line, "rot")
-                    self._update_gaze_column_display(self.gaze_rot_output, self.gaze_rot_arrow, formatted, last_line, gaze_data)
+                    self._update_gaze_column_display(self.gaze_rot_output, self.gaze_rot_arrow, formatted, recent_lines, gaze_data)
 
                 # Update secondary model column
                 if "reg" in most_recent_group:
-                    last_line = self._get_last_data_line(most_recent_group["reg"])
+                    recent_lines = self._get_recent_data_lines(most_recent_group["reg"])
+                    last_line = recent_lines[-1] if recent_lines else ""
                     formatted, gaze_data = self._format_gaze_data(last_line, "reg")
-                    self._update_gaze_column_display(self.gaze_reg_output, self.gaze_reg_arrow, formatted, last_line, gaze_data)
+                    self._update_gaze_column_display(self.gaze_reg_output, self.gaze_reg_arrow, formatted, recent_lines, gaze_data)
             else:
                 # No files found
                 self.gaze_main_output.setPlainText("Waiting for data...")
@@ -838,28 +874,39 @@ class ServiceStartupStep(WizardStep):
             self.logger.error(f"Error updating gaze columns: {e}")
 
     def _update_gaze_column_display(self, text_widget: QTextEdit, arrow_widget: GazeArrowWidget,
-                                    formatted_text: str, raw_line: str, gaze_data: Optional[Tuple[float, float, bool]]) -> None:
-        """Update a gaze column widget with color coding and arrow display."""
-        text_widget.setPlainText(formatted_text)
+                                    formatted_text: str, raw_lines: List[str], gaze_data: Optional[Tuple[float, float, bool]]) -> None:
+        """Update a gaze column widget with arrow display and recent log lines."""
+        # Clear and show recent lines (like stderr log)
+        text_widget.clear()
 
-        # Update arrow widget if we have gaze data
+        for line in raw_lines:
+            text_widget.append(line)
+
+        # Auto-scroll to bottom
+        text_widget.verticalScrollBar().setValue(
+            text_widget.verticalScrollBar().maximum()
+        )
+
+        # Extract timestamp and status from formatted text for arrow widget caption
+        timestamp = ""
+        status = ""
+        if formatted_text:
+            lines = formatted_text.split('\n')
+            if len(lines) >= 1 and lines[0].startswith('['):
+                # Extract timestamp like "[18:24:01.063]"
+                timestamp = lines[0]
+            if len(lines) >= 2:
+                # Extract status like "🟢 WATCHING TV" or "🔵 LOOKING AWAY"
+                status = lines[1]
+                if len(lines) >= 3:
+                    status += "\n" + lines[2]  # Add angle info if present
+
+        # Update arrow widget with gaze data and captions
         if gaze_data:
             pitch_deg, yaw_deg, watching_tv = gaze_data
-            arrow_widget.set_gaze(pitch_deg, yaw_deg, watching_tv)
+            arrow_widget.set_gaze(pitch_deg, yaw_deg, watching_tv, timestamp, status)
         else:
-            arrow_widget.clear_gaze()
-
-        # Color code text based on status
-        if "WATCHING TV" in formatted_text or "Gaze-det" in raw_line:
-            text_widget.setStyleSheet("background-color: #90EE90; padding: 5px;")  # Green
-        elif "LOOKING AWAY" in formatted_text:
-            text_widget.setStyleSheet("background-color: #87CEEB; padding: 5px;")  # Sky blue
-        elif "TC PRESENT" in formatted_text or "Gaze-no-det" in raw_line:
-            text_widget.setStyleSheet("background-color: #FFFFE0; padding: 5px;")  # Yellow
-        elif "NO FACES" in formatted_text or "No-face-detected" in raw_line:
-            text_widget.setStyleSheet("background-color: #FFB6C1; padding: 5px;")  # Light red
-        else:
-            text_widget.setStyleSheet("background-color: #f0f0f0; padding: 5px;")  # Gray
+            arrow_widget.set_gaze(0, 0, False, timestamp, status)
 
     def _scan_log_file(self, log_path: str) -> List[str]:
         """Scan a log file for error patterns."""
@@ -1044,6 +1091,22 @@ class ServiceStartupStep(WizardStep):
         except Exception as e:
             self.logger.debug(f"Could not read last line from {filepath}: {e}")
         return ""
+
+    def _get_recent_data_lines(self, filepath: str) -> List[str]:
+        """Get all non-empty lines from a gaze log file."""
+        try:
+            with open(filepath, 'r') as f:
+                lines = f.readlines()
+                # Get all non-empty, non-comment lines
+                data_lines = []
+                for line in lines:
+                    line = line.strip()
+                    if line and not line.startswith("#"):
+                        data_lines.append(line)
+                return data_lines
+        except Exception as e:
+            self.logger.debug(f"Could not read lines from {filepath}: {e}")
+        return []
 
     def _get_grid_position(self, bbox_top: float, bbox_left: float, bbox_bottom: float, bbox_right: float) -> int:
         """Calculate grid cell index from bounding box position.
