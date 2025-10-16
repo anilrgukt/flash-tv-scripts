@@ -47,6 +47,8 @@ class SmartPlugVerifyStep(WizardStep):
 
         # Initialize state
         self.browser_launched = False
+        self.last_checked = None
+        self.last_connected = None
 
         # Setup timer for status updates
         self.status_timer = QTimer()
@@ -69,17 +71,15 @@ class SmartPlugVerifyStep(WizardStep):
 
     def _create_automation_section(self) -> QWidget:
         """Create the browser automation section using UI factory."""
-        automation_box, automation_layout = self.ui_factory.create_group_box(
-            "Browser Automation Setup"
-        )
+        automation_box, automation_layout = self.ui_factory.create_group_box("Browser Automation Setup")
 
         automation_text = self.ui_factory.create_label(
-            "This will open Firefox and automatically:\n"
-            "• Navigate to Home Assistant\n"
-            "• Go to History page\n"
-            "• Select TV smart plug sensor\n"
-            "• Monitor power data in real-time\n\n"
-            "You will then test by turning TV on/off"
+            """This will open Firefox and automatically:\n
+            • Navigate to Home Assistant\n
+            • Go to History page\n
+            • You will then manually select the power data from the dropdown if not already selected\n
+            • You will then test by turning the TV on/off\n
+            • You will then click the 'Capture Screenshot' button to capture a screenshot that best represents the on and off power states"""
         )
         automation_layout.addWidget(automation_text)
         automation_layout.addStretch()
@@ -88,19 +88,10 @@ class SmartPlugVerifyStep(WizardStep):
 
     def _create_status_section(self) -> QWidget:
         """Create the status indicators section using UI factory."""
-        status_group, status_layout = self.ui_factory.create_group_box(
-            "Connection Status"
-        )
+        status_group, status_layout = self.ui_factory.create_group_box("Connection Status")
 
-        self.plug_monitor_status = self.ui_factory.create_status_label(
-            "📊 Smart plug data monitoring status: Not started", status_type="info"
-        )
-        self.ha_connection_status = self.ui_factory.create_status_label(
-            "🌐 Home Assistant connection: Ready", status_type="info"
-        )
+        self.ha_connection_status = self.ui_factory.create_status_label("🌐 Home Assistant connection: Checking...", status_type="info")
 
-        status_layout.addWidget(self.plug_monitor_status)
-        status_layout.addSpacing(10)
         status_layout.addWidget(self.ha_connection_status)
         status_layout.addStretch()
 
@@ -121,9 +112,7 @@ class SmartPlugVerifyStep(WizardStep):
 
     def _create_control_section(self) -> QWidget:
         """Create the verification controls section using UI factory."""
-        control_group, control_layout = self.ui_factory.create_group_box(
-            "Verification Controls"
-        )
+        control_group, control_layout = self.ui_factory.create_group_box("Verification Controls")
 
         # Room name input
         room_label = self.ui_factory.create_label("Room Name:")
@@ -146,7 +135,7 @@ class SmartPlugVerifyStep(WizardStep):
 
         # Power cycle confirmation button
         self.power_cycle_button = self.ui_factory.create_action_button(
-            "📸 I've Cycled Power - Capture Screenshot",
+            "📸 Capture Screenshot",
             callback=self._capture_power_baseline,
             style=ButtonStyle.SECONDARY,
             height=40,
@@ -170,18 +159,15 @@ class SmartPlugVerifyStep(WizardStep):
 
     def _create_instruction_section(self) -> QWidget:
         """Create the testing instructions section using UI factory."""
-        instruction_group, instruction_layout = self.ui_factory.create_group_box(
-            "Testing Instructions"
-        )
+        instruction_group, instruction_layout = self.ui_factory.create_group_box("Testing Instructions")
 
         instruction_label = self.ui_factory.create_label(
             "After browser opens:\n\n"
             "1. Enter the room name in the textbox\n"
-            "2. Turn TV OFF and wait 10 seconds\n"
-            "3. Turn TV ON and wait 10 seconds\n"
-            "4. Click 'I've Cycled Power' to capture screenshot\n"
-            "5. Verify power changes show in Home Assistant\n"
-            "6. Click 'Data Verified' when you see the changes"
+            "2. Turn TV OFF and wait a few minutes\n"
+            "3. Turn TV ON and wait a few minutes\n"
+            "4. Click 'Capture Screenshot' to capture screenshot\n"
+            "5. Click 'Data Verified' if everything works correctly"
         )
         instruction_layout.addWidget(instruction_label)
         instruction_layout.addStretch()
@@ -190,16 +176,28 @@ class SmartPlugVerifyStep(WizardStep):
 
     def _create_output_section(self) -> QWidget:
         """Create the verification log output section using UI factory."""
-        output_group, output_layout = self.ui_factory.create_group_box(
-            "Verification Log"
-        )
+        # Create a horizontal layout for two columns
+        output_container = QWidget()
+        output_main_layout = self.ui_factory.create_vertical_layout()
+        output_container.setLayout(output_main_layout)
 
-        self.output_text = self.ui_factory.create_text_area(
-            placeholder="Verification progress will appear here...", read_only=True
-        )
-        output_layout.addWidget(self.output_text)
+        columns_layout = self.ui_factory.create_horizontal_layout(spacing=12)
 
-        return output_group
+        # Left column: Verification log
+        log_group, log_layout = self.ui_factory.create_group_box("Verification Log")
+        self.output_text = self.ui_factory.create_text_area(placeholder="Verification progress will appear here...", read_only=True)
+        log_layout.addWidget(self.output_text)
+        columns_layout.addWidget(log_group, 1)
+
+        # Right column: CSV file content
+        csv_group, csv_layout = self.ui_factory.create_group_box("TV Power Data (CSV)")
+        self.csv_output = self.ui_factory.create_text_area(placeholder="Waiting for TV power data file...", read_only=True)
+        csv_layout.addWidget(self.csv_output)
+        columns_layout.addWidget(csv_group, 1)
+
+        output_main_layout.addLayout(columns_layout)
+
+        return output_container
 
     def _create_continue_section(self):
         """Create the continue button section using UI factory."""
@@ -223,27 +221,22 @@ class SmartPlugVerifyStep(WizardStep):
             self.output_text.append(f"Target URL: {home_assistant_url}")
 
             # Launch browser using process runner for better error handling
-            result = self.process_runner.run_command(
-                ["xdg-open", home_assistant_url], timeout_ms=10000
-            )
+            result = self.process_runner.run_command(["xdg-open", home_assistant_url], timeout_ms=10000)
 
             if result and result.returncode == 0:
-                self.output_text.append(
-                    "✅ Browser launched - navigate to History page"
-                )
+                self.logger.info("Browser launched successfully")
+                self.output_text.append("✅ Browser launched - navigate to History page")
                 self.output_text.append("Look for your TV smart plug sensor")
                 self.output_text.append("\nNow test TV power on/off...")
 
                 self.browser_launched = True
-                self.plug_monitor_status.setText(
-                    "📊 Smart plug data monitoring status: Browser opened"
-                )
                 self.power_cycle_button.setEnabled(True)
 
                 # Start status monitoring
+                self.logger.info("Starting status monitoring timer")
                 self.status_timer.start(5000)  # Check every 5 seconds
 
-                self.logger.info("Browser automation launched successfully")
+                self.logger.info("Browser automation completed - ready for user verification")
             else:
                 error_msg = result.stderr if result else "Command failed"
                 self.logger.error(f"Browser launch failed: {error_msg}")
@@ -269,11 +262,7 @@ class SmartPlugVerifyStep(WizardStep):
             # Validate room name is entered
             room_name = self.room_name_input.text().strip()
             if not room_name:
-                QMessageBox.warning(
-                    self,
-                    "Room Name Required",
-                    "Please enter the room name before capturing the screenshot."
-                )
+                QMessageBox.warning(self, "Room Name Required", "Please enter the room name before capturing the screenshot.")
                 return
 
             self.logger.info(f"Capturing power baseline screenshot for room: {room_name}")
@@ -289,9 +278,7 @@ class SmartPlugVerifyStep(WizardStep):
             self.power_cycle_button.setEnabled(False)
 
             # Wait a moment for user to see the message
-            QTimer.singleShot(2000, lambda: self._perform_screenshot_capture(
-                full_participant_id, room_name, username
-            ))
+            QTimer.singleShot(2000, lambda: self._perform_screenshot_capture(full_participant_id, room_name, username))
 
         except Exception as e:
             self.logger.error(f"Error initiating screenshot capture: {e}")
@@ -301,44 +288,49 @@ class SmartPlugVerifyStep(WizardStep):
     def _perform_screenshot_capture(self, participant_id: str, room_name: str, username: str) -> None:
         """Actually perform the screenshot capture and file operations."""
         try:
+            self.logger.info(f"Starting screenshot capture for participant {participant_id}, room: {room_name}")
+
             # Refresh the Home Assistant page first
             self.output_text.append("🔄 Refreshing Home Assistant page...")
+            self.logger.debug("Refreshing Home Assistant history page")
 
             # Open/refresh the page
             home_assistant_url = "http://localhost:8123/history"
             subprocess.run(["xdg-open", home_assistant_url], capture_output=True)
 
             # Wait for page to load
+            self.logger.debug("Waiting 3 seconds for page to load")
             time.sleep(3)
 
             # Take screenshot using gnome-screenshot or scrot
             self.output_text.append("📸 Capturing screenshot...")
+            self.logger.info("Attempting to capture screenshot")
 
             # Try gnome-screenshot first
             screenshot_taken = False
             temp_screenshot = "/tmp/smart_plug_screenshot.png"
 
             # Try gnome-screenshot
-            result = subprocess.run(
-                ["gnome-screenshot", "-f", temp_screenshot],
-                capture_output=True
-            )
+            self.logger.debug("Trying gnome-screenshot command")
+            result = subprocess.run(["gnome-screenshot", "-f", temp_screenshot], capture_output=True)
 
             if result.returncode == 0:
                 screenshot_taken = True
-                self.logger.info("Screenshot captured with gnome-screenshot")
+                self.logger.info("Screenshot captured successfully with gnome-screenshot")
             else:
+                self.logger.warning(f"gnome-screenshot failed: {result.stderr.decode() if result.stderr else 'Unknown error'}")
                 # Try scrot as fallback
-                result = subprocess.run(
-                    ["scrot", temp_screenshot],
-                    capture_output=True
-                )
+                self.logger.debug("Trying scrot command as fallback")
+                result = subprocess.run(["scrot", temp_screenshot], capture_output=True)
                 if result.returncode == 0:
                     screenshot_taken = True
-                    self.logger.info("Screenshot captured with scrot")
+                    self.logger.info("Screenshot captured successfully with scrot")
+                else:
+                    self.logger.warning(f"scrot also failed: {result.stderr.decode() if result.stderr else 'Unknown error'}")
 
             if not screenshot_taken:
                 # Try to find any recent screenshot file
+                self.logger.info("Screenshot commands failed, searching for recent screenshot files")
                 self.output_text.append("🔍 Looking for screenshot file...")
 
                 # Common screenshot locations
@@ -357,17 +349,13 @@ class SmartPlugVerifyStep(WizardStep):
                         pattern_list = [
                             os.path.join(directory, "*[Ss]creenshot*.png"),
                             os.path.join(directory, "*[Ss]creen*.png"),
-                            os.path.join(directory, "*.png")
+                            os.path.join(directory, "*.png"),
                         ]
 
                         for pattern in pattern_list:
                             files = glob(pattern)
                             # Get files created in the last 30 seconds
-                            recent_files = [
-                                f for f in files
-                                if os.path.exists(f) and
-                                (time.time() - os.path.getctime(f)) < 30
-                            ]
+                            recent_files = [f for f in files if os.path.exists(f) and (time.time() - os.path.getctime(f)) < 30]
 
                             if recent_files:
                                 # Use the most recent file
@@ -382,23 +370,27 @@ class SmartPlugVerifyStep(WizardStep):
                     screenshot_taken = True
                     self.logger.info(f"Found screenshot at: {temp_screenshot}")
                     self.output_text.append(f"✅ Found screenshot: {os.path.basename(temp_screenshot)}")
+                else:
+                    self.logger.error("No recent screenshot files found in any directory")
 
             if screenshot_taken and os.path.exists(temp_screenshot):
                 # Create destination path
                 data_path = f"/home/{username}/data/{participant_id}_data"
+                self.logger.info(f"Creating data directory: {data_path}")
                 os.makedirs(data_path, exist_ok=True)
 
                 # Create filename with participant ID and room name
                 screenshot_filename = f"{participant_id} {room_name} TV Power Baseline.png"
                 destination_path = os.path.join(data_path, screenshot_filename)
 
+                self.logger.info(f"Moving screenshot from {temp_screenshot} to {destination_path}")
                 # Move and rename the screenshot
                 shutil.move(temp_screenshot, destination_path)
 
                 self.output_text.append(f"✅ Screenshot saved: {screenshot_filename}")
                 self.output_text.append(f"📁 Location: {data_path}")
 
-                self.logger.info(f"Screenshot saved to: {destination_path}")
+                self.logger.info(f"Screenshot successfully saved to: {destination_path}")
 
                 # Enable the data verified button
                 self.data_verified_button.setEnabled(True)
@@ -406,25 +398,20 @@ class SmartPlugVerifyStep(WizardStep):
                 QMessageBox.information(
                     self,
                     "Screenshot Captured",
-                    f"Power baseline screenshot captured successfully!\n\n"
-                    f"Saved as: {screenshot_filename}\n"
-                    f"Location: {data_path}"
+                    f"Power baseline screenshot captured successfully!\n\nSaved as: {screenshot_filename}\nLocation: {data_path}",
                 )
             else:
                 raise FlashTVError(
                     "Failed to capture screenshot",
                     ErrorType.PROCESS_ERROR,
-                    recovery_action="Try taking a manual screenshot and save it to the data folder"
+                    recovery_action="Try taking a manual screenshot and save it to the data folder",
                 )
 
         except Exception as e:
             self.logger.error(f"Error during screenshot capture: {e}")
             self.output_text.append(f"❌ Screenshot capture failed: {e}")
             QMessageBox.warning(
-                self,
-                "Screenshot Failed",
-                f"Failed to capture screenshot: {e}\n\n"
-                "Please take a manual screenshot and save it to the data folder."
+                self, "Screenshot Failed", f"Failed to capture screenshot: {e}\n\nPlease take a manual screenshot and save it to the data folder."
             )
         finally:
             self.power_cycle_button.setEnabled(True)
@@ -442,14 +429,9 @@ class SmartPlugVerifyStep(WizardStep):
             self.output_text.append("3. Confirming power monitoring works")
 
             self.data_verified_button.setEnabled(True)
-            self.data_verified_button.setText(
-                "✓ Manually Verified - Smart Plug Working"
-            )
+            self.data_verified_button.setText("✓ Manually Verified - Smart Plug Working")
 
-            # Update status
-            self.plug_monitor_status.setText(
-                "📊 Smart plug data monitoring status: Manual verification mode"
-            )
+            self.logger.info("Manual verification mode enabled successfully")
 
         except Exception as e:
             self.logger.error(f"Error enabling manual verification: {e}")
@@ -469,14 +451,110 @@ class SmartPlugVerifyStep(WizardStep):
     def _update_status(self) -> None:
         """Update connection status periodically with enhanced tracking."""
         if self.browser_launched:
-            # Simulate checking Home Assistant connection
-            self.ha_connection_status.setText("🌐 Home Assistant connection: Active")
-            self.plug_monitor_status.setText(
-                "📊 Smart plug data monitoring status: Waiting for verification"
+            # Update last checked timestamp
+            now = datetime.now()
+            self.last_checked = now
+
+            # Actually ping Home Assistant
+            import urllib.request
+            try:
+                self.logger.debug("Pinging Home Assistant at localhost:8123")
+                response = urllib.request.urlopen("http://localhost:8123", timeout=2)
+                if response.getcode() == 200:
+                    self.last_connected = now
+                    self.logger.info("Home Assistant connection verified - server responding")
+
+                    # Format timestamps for display
+                    last_connected_str = self.last_connected.strftime("%H:%M:%S")
+                    last_checked_str = self.last_checked.strftime("%H:%M:%S")
+
+                    self.ha_connection_status.setText(
+                        f"🌐 Home Assistant connection: Connected ✓\n"
+                        f"Last connected: {last_connected_str} | Last checked: {last_checked_str}"
+                    )
+                else:
+                    self.logger.warning(f"Home Assistant returned unexpected code: {response.getcode()}")
+                    last_checked_str = self.last_checked.strftime("%H:%M:%S")
+                    last_connected_str = self.last_connected.strftime("%H:%M:%S") if self.last_connected else "Never"
+
+                    self.ha_connection_status.setText(
+                        f"🌐 Home Assistant connection: Unexpected response\n"
+                        f"Last connected: {last_connected_str} | Last checked: {last_checked_str}"
+                    )
+            except Exception as e:
+                self.logger.error(f"Failed to ping Home Assistant: {e}")
+                last_checked_str = self.last_checked.strftime("%H:%M:%S")
+                last_connected_str = self.last_connected.strftime("%H:%M:%S") if self.last_connected else "Never"
+
+                self.ha_connection_status.setText(
+                    f"🌐 Home Assistant connection: Not reachable\n"
+                    f"Last connected: {last_connected_str} | Last checked: {last_checked_str}"
+                )
+
+            # Check if CSV file exists and display its content
+            participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
+            username = self.state.get_user_input("username", "")
+
+            if participant_id and device_id and username:
+                full_id = f"{participant_id}{device_id}"
+                csv_file = f"/home/{username}/data/{full_id}_data/{full_id}_tv_power_5s.csv"
+
+                if os.path.exists(csv_file):
+                    # Read and display CSV file content
+                    self._display_csv_file(csv_file, full_id)
+
+                    # Only log once when file is first detected
+                    if "Smart plug data file detected" not in self.output_text.toPlainText():
+                        self.logger.info(f"Smart plug CSV file found: {csv_file}")
+                        self.output_text.append(f"✅ Smart plug data file detected: {full_id}_tv_power_5s.csv")
+                        self.output_text.append(f"📊 CSV data is being displayed in the right panel")
+                else:
+                    self.logger.debug(f"Smart plug CSV file not found yet: {csv_file}")
+                    self.csv_output.setPlainText(f"Waiting for file: {csv_file}\n\nThe file will be created once Home Assistant starts logging power data.")
+
+    def _display_csv_file(self, csv_path: str, participant_id: str) -> None:
+        """Display the CSV file content similar to stderr log display."""
+        try:
+            with open(csv_path, 'r', errors='ignore') as f:
+                content = f.read()
+
+            # Clear current content
+            self.csv_output.clear()
+
+            # Parse and format CSV data
+            # Expected format from configuration.yaml line 46-47:
+            # {{states('sensor.third_reality_inc_3rsp02028bz_power')}};{{now().strftime('%m.%d.%Y')}};{{now().strftime('%H.%M.%S')}}
+            # Format: power_value;date;time
+
+            for line in content.splitlines():
+                line = line.strip()
+                if not line:
+                    self.csv_output.append(line)
+                    continue
+
+                # Parse CSV line
+                parts = line.split(';')
+                if len(parts) >= 3:
+                    power = parts[0]
+                    date = parts[1]
+                    time = parts[2]
+
+                    # Format the line nicely
+                    formatted_line = f"{date} {time} | Power: {power}W"
+                    self.csv_output.append(formatted_line)
+                else:
+                    # Malformed line, display as-is
+                    self.csv_output.append(line)
+
+            # Auto-scroll to bottom to show most recent data
+            self.csv_output.verticalScrollBar().setValue(
+                self.csv_output.verticalScrollBar().maximum()
             )
-            self.logger.debug(
-                "Updated status - browser active, waiting for verification"
-            )
+
+        except Exception as e:
+            self.logger.error(f"Error displaying CSV file {csv_path}: {e}")
+            self.csv_output.setPlainText(f"Error reading CSV file: {e}")
 
     @handle_step_error
     def _data_verified(self, checked: bool = False) -> None:
@@ -534,12 +612,8 @@ class SmartPlugVerifyStep(WizardStep):
         """Handle continue button click with validation."""
         try:
             if self.is_completed() or self.continue_button.isEnabled():
-                verification_method = self.state.get_user_input(
-                    "smart_plug_verification_method", "unknown"
-                )
-                self.logger.info(
-                    f"Smart plug verification completed via {verification_method} method"
-                )
+                verification_method = self.state.get_user_input("smart_plug_verification_method", "unknown")
+                self.logger.info(f"Smart plug verification completed via {verification_method} method")
 
                 # Final state persistence
                 if self.state_manager:
@@ -566,12 +640,8 @@ class SmartPlugVerifyStep(WizardStep):
 
         # Check if already verified
         if self.state.get_user_input("smart_plug_verified", False):
-            verification_method = self.state.get_user_input(
-                "smart_plug_verification_method", "previous"
-            )
-            self.output_text.append(
-                f"✅ Smart plug already verified (method: {verification_method})"
-            )
+            verification_method = self.state.get_user_input("smart_plug_verification_method", "previous")
+            self.output_text.append(f"✅ Smart plug already verified (method: {verification_method})")
             self.continue_button.setEnabled(True)
             self.update_status(StepStatus.COMPLETED)
             self.logger.info("Smart plug verification already completed, skipping")

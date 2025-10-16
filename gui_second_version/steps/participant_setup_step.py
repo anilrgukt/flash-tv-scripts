@@ -86,7 +86,6 @@ class ParticipantSetupStep(WizardStep):
             detected_from_user = None
             
             if current_user and current_user != "root":
-                # Check if current user matches flashsysXXX pattern
                 user_match = re.match(r'^flashsys(\d+)$', current_user)
                 if user_match:
                     device_id = user_match.group(1)
@@ -147,7 +146,6 @@ class ParticipantSetupStep(WizardStep):
         main_layout = self.ui_factory.create_main_step_layout()
         content.setLayout(main_layout)
 
-        # Create main sections using horizontal layout factory method
         participant_section = self._create_participant_info_section()
         detection_section = self._create_detection_info_section()
 
@@ -156,16 +154,12 @@ class ParticipantSetupStep(WizardStep):
         )
         main_layout.addLayout(sections_layout)
 
-        # Add validation feedback using UI factory
         self._create_validation_section(main_layout)
 
-        # Add stretch to push button to bottom
         main_layout.addStretch()
 
-        # Add action buttons using UI factory
         self._create_button_section(main_layout)
 
-        # Load existing values
         self._load_existing_values()
 
         return content
@@ -181,28 +175,24 @@ class ParticipantSetupStep(WizardStep):
             "Participant Information"
         )
 
-        # Add instruction text
         instruction_label = self.ui_factory.create_label(
             "Enter the participant ID. Device information will be auto-detected."
         )
         instruction_label.setStyleSheet("color: #666; font-size: 12px; margin-bottom: 8px;")
         participant_layout.addWidget(instruction_label)
 
-        # Participant ID label and input (only user input field needed)
         participant_id_label = self.ui_factory.create_label("Participant ID:")
         participant_id_label.setStyleSheet("font-weight: bold; margin-top: 8px;")
         participant_layout.addWidget(participant_id_label)
 
-        # Create validator for participant ID format (P1-XXXX or ES-XXXX)
         def validate_participant_id(text: str) -> tuple[bool, str]:
             if not text.strip():
                 return False, "Participant ID is required"
-            
+
             if not re.match(Patterns.PARTICIPANT_ID, text):
                 return False, "Format must be P1-XXXX or ES-XXXX (e.g., P1-0123, ES-0456)"
             return True, ""
 
-        # Create participant ID input field
         self.participant_id_input = self.ui_factory.create_input_field(
             Templates.PARTICIPANT_ID_PLACEHOLDER, validator=validate_participant_id
         )
@@ -212,12 +202,10 @@ class ParticipantSetupStep(WizardStep):
 
         participant_layout.addSpacing(15)
 
-        # Sudo password label and input
         sudo_password_label = self.ui_factory.create_label("Sudo Password:")
         sudo_password_label.setStyleSheet("font-weight: bold; margin-top: 8px;")
         participant_layout.addWidget(sudo_password_label)
 
-        # Create sudo password input field
         self.sudo_password_input = self.ui_factory.create_input_field(
             "Enter sudo password for system operations..."
         )
@@ -226,7 +214,6 @@ class ParticipantSetupStep(WizardStep):
         self.sudo_password_input.setStyleSheet("padding: 8px; font-size: 14px;")
         participant_layout.addWidget(self.sudo_password_input)
 
-        # Add spacing
         participant_layout.addStretch()
 
         return participant_group
@@ -237,27 +224,23 @@ class ParticipantSetupStep(WizardStep):
         detection_group, detection_layout = self.ui_factory.create_group_box("Auto-Detected System Information")
 
         if self._detection_error:
-            # Show detection error with detailed message
             error_label = self.ui_factory.create_status_label(
                 f"❌ Auto-Detection Failed", status_type="error"
             )
             error_label.setStyleSheet("font-weight: bold; color: #c62828; margin-bottom: 8px;")
             detection_layout.addWidget(error_label)
-            
-            # Show detailed error message
+
             error_detail = self.ui_factory.create_label(self._detection_error)
             error_detail.setStyleSheet("color: #666; font-size: 12px; padding: 8px; background-color: #ffebee; border-radius: 4px;")
             error_detail.setWordWrap(True)
             detection_layout.addWidget(error_detail)
         else:
-            # Show auto-detection success header
             success_header = self.ui_factory.create_status_label(
                 "✅ Auto-Detection Successful", status_type="success"
             )
             success_header.setStyleSheet("font-weight: bold; color: #2e7d32; margin-bottom: 12px;")
             detection_layout.addWidget(success_header)
-            
-            # Show detected values in read-only labels
+
             device_id_label = self.ui_factory.create_label(f"Device ID: {self._device_id}")
             device_id_label.setStyleSheet("font-weight: bold; color: #2e7d32; padding: 4px; background-color: #e8f5e8; border-radius: 4px;")
             detection_layout.addWidget(device_id_label)
@@ -266,9 +249,7 @@ class ParticipantSetupStep(WizardStep):
             username_label.setStyleSheet("font-weight: bold; color: #2e7d32; padding: 4px; background-color: #e8f5e8; border-radius: 4px;")
             detection_layout.addWidget(username_label)
 
-            # Show auto-generated data path (dynamic based on participant ID)
             if self._device_id and self._username:
-                # Generate data path preview (updates when participant ID changes)
                 participant_id = self.state.get_user_input("participant_id", "").strip()
                 if participant_id and self._device_id:
                     data_path = f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
@@ -276,13 +257,12 @@ class ParticipantSetupStep(WizardStep):
                     data_path = f"/home/{self._username}/data/[PARTICIPANT_ID]{self._device_id}_data"
                 else:
                     data_path = f"/home/{self._username}/data/[PARTICIPANT_ID][DEVICE_ID]_data"
-                
+
                 self.data_path_label = self.ui_factory.create_label(f"Data Path: {data_path}")
                 self.data_path_label.setStyleSheet("font-weight: bold; color: #1976d2; padding: 4px; background-color: #e3f2fd; border-radius: 4px;")
                 detection_layout.addWidget(self.data_path_label)
-                
-                # Add informational note
-                info_note = self.ui_factory.create_label("* Data path will be auto-generated when participant ID is entered")
+
+                info_note = self.ui_factory.create_label("* Data directory will be created when you continue to the next step")
                 info_note.setStyleSheet("color: #666; font-size: 11px; font-style: italic; margin-top: 8px;")
                 detection_layout.addWidget(info_note)
 
@@ -313,7 +293,6 @@ class ParticipantSetupStep(WizardStep):
     def _load_existing_values(self) -> None:
         """Load existing values from state with error handling."""
         try:
-            # Load participant ID and sudo password from state - device info is auto-detected
             self.participant_id_input.setText(
                 self.state.get_user_input("participant_id", "")
             )
@@ -321,12 +300,10 @@ class ParticipantSetupStep(WizardStep):
                 self.state.get_user_input("sudo_password", "")
             )
 
-            # Set auto-detected values in state if available
             if self._device_id and self._username and not self._detection_error:
                 self.state.set_user_input("device_id", self._device_id)
                 self.state.set_user_input("username", self._username)
-                
-                # Update data path if participant ID is available
+
                 participant_id = self.state.get_user_input("participant_id", "")
                 if participant_id and self._device_id:
                     data_path = f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
@@ -345,22 +322,18 @@ class ParticipantSetupStep(WizardStep):
     @handle_step_error
     def _on_participant_id_changed(self, text: str) -> None:
         """Handle participant ID input changes with automatic data path generation.
-        
+
         Updates the auto-generated data path dynamically as user types participant ID.
         Format: /home/{username}/data/{participant_id}{device_id}_data
         """
-        # Store participant ID in state
         participant_id = text.strip()
         self.state.set_user_input("participant_id", participant_id)
-        
-        # Auto-generate and update data path if detection succeeded
+
         if self._device_id and self._username and not self._detection_error:
             if participant_id:
-                # Generate complete data path
                 data_path = f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
                 self.state.set_user_input("data_path", data_path)
-                
-                # Update the data path display label
+
                 if hasattr(self, 'data_path_label'):
                     self.data_path_label.setText(f"Data Path: {data_path}")
                     self.data_path_label.setStyleSheet(
@@ -368,7 +341,6 @@ class ParticipantSetupStep(WizardStep):
                         "background-color: #e3f2fd; border-radius: 4px;"
                     )
             else:
-                # Show placeholder when participant ID is empty
                 placeholder_path = f"/home/{self._username}/data/[PARTICIPANT_ID]{self._device_id}_data"
                 if hasattr(self, 'data_path_label'):
                     self.data_path_label.setText(f"Data Path: {placeholder_path}")
@@ -376,10 +348,8 @@ class ParticipantSetupStep(WizardStep):
                         "font-weight: normal; color: #666; padding: 4px; "
                         "background-color: #f5f5f5; border-radius: 4px; font-style: italic;"
                     )
-                # Clear data_path from state when participant_id is empty
                 self.state.set_user_input("data_path", "")
-        
-        # Persist state and update validation
+
         if self.state_manager:
             self.state_manager.save_state(self.state)
         self._validate_and_update_ui()
@@ -398,24 +368,20 @@ class ParticipantSetupStep(WizardStep):
     @handle_step_error
     def _validate_and_update_ui(self) -> None:
         """Validate inputs and update UI state.
-        
+
         Simplified validation focusing on:
         - Participant ID format validation
         - Auto-detection success
         """
         try:
-            # Run validation
             is_valid, errors = self.validate_inputs()
-            
-            # Check requirements: participant_id format, auto-detection success, and sudo password
+
             participant_id = self.state.get_user_input("participant_id", "").strip()
             sudo_password = self.state.get_user_input("sudo_password", "").strip()
             has_detection = self._device_id and self._username and not self._detection_error
 
-            # All requirements met
             all_requirements_met = bool(participant_id and sudo_password and has_detection and is_valid)
 
-            # Display validation results
             if errors:
                 error_message = "\n".join(errors)
                 self._show_validation_error(error_message)
@@ -425,9 +391,8 @@ class ParticipantSetupStep(WizardStep):
                 if all_requirements_met:
                     self.logger.info(f"Validation successful - Participant: {participant_id}, Device: {self._device_id}, User: {self._username}")
 
-            # Update continue button and step status
             self._update_continue_button(all_requirements_met)
-            
+
             if all_requirements_met:
                 self.update_status(StepStatus.COMPLETED)
             else:
@@ -461,29 +426,26 @@ class ParticipantSetupStep(WizardStep):
             participant_id = self.state.get_user_input("participant_id", "").strip()
 
             if is_valid and self.next_button.isEnabled() and participant_id and self._device_id and self._username:
-                # Generate final data path
                 if self._device_id:
                     data_path = f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
                     self.state.set_user_input("data_path", data_path)
-                
-                # Emit detection signal
+
+                    os.makedirs(data_path, exist_ok=True)
+                    self.logger.info(f"Created data directory: {data_path}")
+
                 self.device_detected.emit(self._device_id, self._username, data_path)
-                
-                # Log completion
+
                 self.logger.info(
                     f"Participant setup completed - ID: {participant_id}, "
                     f"Device: {self._device_id}, Username: {self._username}, "
                     f"Data Path: {data_path}"
                 )
 
-                # Update status to completed
                 self.update_status(StepStatus.COMPLETED)
 
-                # Persist final state
                 if self.state_manager:
                     self.state_manager.save_state(self.state)
 
-                # Request next step
                 self.request_next_step.emit()
             else:
                 self.logger.warning("Continue clicked but validation failed")
@@ -562,7 +524,6 @@ class ParticipantSetupStep(WizardStep):
         """Update UI elements periodically with framework integration."""
         super().update_ui()
 
-        # Check if state needs to be persisted
         if self.state_manager and hasattr(self, "_needs_state_save"):
             try:
                 self.state_manager.save_state(self.state)

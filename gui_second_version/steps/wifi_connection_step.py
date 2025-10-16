@@ -98,7 +98,6 @@ class WiFiConnectionStep(WizardStep):
 
         controls_layout.addSpacing(10)
 
-        # Open Network Settings button (fallback)
         self.network_settings_button = self.ui_factory.create_action_button(
             "Manual Network Settings",
             callback=self._open_network_settings,
@@ -184,20 +183,26 @@ class WiFiConnectionStep(WizardStep):
         try:
             self.logger.info("Starting auto-connect to hotspot")
 
-            # Update status
             self.wifi_status_label.setText("Attempting to connect to hotspot...")
 
-            # Check if credentials are in .bashrc first
             bashrc_path = os.path.expanduser("~/.bashrc")
+            self.logger.info(f"Checking for hotspot credentials in: {bashrc_path}")
             has_credentials = False
 
             if os.path.exists(bashrc_path):
+                self.logger.debug(f"Reading {bashrc_path} to check for credentials")
                 with open(bashrc_path, 'r') as f:
                     content = f.read()
                     if "HOTSPOT1_PSK" in content or "HOTSPOT2_PSK" in content or "HOTSPOT3_PSK" in content:
                         has_credentials = True
+                        self.logger.info("Found existing hotspot credentials in .bashrc")
+                    else:
+                        self.logger.info("No hotspot credentials found in .bashrc")
+            else:
+                self.logger.warning(f".bashrc not found at {bashrc_path}")
 
             if not has_credentials:
+                self.logger.info("No credentials found - prompting user for hotspot passwords")
                 # Prompt for credentials
                 hotspot_configs = []
                 for i in range(1, 4):
@@ -209,6 +214,7 @@ class WiFiConnectionStep(WizardStep):
                     )
 
                     if reply == QMessageBox.StandardButton.Yes:
+                        self.logger.debug(f"User chose to configure HOTSPOT{i}")
                         password, ok = QInputDialog.getText(
                             self,
                             f"HOTSPOT{i} Password",
@@ -218,28 +224,40 @@ class WiFiConnectionStep(WizardStep):
 
                         if ok and password:
                             hotspot_configs.append(f"export HOTSPOT{i}_PSK='{password}'")
+                            self.logger.info(f"User provided password for HOTSPOT{i}")
+                        else:
+                            self.logger.info(f"User cancelled password input for HOTSPOT{i}")
+                    else:
+                        self.logger.debug(f"User skipped configuration for HOTSPOT{i}")
 
                 # Write credentials to .bashrc if any were provided
                 if hotspot_configs:
+                    self.logger.info(f"Writing {len(hotspot_configs)} hotspot credential(s) to .bashrc")
                     with open(bashrc_path, 'a') as f:
                         f.write("\n# FLASH-TV Hotspot Credentials\n")
                         for config in hotspot_configs:
                             f.write(config + "\n")
-                    self.logger.info("Saved hotspot credentials to .bashrc")
+                    self.logger.info("Successfully saved hotspot credentials to .bashrc")
+                else:
+                    self.logger.warning("No hotspot credentials were provided by user")
 
-            # Run the setup_wifi_connection.py script
             script_path = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                 "python_scripts",
                 "setup_wifi_connection.py"
             )
 
+            self.logger.info(f"WiFi setup script path: {script_path}")
+
             if not os.path.exists(script_path):
+                self.logger.error(f"WiFi setup script not found at: {script_path}")
                 raise FileNotFoundError(f"WiFi setup script not found: {script_path}")
+            else:
+                self.logger.debug(f"WiFi setup script exists at: {script_path}")
 
             self.logger.info(f"Running WiFi setup script: {script_path}")
+            self.logger.info("Executing: python3 " + script_path)
 
-            # Run the script using Python
             result = subprocess.run(
                 ["python3", script_path],
                 capture_output=True,
@@ -247,9 +265,22 @@ class WiFiConnectionStep(WizardStep):
                 timeout=30
             )
 
+            # Log the complete output
+            self.logger.info(f"WiFi script completed with return code: {result.returncode}")
+
+            if result.stdout:
+                self.logger.info(f"WiFi script stdout:\n{result.stdout}")
+            else:
+                self.logger.warning("WiFi script produced no stdout output")
+
+            if result.stderr:
+                self.logger.error(f"WiFi script stderr:\n{result.stderr}")
+            else:
+                self.logger.debug("WiFi script produced no stderr output")
+
             if result.returncode == 0:
                 self.wifi_status_label.setText("✅ Successfully connected to hotspot!")
-                self.logger.info("WiFi connection successful")
+                self.logger.info("WiFi connection successful - script exited with code 0")
                 self.state.set_user_input("wifi_ssid", "HOTSPOT_CONNECTED")
                 self.continue_button.setEnabled(True)
                 self.update_status(StepStatus.COMPLETED)
@@ -260,14 +291,15 @@ class WiFiConnectionStep(WizardStep):
                     "Successfully connected to hotspot!\n\nClick 'Continue' to proceed."
                 )
             else:
-                error_msg = result.stderr if result.stderr else "Unknown error"
-                self.logger.error(f"WiFi connection failed: {error_msg}")
+                error_msg = result.stderr if result.stderr else result.stdout if result.stdout else "Unknown error - no output"
+                self.logger.error(f"WiFi connection failed with return code {result.returncode}")
+                self.logger.error(f"Error details: {error_msg}")
                 self.wifi_status_label.setText("❌ Failed to connect to hotspot")
 
                 reply = QMessageBox.warning(
                     self,
                     "Connection Failed",
-                    f"Failed to connect to hotspot.\n\nError: {error_msg}\n\n"
+                    f"Failed to connect to hotspot.\n\nReturn code: {result.returncode}\n\nError: {error_msg}\n\n"
                     "Would you like to try manual network settings instead?",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
                 )
@@ -368,7 +400,6 @@ class WiFiConnectionStep(WizardStep):
     def _cleanup_step_resources(self) -> None:
         """Clean up step-specific resources."""
         try:
-            # Save final state before cleanup
             if self.state_manager:
                 self.state_manager.save_state(self.state)
 

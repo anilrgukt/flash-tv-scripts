@@ -86,19 +86,20 @@ class GazeArrowWidget(QWidget):
 
         # Calculate arrow endpoint based on gaze angles
         # Using the EXACT same formula as draw_gz in visualizer.py
-        # x = -40 * cos(yaw) * sin(pitch)
-        # y = -40 * sin(yaw)
-        # The magnitude varies naturally based on the angles
+        # x = -length * cos(yaw) * sin(pitch)
+        # y = -length * sin(yaw)
+        # The magnitude varies naturally based on the angles (this is correct!)
 
         pitch_rad = self.pitch_deg / 57.2958  # Convert back to radians
         yaw_rad = self.yaw_deg / 57.2958
 
-        # Scale factor: 40 pixels in original, scale to widget size
-        scale = circle_radius / 100  # Scale based on circle radius
-        base_length = 40 * scale
+        # Scale the arrow so maximum magnitude reaches edge of circle
+        # Maximum magnitude from formula is when pitch=90° and yaw=90°: sqrt(1^2 + 1^2) = sqrt(2)
+        # So we scale by circle_radius / sqrt(2) to make max magnitude = circle_radius
+        arrow_scale = circle_radius  # Full radius for max magnitude
 
-        x = -base_length * math.cos(yaw_rad) * math.sin(pitch_rad)
-        y = -base_length * math.sin(yaw_rad)
+        x = -arrow_scale * math.cos(yaw_rad) * math.sin(pitch_rad)
+        y = -arrow_scale * math.sin(yaw_rad)
 
         end_x = circle_center_x + x
         end_y = circle_center_y + y
@@ -668,10 +669,10 @@ class ServiceStartupStep(WizardStep):
                 self.logger.error("Sudo password required for restarting services")
                 return
 
-            # Run the restart services script
+            # Run the restart services script with username as argument
             script_path = f"/home/{username}/flash-tv-scripts/services/restart_services.sh"
             result, error = self.process_runner.run_sudo_command(
-                ["bash", script_path],
+                ["bash", script_path, username],
                 "Restart FLASH-TV services",
                 timeout_ms=30000
             )

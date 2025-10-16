@@ -1,13 +1,11 @@
 #!/bin/bash
 
-# Check if required arguments are provided
 if [ $# -lt 3 ]; then
     echo "Usage: $0 <participant_id> <username> <data_folder_path>"
     echo "Example: $0 123 flashsys001 /home/flashsys001/data/123001_data"
     exit 1
 fi
 
-# Get arguments from command line
 participant_id="$1"
 username="$2"
 DATA_FOLDER_PATH="$3"
@@ -17,30 +15,25 @@ echo "  Participant ID: ${participant_id}"
 echo "  Username: ${username}"
 echo "  Data Path: ${DATA_FOLDER_PATH}"
 
-# Verify the data details
 zenity --question --title="Verifying Data Details" --width 500 --height 100 --text="Please verify the following data details\nParticipant ID: ${participant_id}\nUsername: ${username}\nData Folder Path: ${DATA_FOLDER_PATH}" --no-wrap
 user_resp=$?
 
 if [ ${user_resp} -eq 1 ]; then
 	zenity --warning --text="Exiting the code since the data details were not correct according to the user. Please modify them and restart the script."
-	exit 
+	exit
 fi
 
-# Create the faces folder
 FACES_FOLDER_PATH="${DATA_FOLDER_PATH}/${participant_id}_faces"
 mkdir -p "${FACES_FOLDER_PATH}"
 
-# Verify that the face_crops folder exists
 FACE_CROPS_FOLDER_PATH="${DATA_FOLDER_PATH}/${participant_id}_face_crops"
 if [ ! -d "${FACE_CROPS_FOLDER_PATH}" ]; then
     zenity --warning --title "Warning Message" --width 700 --height 100 --text "The indicated face_crops directory ${FACE_CROPS_FOLDER_PATH} does not exist. \nPlease check if the face_crops directory is present."
     exit
 fi
 
-# Define the minimum number of faces required within each category
 min_faces=5
 
-# Function to check and copy faces
 copy_faces() {
     local face_crop_type=$1
     local FACE_CROP_TYPE_SELECTED_PATH="${FACE_CROPS_FOLDER_PATH}/${face_crop_type}_selected"
@@ -59,16 +52,10 @@ copy_faces() {
     done
 }
 
-# Check and copy target child faces
 copy_faces "tc"
-
-# Check and copy sibling faces
 copy_faces "sib"
-
-# Check and copy parent faces
 copy_faces "parent"
 
-# Check and copy extra faces
 extra_images=$(find "${FACE_CROPS_FOLDER_PATH}/extra_selected/" -name "*.png" | wc -l)
 # shellcheck disable=SC2086
 if [ ${extra_images} -gt 0 ]; then
@@ -81,7 +68,6 @@ else
         cp "${i}" "${FACES_FOLDER_PATH}/${participant_id}_extra${n}.png"
     done
 
-    # Check extra faces again
     n_extra_faces=$(find "${FACES_FOLDER_PATH}" -name "${participant_id}_extra*.png" | wc -l)
     if [ ${n_extra_faces} -lt ${min_faces} ]; then
         zenity --warning --title "Warning Message" --width 700 --height 100 --text "The number of extra faces selected for the gallery is less than ${min_faces}. \nPlease check if the folder ${DATA_FOLDER_PATH}/${participant_id}_face_crops/extra_selected has less than ${min_faces} faces."

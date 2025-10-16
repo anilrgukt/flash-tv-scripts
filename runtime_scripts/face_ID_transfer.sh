@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Check if required arguments are provided
 if [ $# -lt 3 ]; then
     echo "Usage: $0 <participant_id> <username> <data_folder_path> [old_device_id] [new_device_id]"
     echo "Example: $0 123 flashsys001 /home/flashsys001/data/123001_data"
@@ -8,12 +7,10 @@ if [ $# -lt 3 ]; then
     exit 1
 fi
 
-# Get arguments from command line
 participant_id="$1"
 username="$2"
 DATA_FOLDER_PATH="$3"
 
-# If device IDs aren't provided as arguments 4 and 5, prompt the user
 if [ "$#" -eq 5 ]; then
   old_device_id=$4
   new_device_id=$5
@@ -25,7 +22,6 @@ else
   exit 1
 fi
 
-# Find the faces folder within the data folder
 for folder in "${DATA_FOLDER_PATH}"/*; do
   if [[ "${folder}" == *faces* ]]; then
     FACES_FOLDER_PATH="${folder}"
@@ -33,11 +29,9 @@ for folder in "${DATA_FOLDER_PATH}"/*; do
   fi
 done
 
-# Replace the old device ID with the new device ID within the faces folder path (syntax is specific)
 NEW_FACES_FOLDER_PATH="${FACES_FOLDER_PATH/${old_device_id}/${new_device_id}}"
 mv -v "${FACES_FOLDER_PATH}" "${NEW_FACES_FOLDER_PATH}"
 
-# Replace the old device ID with the new device ID within each face image path (syntax is specific)
 cd "${NEW_FACES_FOLDER_PATH}" || exit 1
 for image in *; do
   [[ -f "$image" ]] || continue

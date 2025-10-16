@@ -1,9 +1,7 @@
 #!/bin/bash
 
-# Set to exit on non-zero error code
 set -e
 
-# Run all setup files
 bash -x ~/flash-tv-scripts/setup_scripts/ID_setup.sh 0
 bash -x ~/flash-tv-scripts/setup_scripts/file_setup.sh
 bash -x ~/flash-tv-scripts/setup_scripts/service_setup.sh

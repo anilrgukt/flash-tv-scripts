@@ -289,6 +289,77 @@ class GalleryCreationStep(WizardStep):
     # Removed _run_create_faces_script since images are now saved directly to correct location
     
     @handle_step_error
+    def _fill_missing_extra_faces(self) -> None:
+        """Check if extra faces are missing and fill with poster faces if needed."""
+        try:
+            participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
+            data_path = self.state.get_user_input("data_path", "")
+            username = self.state.get_user_input("username", "")
+
+            if not all([participant_id, device_id, data_path, username]):
+                self.logger.warning("Missing required information for poster face filling")
+                return
+
+            # Get the faces folder path
+            combined_id = f"{participant_id}{device_id}"
+            faces_folder = os.path.join(data_path, f"{combined_id}_faces")
+
+            if not os.path.exists(faces_folder):
+                self.logger.warning(f"Faces folder does not exist: {faces_folder}")
+                return
+
+            # Count existing extra faces
+            import glob
+            extra_pattern = os.path.join(faces_folder, f"{combined_id}_extra*.png")
+            extra_faces = glob.glob(extra_pattern)
+            extra_count = len(extra_faces)
+
+            self.logger.info(f"Found {extra_count} extra faces in gallery")
+
+            # If we have fewer than 5 extra faces, copy poster faces
+            min_faces = 5
+            if extra_count < min_faces:
+                self.gallery_output.append(f"\n📋 Found only {extra_count} extra faces (need {min_faces})")
+                self.gallery_output.append("🖼️  Filling missing extra faces with poster images...")
+
+                # Poster faces location
+                poster_faces_dir = f"/home/{username}/flash-tv-scripts/poster_faces"
+
+                if not os.path.exists(poster_faces_dir):
+                    self.logger.warning(f"Poster faces directory not found: {poster_faces_dir}")
+                    self.gallery_output.append(f"⚠️  Poster faces directory not found at {poster_faces_dir}")
+                    return
+
+                # Get poster face files
+                poster_files = sorted(glob.glob(os.path.join(poster_faces_dir, "*.png")))
+
+                if not poster_files:
+                    self.logger.warning("No poster face images found")
+                    self.gallery_output.append("⚠️  No poster face images found")
+                    return
+
+                # Copy poster faces to fill the gaps
+                import shutil
+                faces_copied = 0
+                for i in range(extra_count + 1, min_faces + 1):
+                    # Use modulo to cycle through poster faces if we don't have enough
+                    poster_idx = (i - 1) % len(poster_files)
+                    source_file = poster_files[poster_idx]
+                    dest_file = os.path.join(faces_folder, f"{combined_id}_extra{i}.png")
+
+                    shutil.copy2(source_file, dest_file)
+                    faces_copied += 1
+                    self.logger.info(f"Copied poster face {i}: {os.path.basename(source_file)} -> {os.path.basename(dest_file)}")
+
+                self.gallery_output.append(f"✅ Copied {faces_copied} poster faces to complete the gallery")
+            else:
+                self.logger.info("Extra faces complete - no poster faces needed")
+
+        except Exception as e:
+            self.logger.error(f"Error filling missing extra faces: {e}")
+            self.gallery_output.append(f"⚠️  Warning: Could not fill missing extra faces: {e}")
+
     def _validate_gallery(self, checked: bool = False) -> None:
         """Validate the gallery structure and contents with comprehensive error handling."""
         try:
@@ -513,8 +584,12 @@ class GalleryCreationStep(WizardStep):
                 if status == ProcessStatus.COMPLETED:
                     self.logger.info("Gallery creation script completed")
                     self.gallery_output.append("\n✅ Gallery creation completed!")
+
+                    # Check and fill missing extra faces with poster faces
+                    self._fill_missing_extra_faces()
+
                     self.gallery_output.append("🔍 Starting automatic validation...")
-                    
+
                     # Directly validate the gallery since images are now saved in correct location
                     self._validate_gallery()
                     self.update_status(StepStatus.USER_ACTION_REQUIRED)

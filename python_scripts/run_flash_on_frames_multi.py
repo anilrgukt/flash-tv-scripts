@@ -39,30 +39,23 @@ Options:
 import os
 import argparse
 import glob
-
-# import queue libraries
 import subprocess
 import sys
 import threading as th
-
-# time libs
 import time
 import traceback
 from datetime import datetime, timedelta
 from queue import Queue
 import math
 
-# computer vision libs
 import cv2
 import numpy as np
 
-# custom libs
 from flash_main import FLASHtv
 from utils.flash_runtime_utils import cam_id, check_face_presence, correct_rotation, make_directories, write_log_file
 from utils.rotate_frame import rotate_frame
 from utils.visualizer import draw_gz, draw_rect_ver
 
-# Parse command line arguments
 parser = argparse.ArgumentParser(description="Multi-person gaze tracking on FLASH-TV frames")
 parser.add_argument("family_id", type=str, help="Family ID (e.g., 123)")
 parser.add_argument("frames_folder", type=str, help="Path to folder containing frame images")
@@ -79,7 +72,6 @@ parser.set_defaults(save_images=True, display=False)
 
 args = parser.parse_args()
 
-# super variables
 write_image_data = args.save_images
 rotate_to_find_tc = False  # Disabled for multi-person tracking
 famid = str(args.family_id)

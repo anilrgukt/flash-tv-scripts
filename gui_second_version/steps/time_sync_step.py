@@ -330,6 +330,9 @@ class TimeSyncStep(WizardStep):
                     recovery_action="Complete participant setup first",
                 )
 
+            # Ensure the data directory exists before accessing the start_date file
+            os.makedirs(data_path, exist_ok=True)
+
             start_date_file = os.path.join(data_path, f"{combined_id}_start_date.txt")
             
             # Use run_sudo_command for immediate execution
@@ -409,6 +412,9 @@ class TimeSyncStep(WizardStep):
                     ErrorType.VALIDATION_ERROR,
                     recovery_action="Complete participant setup first",
                 )
+
+            # Ensure the data directory exists before writing the start_date file
+            os.makedirs(data_path, exist_ok=True)
 
             start_date_file = os.path.join(data_path, f"{combined_id}_start_date.txt")
             
