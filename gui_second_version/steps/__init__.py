@@ -9,7 +9,6 @@ from steps.gallery_creation_step import GalleryCreationStep
 from steps.gaze_detection_testing_step import GazeDetectionTestingStep
 from steps.service_startup_step import ServiceStartupStep
 from steps.participant_setup_step import ParticipantSetupStep
-from steps.pov_picture_step import POVPictureStep
 from steps.smart_plug_physical_step import SmartPlugPhysicalStep
 from steps.smart_plug_verify_step import SmartPlugVerifyStep
 from steps.step_factory import StepFactory
@@ -23,7 +22,6 @@ __all__ = [
     "GalleryCreationStep",
     "GazeDetectionTestingStep",
     "ServiceStartupStep",
-    "POVPictureStep",
     "ParticipantSetupStep",
     "SmartPlugPhysicalStep",
     "SmartPlugVerifyStep",

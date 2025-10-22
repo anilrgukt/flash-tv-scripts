@@ -15,7 +15,6 @@ from steps.time_sync_step import TimeSyncStep
 from steps.smart_plug_physical_step import SmartPlugPhysicalStep
 from steps.smart_plug_verify_step import SmartPlugVerifyStep
 from steps.camera_setup_step import CameraSetupStep
-from steps.pov_picture_step import POVPictureStep
 from steps.gallery_creation_step import GalleryCreationStep
 from steps.gaze_detection_testing_step import GazeDetectionTestingStep
 from steps.service_startup_step import ServiceStartupStep
@@ -88,67 +87,58 @@ class StepFactory:
                 prerequisites=[1, 2, 3, 4],
                 validation_rules=[],
             ),
-            # Step 6: Camera Setup
+            # Step 6: Camera Setup (includes POV picture)
             StepDefinition(
                 step_id=6,
-                title="Camera Detection and Setup",
-                description="Detect camera devices and configure camera settings.",
+                title="Camera Setup and POV Picture",
+                description="Position camera, verify connection, and capture POV baseline picture.",
                 content_type=StepContentType.MANUAL,
                 prerequisites=[1, 2, 3, 4, 5],
                 validation_rules=[],
             ),
-            # Step 7: POV Picture
+            # Step 7: Face Gallery Building
             StepDefinition(
                 step_id=7,
-                title="Point of View Picture",
-                description="Capture POV picture documenting camera perspective.",
-                content_type=StepContentType.MANUAL,
+                title="Face Gallery Building",
+                description="Create face gallery for family member recognition.",
+                content_type=StepContentType.MIXED,
                 prerequisites=[1, 2, 3, 4, 5, 6],
                 validation_rules=[],
             ),
-            # Step 8: Face Gallery Building
+            # Step 8: Gaze Detection Testing
             StepDefinition(
                 step_id=8,
-                title="Face Gallery Building",
-                description="Create face gallery for family member recognition.",
+                title="Gaze Detection Testing",
+                description="Test gaze detection system functionality.",
                 content_type=StepContentType.MIXED,
                 prerequisites=[1, 2, 3, 4, 5, 6, 7],
                 validation_rules=[],
             ),
-            # Step 9: Gaze Detection Testing
+            # Step 9: Starting and Verifying Long Term FLASH-TV Services
             StepDefinition(
                 step_id=9,
-                title="Gaze Detection Testing",
-                description="Test gaze detection system functionality.",
-                content_type=StepContentType.MIXED,
-                prerequisites=[1, 2, 3, 4, 5, 6, 7, 8],
-                validation_rules=[],
-            ),
-            # Step 10: Starting and Verifying Long Term FLASH-TV Services
-            StepDefinition(
-                step_id=10,
                 title="Starting and Verifying Long Term FLASH-TV Services",
                 description="Start and verify FLASH-TV services for long-term data collection.",
                 content_type=StepContentType.AUTOMATED,
-                prerequisites=[1, 2, 3, 4, 5, 6, 7, 8, 9],
+                prerequisites=[1, 2, 3, 4, 5, 6, 7, 8],
                 validation_rules=[],
             ),
-            # Step 11: Cord Checking
+            # Step 10: Cord Checking
             StepDefinition(
-                step_id=11,
+                step_id=10,
                 title="Cord and Connection Check",
                 description="Verify all power cords and cable connections are secure.",
                 content_type=StepContentType.MANUAL,
-                prerequisites=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                prerequisites=[1, 2, 3, 4, 5, 6, 7, 8, 9],
                 validation_rules=[],
             ),
-            # Step 12: Screen Locking
+            # Step 11: Screen Locking
             StepDefinition(
-                step_id=12,
+                step_id=11,
                 title="Screen Locking and Final Setup",
                 description="Lock the screen and prepare system for autonomous operation.",
                 content_type=StepContentType.MANUAL,
-                prerequisites=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+                prerequisites=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
                 validation_rules=[],
             ),
         ]
@@ -165,12 +155,11 @@ class StepFactory:
             4: SmartPlugPhysicalStep,
             5: SmartPlugVerifyStep,
             6: CameraSetupStep,
-            7: POVPictureStep,
-            8: GalleryCreationStep,
-            9: GazeDetectionTestingStep,
-            10: ServiceStartupStep,
-            11: CordCheckingStep,
-            12: DeviceLockingStep,
+            7: GalleryCreationStep,
+            8: GazeDetectionTestingStep,
+            9: ServiceStartupStep,
+            10: CordCheckingStep,
+            11: DeviceLockingStep,
         }
 
         step_class = step_classes.get(step_definition.step_id)

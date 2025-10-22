@@ -514,7 +514,7 @@ class SmartPlugVerifyStep(WizardStep):
                     self.csv_output.setPlainText(f"Waiting for file: {csv_file}\n\nThe file will be created once Home Assistant starts logging power data.")
 
     def _display_csv_file(self, csv_path: str, participant_id: str) -> None:
-        """Display the CSV file content similar to stderr log display."""
+        """Display the last 100 lines of the CSV file content similar to stderr log display."""
         try:
             with open(csv_path, 'r', errors='ignore') as f:
                 content = f.read()
@@ -527,7 +527,12 @@ class SmartPlugVerifyStep(WizardStep):
             # {{states('sensor.third_reality_inc_3rsp02028bz_power')}};{{now().strftime('%m.%d.%Y')}};{{now().strftime('%H.%M.%S')}}
             # Format: power_value;date;time
 
-            for line in content.splitlines():
+            all_lines = content.splitlines()
+
+            # Get only the last 100 lines
+            last_100_lines = all_lines[-100:] if len(all_lines) > 100 else all_lines
+
+            for line in last_100_lines:
                 line = line.strip()
                 if not line:
                     self.csv_output.append(line)

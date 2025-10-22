@@ -49,22 +49,22 @@ class SmartPlugPhysicalStep(WizardStep):
         return overview_group
 
     def _create_steps_section(self):
-        """Create the setup steps in 2x2 grid layout using UI factory."""
-        # Create main horizontal layout for the grid
-        steps_grid = self.ui_factory.create_horizontal_layout(spacing=12)
+        """Create the setup steps in 2x2 grid layout (left-to-right, top-to-bottom) using UI factory."""
+        # Create main vertical layout for rows
+        steps_grid = self.ui_factory.create_vertical_layout(spacing=8)
 
-        # Create left and right columns
-        left_column = self._create_left_column()
-        right_column = self._create_right_column()
+        # Create top and bottom rows
+        top_row = self._create_top_row()
+        bottom_row = self._create_bottom_row()
 
-        steps_grid.addLayout(left_column, 1)
-        steps_grid.addLayout(right_column, 1)
+        steps_grid.addLayout(top_row, 1)
+        steps_grid.addLayout(bottom_row, 1)
 
         return steps_grid
 
-    def _create_left_column(self):
-        """Create the left column with steps 1 & 2."""
-        left_column = self.ui_factory.create_vertical_layout(spacing=8)
+    def _create_top_row(self):
+        """Create the top row with steps 1 & 2."""
+        top_row = self.ui_factory.create_horizontal_layout(spacing=12)
 
         # Step 1: Identify TV Power Cord
         step1_box, step1_layout = self.ui_factory.create_group_box("Step 1: Identify TV Power Cord")
@@ -88,14 +88,14 @@ class SmartPlugPhysicalStep(WizardStep):
         step2_layout.addWidget(self.step2_check)
         step2_layout.addStretch()
 
-        left_column.addWidget(step1_box, 1)
-        left_column.addWidget(step2_box, 1)
+        top_row.addWidget(step1_box, 1)
+        top_row.addWidget(step2_box, 1)
 
-        return left_column
+        return top_row
 
-    def _create_right_column(self):
-        """Create the right column with steps 3 & 4."""
-        right_column = self.ui_factory.create_vertical_layout(spacing=8)
+    def _create_bottom_row(self):
+        """Create the bottom row with steps 3 & 4."""
+        bottom_row = self.ui_factory.create_horizontal_layout(spacing=12)
 
         # Step 3: Connect TV to Smart Plug
         step3_box, step3_layout = self.ui_factory.create_group_box("Step 3: Connect TV to Smart Plug")
@@ -130,10 +130,10 @@ class SmartPlugPhysicalStep(WizardStep):
         step4_layout.addWidget(self.step4_check)
         step4_layout.addStretch()
 
-        right_column.addWidget(step3_box, 1)
-        right_column.addWidget(step4_box, 1)
+        bottom_row.addWidget(step3_box, 1)
+        bottom_row.addWidget(step4_box, 1)
 
-        return right_column
+        return bottom_row
 
     def _create_progress_section(self):
         """Create the progress and continue button section using UI factory."""
