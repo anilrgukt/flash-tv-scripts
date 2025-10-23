@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import os
 import shutil
+from datetime import datetime, timedelta
 
-from PyQt6.QtWidgets import QWidget, QMessageBox, QTextEdit
+from PyQt6.QtWidgets import QWidget, QMessageBox, QTextEdit, QProgressBar
+from PyQt6.QtCore import QTimer
 
 from core import WizardStep
 from core.exceptions import handle_step_error, FlashTVError, ErrorType
@@ -15,6 +17,15 @@ from utils.ui_factory import ButtonStyle
 
 class GazeDetectionTestingStep(WizardStep):
     """Step 8: Test Gaze Detection using new framework patterns."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Progress tracking for model loading
+        self.loading_timer = QTimer()
+        self.loading_timer.timeout.connect(self._update_loading_progress)
+        self.loading_start_time = None
+        self.loading_duration_seconds = 300  # 5 minutes
 
     def create_content_widget(self) -> QWidget:
         """Create the gaze detection testing UI using UI factory."""
@@ -72,6 +83,26 @@ class GazeDetectionTestingStep(WizardStep):
             height=40,
         )
         launch_layout.addWidget(self.launch_button)
+
+        # Progress bar for loading countdown
+        self.loading_progress_bar = QProgressBar()
+        self.loading_progress_bar.setVisible(False)
+        self.loading_progress_bar.setMinimum(0)
+        self.loading_progress_bar.setMaximum(100)
+        self.loading_progress_bar.setValue(0)
+        self.loading_progress_bar.setFormat("Estimated loading time: %p% complete")
+        self.loading_progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 2px solid grey;
+                border-radius: 5px;
+                text-align: center;
+                height: 25px;
+            }
+            QProgressBar::chunk {
+                background-color: #4CAF50;
+            }
+        """)
+        launch_layout.addWidget(self.loading_progress_bar)
 
         test_info = self.ui_factory.create_label(
             "<b>Status Indicators:</b><br><br>"
@@ -202,6 +233,12 @@ class GazeDetectionTestingStep(WizardStep):
             self.test_status_label.setText("🎯 Launching gaze detection test...")
             self.update_status(StepStatus.AUTOMATION_RUNNING)
 
+            # Start loading progress bar countdown
+            self.loading_progress_bar.setVisible(True)
+            self.loading_progress_bar.setValue(0)
+            self.loading_start_time = datetime.now()
+            self.loading_timer.start(1000)  # Update every second
+
             # Prepare command for gaze test
             script_path = os.path.join(
                 f"/home/{username}/flash-tv-scripts/python_scripts",
@@ -255,6 +292,29 @@ class GazeDetectionTestingStep(WizardStep):
             self.update_status(StepStatus.FAILED)
             raise
 
+    def _update_loading_progress(self) -> None:
+        """Update the loading progress bar based on elapsed time."""
+        if self.loading_start_time is None:
+            return
+
+        elapsed = (datetime.now() - self.loading_start_time).total_seconds()
+        progress_percent = min(100, int((elapsed / self.loading_duration_seconds) * 100))
+
+        self.loading_progress_bar.setValue(progress_percent)
+
+        # Update format text with remaining time
+        remaining_seconds = max(0, self.loading_duration_seconds - int(elapsed))
+        minutes = remaining_seconds // 60
+        seconds = remaining_seconds % 60
+
+        if progress_percent >= 100:
+            self.loading_progress_bar.setFormat("Models loaded - Window should be ready!")
+            self.loading_timer.stop()
+        else:
+            self.loading_progress_bar.setFormat(
+                f"Loading models... {minutes}m {seconds}s remaining (~{progress_percent}% complete)"
+            )
+
     @handle_step_error
     def _gaze_working_confirmed(self, checked: bool = False) -> None:
         """Handle confirmation that gaze detection is working."""
@@ -273,6 +333,10 @@ class GazeDetectionTestingStep(WizardStep):
 
             if reply == QMessageBox.StandardButton.Yes:
                 self.logger.info("User confirmed gaze detection is working")
+
+                # Stop the loading timer and hide progress bar
+                self.loading_timer.stop()
+                self.loading_progress_bar.setVisible(False)
 
                 # Stop the gaze test process
                 process_info = self.state.get_process("gaze_test")
@@ -341,6 +405,10 @@ class GazeDetectionTestingStep(WizardStep):
         """Handle gaze detection issues."""
         try:
             self.logger.warning("User reported gaze detection issues")
+
+            # Stop the loading timer and hide progress bar
+            self.loading_timer.stop()
+            self.loading_progress_bar.setVisible(False)
 
             # Stop the test process
             process_info = self.state.get_process("gaze_test")

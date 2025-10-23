@@ -535,20 +535,27 @@ class GalleryCreationStep(WizardStep):
 
             # Track model loading progress
             if stderr_lines:
-                model_load_keywords = ["Loading weights", "conv", "detection", "src/nnvm", "MXNET_CUDNN"]
+                model_load_keywords = ["Loading weights", "conv", "detection", "src/nnvm", "MXNET_CUDNN", "Initializing", "cudnn"]
                 model_lines = [line for line in stderr_lines if any(keyword in line for keyword in model_load_keywords)]
 
                 if model_lines:
                     # Estimate progress based on model loading stages
-                    if any("Loading weights" in line for line in model_lines):
-                        self.progress_bar.setValue(50)
-                        self.progress_bar.setFormat("Loading face detection weights... %p%")
-                    elif any("src/nnvm" in line for line in model_lines):
-                        self.progress_bar.setValue(70)
-                        self.progress_bar.setFormat("Loading face verification model... %p%")
-                    elif any("MXNET_CUDNN" in line for line in model_lines):
+                    # Check in reverse order (most recent progress)
+                    if any("cudnn" in line.lower() for line in model_lines[-20:]):
+                        self.progress_bar.setValue(100)
+                        self.progress_bar.setFormat("Models loaded - Window ready! %p%")
+                    elif any("MXNET_CUDNN" in line for line in model_lines[-20:]):
                         self.progress_bar.setValue(90)
                         self.progress_bar.setFormat("Optimizing model performance... %p%")
+                    elif any("src/nnvm" in line for line in model_lines[-20:]):
+                        self.progress_bar.setValue(70)
+                        self.progress_bar.setFormat("Loading face verification model... %p%")
+                    elif any("Loading weights" in line for line in model_lines):
+                        self.progress_bar.setValue(50)
+                        self.progress_bar.setFormat("Loading face detection weights... %p%")
+                    elif any("Initializing" in line for line in model_lines):
+                        self.progress_bar.setValue(30)
+                        self.progress_bar.setFormat("Initializing models... %p%")
 
             if not process_info.is_running():
                 status = process_info.get_status()

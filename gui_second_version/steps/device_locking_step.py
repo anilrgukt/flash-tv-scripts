@@ -26,17 +26,6 @@ from core.exceptions import handle_step_error
 from models import StepStatus
 from utils.ui_factory import ButtonStyle
 
-# Import the GazeArrowWidget from service_startup_step
-import sys
-import importlib.util
-spec = importlib.util.spec_from_file_location(
-    "service_startup_step",
-    os.path.join(os.path.dirname(__file__), "service_startup_step.py")
-)
-service_startup_module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(service_startup_module)
-GazeArrowWidget = service_startup_module.GazeArrowWidget
-
 
 class DeviceLockingStep(WizardStep):
     """Step 11: Device Locking with Live Monitoring Dashboard."""
@@ -124,9 +113,9 @@ class DeviceLockingStep(WizardStep):
         camera_box = self._create_camera_box()
         grid_layout.addWidget(camera_box, 2, 0, 1, 3)
 
-        # Row 3: Services Status (3 gaze models with arrows)
-        services_label = QLabel("<b>FLASH-TV Services & Live Gaze Monitoring:</b>")
-        services_label.setStyleSheet("font-size: 11pt; padding: 5px;")
+        # Row 3: Services Status
+        services_label = QLabel("<b>FLASH-TV Services Status:</b>")
+        services_label.setStyleSheet("font-size: 12pt; padding: 8px 5px;")
         grid_layout.addWidget(services_label, 3, 0, 1, 3)
 
         services_row = self._create_services_row()
@@ -143,6 +132,7 @@ class DeviceLockingStep(WizardStep):
     def _create_system_info_box(self) -> QWidget:
         """Create system information status box."""
         box, layout = self.ui_factory.create_group_box("System Information")
+        box.setMinimumHeight(150)
 
         self.sys_participant_id = self.ui_factory.create_label("Participant: --")
         self.sys_username = self.ui_factory.create_label("Username: --")
@@ -151,10 +141,11 @@ class DeviceLockingStep(WizardStep):
         self.sys_last_updated = self.ui_factory.create_label("Last Updated: --")
 
         for label in [self.sys_participant_id, self.sys_username, self.sys_data_path, self.sys_timestamp]:
-            label.setFont(QFont("Monospace", 9))
+            label.setFont(QFont("Monospace", 10))
             layout.addWidget(label)
+            layout.addSpacing(3)
 
-        self.sys_last_updated.setFont(QFont("Monospace", 8))
+        self.sys_last_updated.setFont(QFont("Monospace", 9))
         self.sys_last_updated.setStyleSheet("color: #666;")
         layout.addWidget(self.sys_last_updated)
 
@@ -165,6 +156,7 @@ class DeviceLockingStep(WizardStep):
     def _create_network_box(self) -> QWidget:
         """Create network status box."""
         box, layout = self.ui_factory.create_group_box("Network Status")
+        box.setMinimumHeight(150)
 
         self.net_wifi_status = self.ui_factory.create_label("WiFi: --")
         self.net_ssid = self.ui_factory.create_label("Network: --")
@@ -172,10 +164,11 @@ class DeviceLockingStep(WizardStep):
         self.net_last_updated = self.ui_factory.create_label("Last Updated: --")
 
         for label in [self.net_wifi_status, self.net_ssid, self.net_ip]:
-            label.setFont(QFont("Monospace", 9))
+            label.setFont(QFont("Monospace", 10))
             layout.addWidget(label)
+            layout.addSpacing(3)
 
-        self.net_last_updated.setFont(QFont("Monospace", 8))
+        self.net_last_updated.setFont(QFont("Monospace", 9))
         self.net_last_updated.setStyleSheet("color: #666;")
         layout.addWidget(self.net_last_updated)
 
@@ -186,16 +179,18 @@ class DeviceLockingStep(WizardStep):
     def _create_time_box(self) -> QWidget:
         """Create time sync status box."""
         box, layout = self.ui_factory.create_group_box("Time Synchronization")
+        box.setMinimumHeight(150)
 
         self.time_sync_status = self.ui_factory.create_label("Sync: --")
         self.time_current = self.ui_factory.create_label("System: --")
         self.time_last_updated = self.ui_factory.create_label("Last Updated: --")
 
         for label in [self.time_sync_status, self.time_current]:
-            label.setFont(QFont("Monospace", 9))
+            label.setFont(QFont("Monospace", 10))
             layout.addWidget(label)
+            layout.addSpacing(3)
 
-        self.time_last_updated.setFont(QFont("Monospace", 8))
+        self.time_last_updated.setFont(QFont("Monospace", 9))
         self.time_last_updated.setStyleSheet("color: #666;")
         layout.addWidget(self.time_last_updated)
 
@@ -247,16 +242,18 @@ class DeviceLockingStep(WizardStep):
     def _create_camera_box(self) -> QWidget:
         """Create camera status box."""
         box, layout = self.ui_factory.create_group_box("Camera Status")
+        box.setMinimumHeight(120)
 
         self.cam_device = self.ui_factory.create_label("Device: --")
         self.cam_tested = self.ui_factory.create_label("Tested: --")
         self.cam_last_updated = self.ui_factory.create_label("Last Updated: --")
 
         for label in [self.cam_device, self.cam_tested]:
-            label.setFont(QFont("Monospace", 9))
+            label.setFont(QFont("Monospace", 10))
             layout.addWidget(label)
+            layout.addSpacing(3)
 
-        self.cam_last_updated.setFont(QFont("Monospace", 8))
+        self.cam_last_updated.setFont(QFont("Monospace", 9))
         self.cam_last_updated.setStyleSheet("color: #666;")
         layout.addWidget(self.cam_last_updated)
 
@@ -265,10 +262,10 @@ class DeviceLockingStep(WizardStep):
         return box
 
     def _create_services_row(self) -> QHBoxLayout:
-        """Create services monitoring row with 3 gaze model displays."""
+        """Create services monitoring row with status only (no gaze circles)."""
         services_layout = self.ui_factory.create_horizontal_layout()
 
-        # Service status
+        # Service status (takes full width)
         service_status_layout = self.ui_factory.create_vertical_layout()
         service_label = QLabel("<b>Service Status:</b>")
         service_status_layout.addWidget(service_label)
@@ -278,38 +275,11 @@ class DeviceLockingStep(WizardStep):
         self.svc_home_assistant = self.ui_factory.create_label("Home Assistant: --")
 
         for label in [self.svc_flash_boot, self.svc_flash_periodic, self.svc_home_assistant]:
-            label.setFont(QFont("Monospace", 9))
+            label.setFont(QFont("Monospace", 10))
             service_status_layout.addWidget(label)
 
         service_status_layout.addStretch()
-        services_layout.addLayout(service_status_layout, 1)
-
-        # Main model gaze
-        main_layout = self.ui_factory.create_vertical_layout()
-        main_label = QLabel("<b>Main Model</b>")
-        main_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_layout.addWidget(main_label)
-        self.gaze_main_arrow = GazeArrowWidget()
-        main_layout.addWidget(self.gaze_main_arrow, alignment=Qt.AlignmentFlag.AlignCenter)
-        services_layout.addLayout(main_layout, 1)
-
-        # Rot model gaze
-        rot_layout = self.ui_factory.create_vertical_layout()
-        rot_label = QLabel("<b>Rot Model</b>")
-        rot_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        rot_layout.addWidget(rot_label)
-        self.gaze_rot_arrow = GazeArrowWidget()
-        rot_layout.addWidget(self.gaze_rot_arrow, alignment=Qt.AlignmentFlag.AlignCenter)
-        services_layout.addLayout(rot_layout, 1)
-
-        # Reg model gaze
-        reg_layout = self.ui_factory.create_vertical_layout()
-        reg_label = QLabel("<b>Reg Model</b>")
-        reg_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        reg_layout.addWidget(reg_label)
-        self.gaze_reg_arrow = GazeArrowWidget()
-        reg_layout.addWidget(self.gaze_reg_arrow, alignment=Qt.AlignmentFlag.AlignCenter)
-        services_layout.addLayout(reg_layout, 1)
+        services_layout.addLayout(service_status_layout)
 
         return services_layout
 
@@ -337,40 +307,37 @@ class DeviceLockingStep(WizardStep):
 
     def _create_lock_section(self) -> QWidget:
         """Create device lock controls."""
-        lock_group, lock_layout = self.ui_factory.create_group_box("Device Locking Options")
+        lock_group, lock_layout = self.ui_factory.create_group_box("Device Locking Instructions")
 
         lock_info = self.ui_factory.create_label(
-            "After verifying all systems are working properly, lock the device to prevent accidental changes:"
+            "<b>After verifying all systems are working properly above, manually lock the device:</b>"
         )
         lock_layout.addWidget(lock_info)
 
-        button_layout = self.ui_factory.create_horizontal_layout(spacing=10)
+        lock_layout.addSpacing(10)
 
-        self.lock_device_button = self.ui_factory.create_action_button(
-            "🔒 Lock Device Now",
-            callback=self._lock_device,
-            style=ButtonStyle.DANGER,
-            height=40,
+        # Manual lock instructions
+        instructions_text = (
+            "<b>Manual Device Lock Instructions:</b><br><br>"
+            "1. Click the top right power button on screen → Select <b>Lock</b><br><br>"
+            "<b>OR</b><br><br>"
+            "2. Press <b>Super key</b> → Type \"lock\" → Press <b>Enter</b><br><br>"
+            "<b>Important:</b> Lock the device before leaving the participant's location to prevent accidental changes."
         )
-        button_layout.addWidget(self.lock_device_button)
+        instructions_label = self.ui_factory.create_label(instructions_text)
+        instructions_label.setStyleSheet("padding: 10px; background-color: #f0f0f0; border-radius: 5px;")
+        lock_layout.addWidget(instructions_label)
 
-        self.auto_lock_button = self.ui_factory.create_action_button(
-            "⏰ Enable Auto-Lock (5 min)",
-            callback=self._enable_auto_lock,
-            style=ButtonStyle.SECONDARY,
-            height=40,
+        lock_layout.addSpacing(10)
+
+        # Single button to mark as locked
+        self.mark_locked_button = self.ui_factory.create_action_button(
+            "✅ I Have Locked the Device",
+            callback=self._mark_device_locked,
+            style=ButtonStyle.SUCCESS,
+            height=45,
         )
-        button_layout.addWidget(self.auto_lock_button)
-
-        self.manual_lock_button = self.ui_factory.create_action_button(
-            "📝 Manual Lock Instructions",
-            callback=self._show_manual_instructions,
-            style=ButtonStyle.SECONDARY,
-            height=40,
-        )
-        button_layout.addWidget(self.manual_lock_button)
-
-        lock_layout.addLayout(button_layout)
+        lock_layout.addWidget(self.mark_locked_button)
 
         return lock_group
 
@@ -579,113 +546,6 @@ class DeviceLockingStep(WizardStep):
         except Exception:
             self.svc_home_assistant.setText("Home Assistant: ⚠️ Unknown")
 
-        # Update gaze data from log files
-        self._update_gaze_data()
-
-    def _update_gaze_data(self) -> None:
-        """Update gaze data displays from log files."""
-        participant_id = self.state.get_user_input("participant_id", "")
-        device_id = self.state.get_user_input("device_id", "")
-        username = self.state.get_user_input("username", "")
-
-        if not all([participant_id, device_id, username]):
-            return
-
-        full_id = f"{participant_id}{device_id}"
-        data_path = f"/home/{username}/data/{full_id}_data"
-
-        if not os.path.exists(data_path):
-            return
-
-        # Find most recent gaze log files
-        import glob
-        base_pattern = os.path.join(data_path, f"{full_id}_flash_log_*.txt")
-        all_files = glob.glob(base_pattern)
-
-        # Group by timestamp
-        file_groups = {}
-        for filepath in all_files:
-            filename = os.path.basename(filepath)
-            if "_flash_log_" in filename:
-                parts = filename.split("_flash_log_")
-                if len(parts) == 2:
-                    timestamp_part = parts[1].replace(".txt", "").replace("_rot", "").replace("_reg", "")
-                    base_name = f"{full_id}_flash_log_{timestamp_part}"
-
-                    if base_name not in file_groups:
-                        file_groups[base_name] = {}
-
-                    if filepath.endswith("_rot.txt"):
-                        file_groups[base_name]["rot"] = filepath
-                    elif filepath.endswith("_reg.txt"):
-                        file_groups[base_name]["reg"] = filepath
-                    elif filepath.endswith(f"{timestamp_part}.txt"):
-                        file_groups[base_name]["main"] = filepath
-
-        # Find most recent group
-        most_recent_group = None
-        most_recent_time = None
-
-        for base_name, files in file_groups.items():
-            if "main" in files:
-                mtime = os.path.getmtime(files["main"])
-                if most_recent_time is None or mtime > most_recent_time:
-                    most_recent_time = mtime
-                    most_recent_group = files
-
-        if most_recent_group:
-            # Update each gaze arrow
-            if "main" in most_recent_group:
-                gaze_data = self._parse_gaze_log_line(most_recent_group["main"])
-                if gaze_data:
-                    pitch_deg, yaw_deg, watching_tv, timestamp = gaze_data
-                    self.gaze_main_arrow.set_gaze(pitch_deg, yaw_deg, watching_tv, timestamp, "")
-
-            if "rot" in most_recent_group:
-                gaze_data = self._parse_gaze_log_line(most_recent_group["rot"])
-                if gaze_data:
-                    pitch_deg, yaw_deg, watching_tv, timestamp = gaze_data
-                    self.gaze_rot_arrow.set_gaze(pitch_deg, yaw_deg, watching_tv, timestamp, "")
-
-            if "reg" in most_recent_group:
-                gaze_data = self._parse_gaze_log_line(most_recent_group["reg"])
-                if gaze_data:
-                    pitch_deg, yaw_deg, watching_tv, timestamp = gaze_data
-                    self.gaze_reg_arrow.set_gaze(pitch_deg, yaw_deg, watching_tv, timestamp, "")
-
-    def _parse_gaze_log_line(self, filepath: str):
-        """Parse last line of gaze log file."""
-        try:
-            with open(filepath, 'r') as f:
-                lines = f.readlines()
-                for line in reversed(lines):
-                    line = line.strip()
-                    if line and not line.startswith("#"):
-                        # Parse the line
-                        parts = line.split()
-                        if len(parts) >= 14:
-                            timestamp = f"{parts[0]} {parts[1]}"
-                            pitch_str = parts[5]
-                            yaw_str = parts[6]
-                            label = parts[-1]
-
-                            if label == "Gaze-det" and pitch_str != "None" and yaw_str != "None":
-                                import math
-                                pitch_rad = float(pitch_str)
-                                yaw_rad = float(yaw_str)
-                                pitch_deg = pitch_rad * 57.2958
-                                yaw_deg = yaw_rad * 57.2958
-
-                                # Simple threshold for watching TV
-                                watching_tv = abs(pitch_deg) < 20 and abs(yaw_deg) < 20
-
-                                time_only = timestamp.split()[1][:8]
-                                return (pitch_deg, yaw_deg, watching_tv, time_only)
-                        break
-        except Exception as e:
-            self.logger.debug(f"Error parsing gaze log: {e}")
-
-        return None
 
     def _update_errors_status(self) -> None:
         """Update recent errors display."""
@@ -748,93 +608,10 @@ class DeviceLockingStep(WizardStep):
         return False
 
     @handle_step_error
-    def _lock_device(self, checked: bool = False) -> None:
-        """Lock the device immediately."""
-        reply = QMessageBox.question(
-            self,
-            "Lock Device",
-            "This will lock the device immediately.\n\nLock device now?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-
-        if reply == QMessageBox.StandardButton.Yes:
-            try:
-                result = self.process_runner.run_command(["loginctl", "lock-session"], timeout_ms=5000)
-
-                if result and result.returncode == 0:
-                    self._mark_setup_complete()
-                else:
-                    result = self.process_runner.run_command(["gnome-screensaver-command", "--lock"], timeout_ms=5000)
-                    if result and result.returncode == 0:
-                        self._mark_setup_complete()
-                    else:
-                        raise Exception("Device lock failed")
-
-            except Exception as e:
-                self.logger.warning(f"Device lock failed: {e}")
-                QMessageBox.warning(
-                    self,
-                    "Lock Failed",
-                    "Could not lock device automatically.\nPlease lock manually using system controls.",
-                )
-
-    @handle_step_error
-    def _enable_auto_lock(self, checked: bool = False) -> None:
-        """Enable automatic device lock after 5 minutes."""
-        try:
-            result1 = self.process_runner.run_command(
-                ["gsettings", "set", "org.gnome.desktop.screensaver", "lock-delay", "uint32 300"],
-                timeout_ms=5000,
-            )
-
-            result2 = self.process_runner.run_command(
-                ["gsettings", "set", "org.gnome.desktop.screensaver", "lock-enabled", "true"],
-                timeout_ms=5000,
-            )
-
-            if not (result1 and result1.returncode == 0 and result2 and result2.returncode == 0):
-                raise Exception("gsettings commands failed")
-
-            QMessageBox.information(
-                self,
-                "Auto-Lock Enabled",
-                "Device will automatically lock after 5 minutes of inactivity.\n\nThe system is now ready for the study period.",
-            )
-
-            self._mark_setup_complete()
-
-        except Exception as e:
-            self.logger.error(f"Auto-lock configuration failed: {e}")
-            QMessageBox.warning(
-                self,
-                "Auto-Lock Failed",
-                "Could not enable auto-lock.\nPlease configure manually or lock immediately.",
-            )
-
-    @handle_step_error
-    def _show_manual_instructions(self, checked: bool = False) -> None:
-        """Show manual lock instructions."""
-        instructions = """Manual Device Lock Instructions:
-
-1. Click top right power button on screen → Lock
-OR
-2. Super key → Type "lock" → Enter
-
-Important:
-• Lock device before leaving the location
-"""
-
-        QMessageBox.information(self, "Manual Lock Instructions", instructions)
-
-        reply = QMessageBox.question(
-            self,
-            "Manual Lock Confirmation",
-            "Will you lock the device manually before leaving?\n\nClick Yes to confirm setup is complete.",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-
-        if reply == QMessageBox.StandardButton.Yes:
-            self._mark_setup_complete()
+    def _mark_device_locked(self, checked: bool = False) -> None:
+        """Mark that the device has been locked."""
+        self.logger.info("User confirmed device has been locked")
+        self._mark_setup_complete()
 
     @handle_step_error
     def _mark_setup_complete(self) -> None:

@@ -54,18 +54,19 @@ class CameraSetupStep(WizardStep):
         # Main content area with two columns
         content_row = self.ui_factory.create_horizontal_layout(spacing=12)
 
-        # Left column: Positioning (with integrated preview)
+        # Left column: Detection/test and Positioning (with integrated preview)
         left_column = self.ui_factory.create_vertical_layout(spacing=8)
+
+        detection_section = self._create_detection_section()
+        left_column.addWidget(detection_section)
+
         positioning_section = self._create_positioning_section()
         left_column.addWidget(positioning_section, 1)
 
         content_row.addLayout(left_column, 1)
 
-        # Right column: Detection/test and POV picture
+        # Right column: POV picture
         right_column = self.ui_factory.create_vertical_layout(spacing=8)
-
-        detection_section = self._create_detection_section()
-        right_column.addWidget(detection_section, 1)
 
         pov_section = self._create_pov_section()
         right_column.addWidget(pov_section, 1)
@@ -102,7 +103,7 @@ class CameraSetupStep(WizardStep):
     def _create_positioning_section(self) -> QWidget:
         """Create the camera positioning guidelines section with integrated preview."""
         positioning_group, positioning_layout = self.ui_factory.create_group_box(
-            "Step 1: Position the Camera"
+            "Step 2: Position the Camera"
         )
 
         positioning_text = (
@@ -127,22 +128,24 @@ class CameraSetupStep(WizardStep):
             callback=self._launch_live_preview,
             style=ButtonStyle.PRIMARY,
             height=35,
-            enabled=False,
+            enabled=True,
         )
         positioning_layout.addWidget(self.launch_preview_button)
 
         # Preview status
         self.preview_status = self.ui_factory.create_status_label(
-            "Detect and test camera first to enable preview", status_type="info"
+            "Use live preview to help position camera", status_type="info"
         )
         positioning_layout.addWidget(self.preview_status)
+
+        positioning_layout.addStretch()
 
         return positioning_group
 
     def _create_detection_section(self) -> QWidget:
         """Create the combined camera detection and test section."""
         detection_group, detection_layout = self.ui_factory.create_group_box(
-            "Step 2: Detect and Test Camera"
+            "Step 1: Detect and Test Camera"
         )
 
         # Detection button
@@ -188,17 +191,18 @@ class CameraSetupStep(WizardStep):
         """Create the POV picture capture section."""
         pov_group, pov_layout = self.ui_factory.create_group_box("Step 3: Capture POV Baseline Picture")
 
-        # POV instructions
-        pov_instructions = self.ui_factory.create_label(
+        # POV instructions with proper word wrapping
+        pov_instructions_text = (
             "After positioning the camera:\n\n"
-            "1. Make sure NO PEOPLE are visible in the camera's view\n"
-            "2. Click 'Capture POV Picture' to take a baseline image\n"
-            "3. The camera will capture what it sees of the empty seating area\n"
-            "4. Picture will display fullscreen for iPad photo documentation\n"
-            "5. Use your iPad to photograph the screen\n"
+            "1. Make sure NO PEOPLE are visible in the camera's view\n\n"
+            "2. Click 'Capture POV Picture' to take a baseline image\n\n"
+            "3. The camera will capture what it sees of the empty seating area\n\n"
+            "4. Picture will display fullscreen for iPad photo documentation\n\n"
+            "5. Use your iPad to photograph the screen\n\n"
             "6. Confirm when iPad photo is taken\n\n"
             "This baseline image documents the camera's view of the empty room."
         )
+        pov_instructions = self.ui_factory.create_label(pov_instructions_text)
         pov_layout.addWidget(pov_instructions)
 
         # POV capture button
@@ -441,10 +445,9 @@ class CameraSetupStep(WizardStep):
                     if self.state_manager:
                         self.state_manager.save_state(self.state)
 
-                    # Enable preview and POV capture
-                    self.launch_preview_button.setEnabled(True)
+                    # Enable POV capture (preview already enabled)
                     self.capture_pov_button.setEnabled(True)
-                    self.preview_status.setText("✅ Camera ready - you can now launch live preview")
+                    self.preview_status.setText("✅ Camera tested - preview ready for use")
                     self.pov_status.setText("✅ Ready to capture POV picture")
 
                     self.update_status(StepStatus.USER_ACTION_REQUIRED)
