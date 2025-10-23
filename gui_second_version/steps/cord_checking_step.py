@@ -33,7 +33,7 @@ class CordCheckingStep(WizardStep):
         overview_layout.setContentsMargins(8, 8, 8, 8)
 
         overview_text = QLabel(
-            "Before completing the setup, let's verify all physical "
+            "Before completing the setup, please verify all physical "
             "connections are secure to ensure reliable operation "
             "during the study period. Check each connection carefully."
         )
@@ -47,14 +47,10 @@ class CordCheckingStep(WizardStep):
         power_layout = QVBoxLayout(power_group)
         power_layout.setContentsMargins(8, 8, 8, 8)
 
-        self.flash_power_check = QCheckBox(
-            "✓ FLASH-TV device power cord connected and LED on"
-        )
-        self.camera_power_check = QCheckBox(
-            "✓ Camera power/USB cord securely connected"
-        )
-        self.tv_power_check = QCheckBox("✓ TV power cord connected properly")
-        self.smart_plug_check = QCheckBox("✓ Smart plug power connection verified")
+        self.flash_power_check = QCheckBox("FLASH-TV device power cord connected and red RTC light on")
+        self.camera_power_check = QCheckBox("Camera USB cord securely connected")
+        self.tv_power_check = QCheckBox("TV power cord connected to smart plug")
+        self.smart_plug_check = QCheckBox("Smart plug connected to outlet")
 
         power_layout.addWidget(self.flash_power_check)
         power_layout.addWidget(self.camera_power_check)
@@ -73,19 +69,13 @@ class CordCheckingStep(WizardStep):
         security_layout = QVBoxLayout(security_group)
         security_layout.setContentsMargins(8, 8, 8, 8)
 
-        self.camera_mount_check = QCheckBox("✓ Camera mount is secure and stable")
-        self.cable_management_check = QCheckBox(
-            "✓ Cables are organized and won't be disturbed"
-        )
-        self.device_position_check = QCheckBox(
-            "✓ FLASH-TV device is in safe, ventilated location"
-        )
-        self.access_check = QCheckBox("✓ Family can access power buttons if needed")
+        self.camera_mount_check = QCheckBox("Camera mount is secure and stable")
+        self.cable_management_check = QCheckBox("Cables won't be disturbed too much")
+        self.device_position_check = QCheckBox("FLASH-TV device is in safe location")
 
         security_layout.addWidget(self.camera_mount_check)
         security_layout.addWidget(self.cable_management_check)
         security_layout.addWidget(self.device_position_check)
-        security_layout.addWidget(self.access_check)
         security_layout.addStretch()
 
         # Right side: Important Reminders
@@ -94,11 +84,9 @@ class CordCheckingStep(WizardStep):
         instructions_layout.setContentsMargins(8, 8, 8, 8)
 
         instructions_text = QLabel(
-            "• Ensure cables won't be accidentally unplugged during study\n"
-            "• Verify power surge protection if available\n"
-            "• Check that ventilation around FLASH-TV device is adequate\n"
-            "• Confirm family knows NOT to unplug camera during study\n"
-            "• Make sure power strips have room for all devices"
+            "Ensure cables won't be accidentally unplugged during study\n"
+            "Confirm family knows NOT to unplug camera during study\n"
+            "Make sure power strips have room for all devices"
         )
         instructions_text.setWordWrap(True)
         instructions_layout.addWidget(instructions_text)
@@ -119,7 +107,6 @@ class CordCheckingStep(WizardStep):
             self.camera_mount_check,
             self.cable_management_check,
             self.device_position_check,
-            self.access_check,
         ]
 
         for check in all_checks:
@@ -135,9 +122,7 @@ class CordCheckingStep(WizardStep):
         notes_layout.setContentsMargins(8, 8, 8, 8)
 
         self.notes_text = QTextEdit()
-        self.notes_text.setPlaceholderText(
-            "Note any special cord arrangements, concerns, or family instructions..."
-        )
+        self.notes_text.setPlaceholderText("Note any special cord arrangements, concerns, or family instructions...")
         notes_layout.addWidget(self.notes_text)
 
         # Right side: Progress status
@@ -182,7 +167,6 @@ class CordCheckingStep(WizardStep):
             self.camera_mount_check.isChecked(),
             self.cable_management_check.isChecked(),
             self.device_position_check.isChecked(),
-            self.access_check.isChecked(),
         ]
 
         completed = sum(checks)
@@ -190,15 +174,11 @@ class CordCheckingStep(WizardStep):
 
         if completed == total:
             self.progress_label.setText("✅ All connections verified!")
-            self.progress_label.setStyleSheet(
-                "color: green; font-weight: bold; padding: 10px;"
-            )
+            self.progress_label.setStyleSheet("color: green; font-weight: bold; padding: 10px;")
             self.continue_button.setEnabled(True)
             self.update_status(StepStatus.COMPLETED)
         else:
-            self.progress_label.setText(
-                f"Progress: {completed}/{total} connections verified"
-            )
+            self.progress_label.setText(f"Progress: {completed}/{total} connections verified")
             self.progress_label.setStyleSheet("font-weight: bold; padding: 10px;")
             self.continue_button.setEnabled(False)
             self.update_status(StepStatus.USER_ACTION_REQUIRED)
@@ -236,7 +216,6 @@ class CordCheckingStep(WizardStep):
                 self.camera_mount_check,
                 self.cable_management_check,
                 self.device_position_check,
-                self.access_check,
             ]
 
             for check in checks:

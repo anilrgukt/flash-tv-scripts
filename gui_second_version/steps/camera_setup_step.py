@@ -54,24 +54,18 @@ class CameraSetupStep(WizardStep):
         # Main content area with two columns
         content_row = self.ui_factory.create_horizontal_layout(spacing=12)
 
-        # Left column: Positioning and detection
+        # Left column: Positioning (with integrated preview)
         left_column = self.ui_factory.create_vertical_layout(spacing=8)
         positioning_section = self._create_positioning_section()
-        left_column.addWidget(positioning_section)
-
-        detection_section = self._create_detection_section()
-        left_column.addWidget(detection_section)
-
-        test_section = self._create_test_section()
-        left_column.addWidget(test_section)
+        left_column.addWidget(positioning_section, 1)
 
         content_row.addLayout(left_column, 1)
 
-        # Right column: Live preview and POV picture
+        # Right column: Detection/test and POV picture
         right_column = self.ui_factory.create_vertical_layout(spacing=8)
 
-        preview_section = self._create_preview_section()
-        right_column.addWidget(preview_section, 2)
+        detection_section = self._create_detection_section()
+        right_column.addWidget(detection_section, 1)
 
         pov_section = self._create_pov_section()
         right_column.addWidget(pov_section, 1)
@@ -106,7 +100,7 @@ class CameraSetupStep(WizardStep):
         return overview_group
 
     def _create_positioning_section(self) -> QWidget:
-        """Create the camera positioning guidelines section."""
+        """Create the camera positioning guidelines section with integrated preview."""
         positioning_group, positioning_layout = self.ui_factory.create_group_box(
             "Step 1: Position the Camera"
         )
@@ -122,20 +116,33 @@ class CameraSetupStep(WizardStep):
             "The camera should clearly see faces of people in their normal TV watching positions."
         )
 
-        positioning_instructions = self.ui_factory.create_text_area(
-            placeholder="",
-            read_only=True,
-            max_height=200
+        positioning_label = self.ui_factory.create_label(positioning_text)
+        positioning_layout.addWidget(positioning_label)
+
+        # Add live preview button directly in positioning section
+        positioning_layout.addSpacing(10)
+
+        self.launch_preview_button = self.ui_factory.create_action_button(
+            "📹 Launch Live Preview",
+            callback=self._launch_live_preview,
+            style=ButtonStyle.PRIMARY,
+            height=35,
+            enabled=False,
         )
-        positioning_instructions.setPlainText(positioning_text)
-        positioning_layout.addWidget(positioning_instructions)
+        positioning_layout.addWidget(self.launch_preview_button)
+
+        # Preview status
+        self.preview_status = self.ui_factory.create_status_label(
+            "Detect and test camera first to enable preview", status_type="info"
+        )
+        positioning_layout.addWidget(self.preview_status)
 
         return positioning_group
 
     def _create_detection_section(self) -> QWidget:
-        """Create the camera detection section."""
+        """Create the combined camera detection and test section."""
         detection_group, detection_layout = self.ui_factory.create_group_box(
-            "Step 2: Detect and Select Camera"
+            "Step 2: Detect and Test Camera"
         )
 
         # Detection button
@@ -151,17 +158,11 @@ class CameraSetupStep(WizardStep):
         camera_label = self.ui_factory.create_label(UI.AVAILABLE_CAMERAS)
         detection_layout.addWidget(camera_label)
 
-        # Camera list
+        # Camera list - compact
         self.camera_list = QListWidget()
-        self.camera_list.setMinimumHeight(100)
+        self.camera_list.setMaximumHeight(80)
         self.camera_list.itemSelectionChanged.connect(self._on_camera_selection_changed)
         detection_layout.addWidget(self.camera_list)
-
-        return detection_group
-
-    def _create_test_section(self) -> QWidget:
-        """Create the camera test section."""
-        test_group, test_layout = self.ui_factory.create_group_box("Step 3: Test Camera Connection")
 
         # Test button
         self.test_button = self.ui_factory.create_action_button(
@@ -171,55 +172,21 @@ class CameraSetupStep(WizardStep):
             height=35,
             enabled=False,
         )
-        test_layout.addWidget(self.test_button)
+        detection_layout.addWidget(self.test_button)
 
-        # Test output
-        test_output_label = self.ui_factory.create_label(UI.TEST_OUTPUT)
-        test_layout.addWidget(test_output_label)
-
+        # Test output - compact
         self.test_output = self.ui_factory.create_text_area(
             placeholder="Camera test results will appear here...",
-            max_height=100,
+            max_height=80,
             read_only=True,
         )
-        test_layout.addWidget(self.test_output)
+        detection_layout.addWidget(self.test_output)
 
-        return test_group
-
-    def _create_preview_section(self) -> QWidget:
-        """Create the live camera preview section."""
-        preview_group, preview_layout = self.ui_factory.create_group_box("Live Camera Preview")
-
-        # Preview instructions
-        preview_instructions = self.ui_factory.create_label(
-            "Use this preview to verify camera positioning and field of view.\n"
-            "Make sure the seating area is fully visible."
-        )
-        preview_layout.addWidget(preview_instructions)
-
-        # Launch preview button
-        self.launch_preview_button = self.ui_factory.create_action_button(
-            "📹 Launch Live Preview",
-            callback=self._launch_live_preview,
-            style=ButtonStyle.PRIMARY,
-            height=35,
-            enabled=False,
-        )
-        preview_layout.addWidget(self.launch_preview_button)
-
-        # Preview status
-        self.preview_status = self.ui_factory.create_status_label(
-            "Test camera first to enable preview", status_type="info"
-        )
-        preview_layout.addWidget(self.preview_status)
-
-        preview_layout.addStretch()
-
-        return preview_group
+        return detection_group
 
     def _create_pov_section(self) -> QWidget:
         """Create the POV picture capture section."""
-        pov_group, pov_layout = self.ui_factory.create_group_box("Step 4: Capture POV Baseline Picture")
+        pov_group, pov_layout = self.ui_factory.create_group_box("Step 3: Capture POV Baseline Picture")
 
         # POV instructions
         pov_instructions = self.ui_factory.create_label(
@@ -586,6 +553,9 @@ class CameraSetupStep(WizardStep):
                 self.logger.info("User cancelled POV capture")
                 return
 
+            # Close any existing cheese instances first
+            self._close_existing_cheese_instances()
+
             # Check if cheese is available
             if not self._check_cheese_available():
                 raise FlashTVError(
@@ -910,6 +880,32 @@ class CameraSetupStep(WizardStep):
             return result.returncode == 0
         except Exception:
             return False
+
+    def _close_existing_cheese_instances(self) -> None:
+        """Close any existing cheese processes before starting new one."""
+        try:
+            self.logger.info("Checking for existing cheese instances")
+
+            # Use pkill to close any existing cheese processes
+            result = subprocess.run(
+                ["pkill", "-9", "cheese"],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+
+            if result.returncode == 0:
+                self.logger.info("Closed existing cheese instances")
+                # Give processes time to fully terminate
+                time.sleep(1)
+            else:
+                self.logger.debug("No existing cheese instances found")
+
+        except subprocess.TimeoutExpired:
+            self.logger.warning("Timeout while trying to close cheese instances")
+        except Exception as e:
+            self.logger.warning(f"Error closing existing cheese instances: {e}")
+            # Don't fail the workflow if we can't close existing instances
 
     def _get_webcam_images(self) -> list[Path]:
         """Get list of existing images in webcam directory."""

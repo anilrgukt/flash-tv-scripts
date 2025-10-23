@@ -232,10 +232,6 @@ class SmartPlugVerifyStep(WizardStep):
                 self.browser_launched = True
                 self.power_cycle_button.setEnabled(True)
 
-                # Start status monitoring
-                self.logger.info("Starting status monitoring timer")
-                self.status_timer.start(5000)  # Check every 5 seconds
-
                 self.logger.info("Browser automation completed - ready for user verification")
             else:
                 error_msg = result.stderr if result else "Command failed"
@@ -450,7 +446,8 @@ class SmartPlugVerifyStep(WizardStep):
 
     def _update_status(self) -> None:
         """Update connection status periodically with enhanced tracking."""
-        if self.browser_launched:
+        # Always check status, regardless of browser launch state
+        if True:
             # Update last checked timestamp
             now = datetime.now()
             self.last_checked = now
@@ -643,6 +640,10 @@ class SmartPlugVerifyStep(WizardStep):
 
         self.logger.info("Smart plug verification step activated")
 
+        # Start status monitoring immediately when step is activated
+        self.logger.info("Starting status monitoring timer")
+        self.status_timer.start(5000)  # Check every 5 seconds
+
         # Check if already verified
         if self.state.get_user_input("smart_plug_verified", False):
             verification_method = self.state.get_user_input("smart_plug_verification_method", "previous")
@@ -650,6 +651,10 @@ class SmartPlugVerifyStep(WizardStep):
             self.continue_button.setEnabled(True)
             self.update_status(StepStatus.COMPLETED)
             self.logger.info("Smart plug verification already completed, skipping")
+        else:
+            # Not verified yet - show initial message
+            self.output_text.append("📊 Monitoring Home Assistant connection and TV power data...")
+            self.output_text.append("Check the right panel for live data updates")
 
     def cleanup(self) -> None:
         """Clean up resources when step is destroyed."""

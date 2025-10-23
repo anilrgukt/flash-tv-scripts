@@ -15,7 +15,7 @@ from utils.ui_factory import ButtonStyle
 
 
 class GalleryCreationStep(WizardStep):
-    """Step 4: Face Gallery Creation using new framework patterns."""
+    """Step 7: Face Gallery Creation using new framework patterns."""
 
     def create_content_widget(self) -> QWidget:
         """Create the gallery creation UI using UI factory."""
@@ -25,14 +25,32 @@ class GalleryCreationStep(WizardStep):
         main_layout = self.ui_factory.create_main_step_layout()
         content.setLayout(main_layout)
 
-        # Create sections using UI factory
-        setup_section = self._create_setup_section()
-        creation_section = self._create_creation_section()
-        validation_section = self._create_validation_section()
+        # Create sections in a two-column layout
+        content_row = self.ui_factory.create_horizontal_layout(spacing=12)
 
-        main_layout.addWidget(setup_section)
-        main_layout.addWidget(creation_section)
-        main_layout.addWidget(validation_section)
+        # Left column: Setup and creation
+        left_column = self.ui_factory.create_vertical_layout(spacing=8)
+
+        setup_section = self._create_setup_section()
+        left_column.addWidget(setup_section)
+
+        creation_section = self._create_creation_section()
+        left_column.addWidget(creation_section, 1)
+
+        content_row.addLayout(left_column, 1)
+
+        # Right column: Keyboard shortcuts and validation
+        right_column = self.ui_factory.create_vertical_layout(spacing=8)
+
+        shortcuts_section = self._create_shortcuts_section()
+        right_column.addWidget(shortcuts_section)
+
+        validation_section = self._create_validation_section()
+        right_column.addWidget(validation_section, 1)
+
+        content_row.addLayout(right_column, 1)
+
+        main_layout.addLayout(content_row, 1)
 
         # Continue button using UI factory
         continue_section = self._create_continue_section()
@@ -51,8 +69,8 @@ class GalleryCreationStep(WizardStep):
 
         # Instructions
         instructions = self.ui_factory.create_label(
-            "The face gallery will be automatically created with reference images for family members. "
-            "The gallery location will be determined from your participant ID and data path."
+            "Manually create a face gallery with reference images for family members. "
+            "The gallery location is determined from your participant ID and data path."
         )
         setup_layout.addWidget(instructions)
 
@@ -90,20 +108,22 @@ class GalleryCreationStep(WizardStep):
         )
         creation_layout.addWidget(self.create_gallery_button)
 
-        # Progress bar
+        # Progress bar with detailed status
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
-        self.progress_bar.setFormat("Gallery creation in progress... %p%")
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setFormat("Initializing gallery creation... %p%")
         creation_layout.addWidget(self.progress_bar)
 
         # Gallery creation output
         creation_progress_label = self.ui_factory.create_label(
-            "📋 Gallery Creation Instructions:"
+            "📋 Gallery Creation Status:"
         )
         creation_layout.addWidget(creation_progress_label)
 
         self.gallery_output = self.ui_factory.create_text_area(
-            placeholder="📝 Automated gallery creation progress will appear here...",
+            placeholder="Gallery creation status will appear here...",
             max_height=200,
             read_only=True,
         )
@@ -111,20 +131,39 @@ class GalleryCreationStep(WizardStep):
 
         return creation_group
 
+    def _create_shortcuts_section(self) -> QWidget:
+        """Create the keyboard shortcuts reference section."""
+        shortcuts_group, shortcuts_layout = self.ui_factory.create_group_box(
+            "⌨️ Keyboard Shortcuts"
+        )
+
+        shortcuts_text = self.ui_factory.create_label(
+            "<b>Category Selection:</b><br>"
+            "• <b>T</b> - Target Child mode<br>"
+            "• <b>S</b> - Sibling mode<br>"
+            "• <b>P</b> - Parent mode<br>"
+            "• <b>E</b> - Extra person mode<br>"
+            "• <b>U</b> - Unselect current face<br><br>"
+            "<b>Capture:</b><br>"
+            "• Click face → Press <b>1-5</b> to save<br>"
+            "• <b>R</b> - Refresh/restart<br>"
+            "• <b>Q</b> - Quit gallery creation<br><br>"
+            "<b>Workflow:</b><br>"
+            "1. Press category key (T/S/P/E)<br>"
+            "2. Click on a face in video<br>"
+            "3. Press 1-5 to capture 5 images<br>"
+            "4. Repeat for all categories"
+        )
+        shortcuts_text.setWordWrap(True)
+        shortcuts_layout.addWidget(shortcuts_text)
+
+        return shortcuts_group
+
     def _create_validation_section(self) -> QWidget:
         """Create the validation section using UI factory."""
         validation_group, validation_layout = self.ui_factory.create_group_box(
             UI.GALLERY_VALIDATION
         )
-
-        self.validate_button = self.ui_factory.create_action_button(
-            "🔍 Validate Gallery Structure",
-            callback=self._validate_gallery,
-            style=ButtonStyle.SUCCESS,
-            height=35,
-            enabled=False,
-        )
-        validation_layout.addWidget(self.validate_button)
 
         validation_results_label = self.ui_factory.create_label(
             "📊 Gallery Validation Results:"
@@ -132,8 +171,8 @@ class GalleryCreationStep(WizardStep):
         validation_layout.addWidget(validation_results_label)
 
         self.validation_output = self.ui_factory.create_text_area(
-            placeholder="✅ Gallery validation results will appear here...",
-            max_height=150,
+            placeholder="Gallery will be automatically validated after creation...",
+            max_height=200,
             read_only=True,
         )
         validation_layout.addWidget(self.validation_output)
@@ -155,11 +194,9 @@ class GalleryCreationStep(WizardStep):
             participant_id = self.state.get_user_input("participant_id", "")
             device_id = self.state.get_user_input("device_id", "")
             data_path = self.state.get_user_input("data_path", "")
-            
+
             if participant_id and data_path:
                 # Include device_id in gallery path to match data path format
-                # data_path is already the full data directory (e.g., /home/user/data/P1-3999028_data)
-                # Structure: {data_path}/{participant_id}{device_id}_faces
                 if device_id:
                     full_participant_id = f"{participant_id}{device_id}"
                 else:
@@ -168,10 +205,6 @@ class GalleryCreationStep(WizardStep):
                 self.gallery_path_input.setText(gallery_path)
                 self.state.set_user_input("gallery_path", gallery_path)
                 self.logger.info(f"Auto-generated gallery path: {gallery_path}")
-                
-                # Check if gallery already exists and is validated
-                if Path(gallery_path).exists():
-                    self.validate_button.setEnabled(True)
             else:
                 self.gallery_path_input.setText("Participant info needed for auto-generation")
                 self.logger.debug("Participant info not available for gallery path generation")
@@ -184,10 +217,9 @@ class GalleryCreationStep(WizardStep):
                 recovery_action="Check participant setup completion",
             )
 
-
     @handle_step_error
     def _create_gallery(self, checked: bool = False) -> None:
-        """Create a new face gallery using the gallery creation script with comprehensive error handling."""
+        """Create a new face gallery using the gallery creation script."""
         try:
             participant_id = self.state.get_user_input("participant_id", "")
             device_id = self.state.get_user_input("device_id", "")
@@ -203,15 +235,14 @@ class GalleryCreationStep(WizardStep):
                     recovery_action="Complete participant setup first",
                 )
 
-            self.logger.info(
-                f"Starting gallery creation for participant: {participant_id}"
-            )
+            self.logger.info(f"Starting gallery creation for participant: {participant_id}")
             self.update_status(StepStatus.AUTOMATION_RUNNING)
             self.create_gallery_button.setEnabled(False)
             self.progress_bar.setVisible(True)
-            self.progress_bar.setRange(0, 0)  # Indeterminate progress
+            self.progress_bar.setValue(10)
+            self.progress_bar.setFormat("Starting gallery creation... %p%")
 
-            # Construct gallery path with device_id - same structure as in _load_existing_gallery_path
+            # Construct gallery path
             if device_id:
                 full_participant_id = f"{participant_id}{device_id}"
             else:
@@ -225,47 +256,37 @@ class GalleryCreationStep(WizardStep):
                 self.state_manager.save_state(self.state)
 
             self.gallery_output.clear()
-            self.gallery_output.append(
-                Messages.CREATING_GALLERY_FOR_PARTICIPANT.format(
-                    participant_id=participant_id
-                )
-            )
-            self.gallery_output.append(
-                Messages.GALLERY_LOCATION.format(path=gallery_path)
-            )
-
-            # Run gallery creation script with command-line arguments
-            script_path = f"/home/{username}/flash-tv-scripts/runtime_scripts/build_gallery.sh"
-            
-            # Combine participant_id and device_id for the script
-            full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
-            
             self.gallery_output.append(f"📋 Starting gallery creation...")
             self.gallery_output.append(f"👤 Participant: {full_participant_id}")
+            self.gallery_output.append(f"📁 Gallery location: {gallery_path}")
             self.gallery_output.append(f"💾 Data path: {data_path}")
-            
-            # Pass arguments directly to the script with combined ID
+
+            # Run gallery creation script
+            script_path = f"/home/{username}/flash-tv-scripts/runtime_scripts/build_gallery.sh"
+
+            self.gallery_output.append(f"\n🚀 Launching gallery creation window...")
+
             command = [
-                "bash", 
+                "bash",
                 script_path,
                 full_participant_id,
                 username,
                 data_path
             ]
-            
+
             process_info = self.process_runner.run_script(
                 command=command,
-                description=f"Creating face gallery for {participant_id}",
+                description=f"Creating face gallery for {full_participant_id}",
                 working_dir=os.path.expanduser("~/flash-tv-scripts/runtime_scripts"),
                 process_name="gallery_creation",
             )
 
             if process_info:
-                self.gallery_output.append("🚀 Gallery creation script launched!")
-                self.gallery_output.append("✋ Please follow the manual steps in the terminal window")
-                self.gallery_output.append("📸 You will be guided to capture face images for each family member")
-                self.gallery_output.append("👥 Capture 5 images each for: parent, sib, tc (target child), extra")
-                self.gallery_output.append("💾 Images will be saved directly to the gallery folder with correct naming")
+                self.progress_bar.setValue(30)
+                self.progress_bar.setFormat("Loading face detection models... %p%")
+                self.gallery_output.append("✅ Gallery creation script launched successfully")
+                self.gallery_output.append("\n⏳ Loading face detection models (this may take 30-60 seconds)...")
+                self.gallery_output.append("📊 See keyboard shortcuts in the right panel →")
                 self.logger.info("Gallery creation script started successfully")
                 # Monitor process completion in update_ui
             else:
@@ -286,8 +307,6 @@ class GalleryCreationStep(WizardStep):
             self._reset_gallery_creation_ui()
             raise
 
-    # Removed _run_create_faces_script since images are now saved directly to correct location
-    
     @handle_step_error
     def _fill_missing_extra_faces(self) -> None:
         """Check if extra faces are missing and fill with poster faces if needed."""
@@ -328,7 +347,7 @@ class GalleryCreationStep(WizardStep):
 
                 if not os.path.exists(poster_faces_dir):
                     self.logger.warning(f"Poster faces directory not found: {poster_faces_dir}")
-                    self.gallery_output.append(f"⚠️  Poster faces directory not found at {poster_faces_dir}")
+                    self.gallery_output.append(f"⚠️  Poster faces directory not found")
                     return
 
                 # Get poster face files
@@ -343,14 +362,14 @@ class GalleryCreationStep(WizardStep):
                 import shutil
                 faces_copied = 0
                 for i in range(extra_count + 1, min_faces + 1):
-                    # Use modulo to cycle through poster faces if we don't have enough
+                    # Use modulo to cycle through poster faces
                     poster_idx = (i - 1) % len(poster_files)
                     source_file = poster_files[poster_idx]
                     dest_file = os.path.join(faces_folder, f"{combined_id}_extra{i}.png")
 
                     shutil.copy2(source_file, dest_file)
                     faces_copied += 1
-                    self.logger.info(f"Copied poster face {i}: {os.path.basename(source_file)} -> {os.path.basename(dest_file)}")
+                    self.logger.info(f"Copied poster face {i}")
 
                 self.gallery_output.append(f"✅ Copied {faces_copied} poster faces to complete the gallery")
             else:
@@ -361,7 +380,7 @@ class GalleryCreationStep(WizardStep):
             self.gallery_output.append(f"⚠️  Warning: Could not fill missing extra faces: {e}")
 
     def _validate_gallery(self, checked: bool = False) -> None:
-        """Validate the gallery structure and contents with comprehensive error handling."""
+        """Validate the gallery structure and contents automatically."""
         try:
             gallery_path = self.state.get_user_input("gallery_path", "")
             if not gallery_path:
@@ -369,19 +388,15 @@ class GalleryCreationStep(WizardStep):
                 return
 
             self.logger.info(f"Validating gallery at path: {gallery_path}")
-            self.validate_button.setEnabled(False)
             self.validation_output.clear()
-            self.validation_output.append(
-                f"🔍 Validating gallery structure at: {gallery_path}"
-            )
+            self.validation_output.append(f"🔍 Validating gallery structure...")
 
             gallery_dir = Path(gallery_path)
 
             if not gallery_dir.exists():
                 self.logger.error(f"Gallery directory does not exist: {gallery_path}")
                 self.validation_output.append("❌ Gallery directory does not exist")
-                self.validation_output.append("💡 Please create the gallery first using the button above")
-                self.validate_button.setEnabled(True)
+                self.validation_output.append("💡 Please create the gallery first")
                 raise FlashTVError(
                     f"Gallery directory does not exist: {gallery_path}",
                     ErrorType.SYSTEM_ERROR,
@@ -398,29 +413,20 @@ class GalleryCreationStep(WizardStep):
             total_images = 0
 
             for face_type in required_faces:
-                # Look for files matching pattern: {full_participant_id}_{face_type}*.png
-                face_files = list(
-                    gallery_dir.glob(f"{full_participant_id}_{face_type}*.png")
-                )
+                face_files = list(gallery_dir.glob(f"{full_participant_id}_{face_type}*.png"))
 
                 if face_files:
                     count = len(face_files)
                     total_images += count
-                    self.validation_output.append(
-                        f"✅ Found {count} images for {face_type}"
-                    )
+                    self.validation_output.append(f"✅ Found {count} images for {face_type}")
                     self.logger.debug(f"Found {count} images for {face_type}")
                 else:
-                    self.validation_output.append(
-                        f"❌ Missing images for {face_type}"
-                    )
+                    self.validation_output.append(f"❌ Missing images for {face_type}")
                     self.logger.warning(f"Missing images for face type: {face_type}")
                     validation_passed = False
 
             if validation_passed:
-                self.logger.info(
-                    f"Gallery validation successful - {total_images} total images"
-                )
+                self.logger.info(f"Gallery validation successful - {total_images} total images")
                 self.validation_output.append(f"\n🎉 Gallery validation successful!")
                 self.validation_output.append(f"📊 Total images found: {total_images}")
                 self.validation_output.append("✨ Your face gallery is ready for use!")
@@ -436,59 +442,15 @@ class GalleryCreationStep(WizardStep):
                 self.update_status(StepStatus.COMPLETED)
                 self.continue_button.setEnabled(True)
             else:
-                self.logger.warning(
-                    "Gallery validation failed - missing required images"
-                )
-                self.validation_output.append(f"\n❌ Gallery validation failed - missing required face images")
-                self.validation_output.append("💡 Please create the gallery or add missing images")
+                self.logger.warning("Gallery validation failed - missing required images")
+                self.validation_output.append(f"\n❌ Gallery validation failed")
+                self.validation_output.append("💡 Please complete gallery creation for all categories")
                 self.update_status(StepStatus.USER_ACTION_REQUIRED)
 
         except Exception as e:
             self.logger.error(f"Error during gallery validation: {e}")
             self.update_status(StepStatus.FAILED)
             raise
-        finally:
-            self.validate_button.setEnabled(True)
-
-    def _create_notes_section(self) -> QWidget:
-        """Create notes section for gallery creation observations."""
-        from PyQt6.QtWidgets import QTextEdit
-
-        notes_group, notes_layout = self.ui_factory.create_group_box("Gallery Notes")
-
-        notes_label = self.ui_factory.create_label(
-            "Document observations (photo quality issues, difficult subjects, lighting conditions):"
-        )
-        notes_layout.addWidget(notes_label)
-
-        self.notes_text = QTextEdit()
-        self.notes_text.setMaximumHeight(100)
-        self.notes_text.setPlaceholderText(
-            "Example: Target child photos clear, parent2 difficult due to glasses glare, sibling1 moved during capture..."
-        )
-        notes_layout.addWidget(self.notes_text)
-
-        return notes_group
-
-    def _create_notes_section(self) -> QWidget:
-        """Create notes section for gallery creation observations."""
-        from PyQt6.QtWidgets import QTextEdit
-
-        notes_group, notes_layout = self.ui_factory.create_group_box("Gallery Notes")
-
-        notes_label = self.ui_factory.create_label(
-            "Document observations (photo quality issues, difficult subjects, lighting conditions):"
-        )
-        notes_layout.addWidget(notes_label)
-
-        self.notes_text = QTextEdit()
-        self.notes_text.setMaximumHeight(100)
-        self.notes_text.setPlaceholderText(
-            "Example: Target child photos clear, parent2 difficult due to glasses glare, sibling1 moved during capture..."
-        )
-        notes_layout.addWidget(self.notes_text)
-
-        return notes_group
 
     @handle_step_error
     def _on_continue_clicked(self, checked: bool = False) -> None:
@@ -498,9 +460,7 @@ class GalleryCreationStep(WizardStep):
                 gallery_path = self.state.get_user_input("gallery_path", "")
                 total_images = self.state.get_user_input("gallery_total_images", 0)
 
-                self.logger.info(
-                    f"Gallery creation completed with {total_images} images at: {gallery_path}"
-                )
+                self.logger.info(f"Gallery creation completed with {total_images} images at: {gallery_path}")
 
                 # Final state persistence
                 if self.state_manager:
@@ -519,11 +479,11 @@ class GalleryCreationStep(WizardStep):
             )
 
     def _reset_gallery_creation_ui(self) -> None:
-        """Reset the gallery creation UI after process completion with logging."""
+        """Reset the gallery creation UI after process completion."""
         try:
             self.create_gallery_button.setEnabled(True)
             self.progress_bar.setVisible(False)
-            self.validate_button.setEnabled(True)
+            self.progress_bar.setValue(0)
             self.logger.debug("Reset gallery creation UI")
 
         except Exception as e:
@@ -536,16 +496,6 @@ class GalleryCreationStep(WizardStep):
 
         self.logger.info("Gallery creation step activated")
 
-        # Load any saved notes
-        saved_notes = self.state.get_user_input("gallery_creation_notes", "")
-        if saved_notes:
-            self.notes_text.setText(saved_notes)
-
-        # Load any saved notes
-        saved_notes = self.state.get_user_input("gallery_creation_notes", "")
-        if saved_notes:
-            self.notes_text.setText(saved_notes)
-        
         # Auto-generate gallery path from participant info
         self._load_existing_gallery_path()
 
@@ -569,8 +519,9 @@ class GalleryCreationStep(WizardStep):
             self.gallery_output.append("🔍 Validating existing gallery...")
             self._validate_gallery()
         else:
-            self.gallery_output.append("📋 Ready to create new face gallery")
-            self.gallery_output.append("👆 Click 'Create Gallery from Camera Captures' to begin automated setup")
+            self.gallery_output.append("📋 Ready to create face gallery")
+            self.gallery_output.append("👆 Click 'Create Gallery from Camera Captures' to begin")
+            self.gallery_output.append("\n⌨️ See keyboard shortcuts in the right panel →")
 
     def update_ui(self) -> None:
         """Update UI elements periodically with framework integration."""
@@ -579,55 +530,65 @@ class GalleryCreationStep(WizardStep):
         # Check gallery creation process status
         process_info = self.state.get_process("gallery_creation")
         if process_info:
+            # Update progress bar based on stderr output (model loading)
+            stdout_lines, stderr_lines = process_info.get_output()
+
+            # Track model loading progress
+            if stderr_lines:
+                model_load_keywords = ["Loading weights", "conv", "detection", "src/nnvm", "MXNET_CUDNN"]
+                model_lines = [line for line in stderr_lines if any(keyword in line for keyword in model_load_keywords)]
+
+                if model_lines:
+                    # Estimate progress based on model loading stages
+                    if any("Loading weights" in line for line in model_lines):
+                        self.progress_bar.setValue(50)
+                        self.progress_bar.setFormat("Loading face detection weights... %p%")
+                    elif any("src/nnvm" in line for line in model_lines):
+                        self.progress_bar.setValue(70)
+                        self.progress_bar.setFormat("Loading face verification model... %p%")
+                    elif any("MXNET_CUDNN" in line for line in model_lines):
+                        self.progress_bar.setValue(90)
+                        self.progress_bar.setFormat("Optimizing model performance... %p%")
+
             if not process_info.is_running():
                 status = process_info.get_status()
                 if status == ProcessStatus.COMPLETED:
                     self.logger.info("Gallery creation script completed")
-                    self.gallery_output.append("\n✅ Gallery creation completed!")
+                    self.progress_bar.setValue(100)
+                    self.progress_bar.setFormat("Gallery creation completed! %p%")
+                    self.gallery_output.append("\n✅ Gallery creation window closed")
 
                     # Check and fill missing extra faces with poster faces
                     self._fill_missing_extra_faces()
 
-                    self.gallery_output.append("🔍 Starting automatic validation...")
+                    self.gallery_output.append("\n🔍 Starting automatic validation...")
 
-                    # Directly validate the gallery since images are now saved in correct location
+                    # Automatically validate the gallery
                     self._validate_gallery()
                     self.update_status(StepStatus.USER_ACTION_REQUIRED)
                 elif status == ProcessStatus.FAILED:
-                    self.logger.error(f"Gallery creation failed")
+                    self.logger.error("Gallery creation failed")
+                    self.progress_bar.setFormat("Gallery creation failed")
                     self.gallery_output.append(f"\n❌ Gallery creation failed")
-                    
+
                     # Get and show error output
                     stdout_lines, stderr_lines = process_info.get_output()
                     if stderr_lines:
                         self.gallery_output.append("\nError output:")
-                        for line in stderr_lines[-10:]:  # Show last 10 lines
+                        for line in stderr_lines[-10:]:
                             self.gallery_output.append(f"  {line}")
-                            self.logger.error(f"Gallery stderr: {line}")
-                    
-                    if stdout_lines:
-                        self.gallery_output.append("\nLast output:")
-                        for line in stdout_lines[-5:]:  # Show last 5 lines
-                            self.gallery_output.append(f"  {line}")
-                    
-                    self.gallery_output.append("💡 Please check the error messages above and try again")
+
+                    self.gallery_output.append("💡 Please check the error messages and try again")
                     self.update_status(StepStatus.FAILED)
                 elif status == ProcessStatus.TERMINATED:
                     self.logger.warning("Gallery creation was terminated")
+                    self.progress_bar.setFormat("Gallery creation terminated")
                     self.gallery_output.append("\n⚠️ Gallery creation was terminated")
-                    
-                    # Get and show any output before termination
-                    stdout_lines, stderr_lines = process_info.get_output()
-                    if stderr_lines:
-                        self.gallery_output.append("\nError output before termination:")
-                        for line in stderr_lines[-5:]:  
-                            self.gallery_output.append(f"  {line}")
-                    
                     self.gallery_output.append("💡 You can restart the process if needed")
                     self.update_status(StepStatus.FAILED)
                 else:
-                    self.logger.error(f"Gallery creation finished with unexpected status")
-                    self.gallery_output.append(f"\n⚠️ Gallery creation finished with unexpected status")
+                    self.logger.error("Gallery creation finished with unexpected status")
+                    self.gallery_output.append(f"\n⚠️ Unexpected status: {status}")
                     self.update_status(StepStatus.FAILED)
 
                 self._reset_gallery_creation_ui()

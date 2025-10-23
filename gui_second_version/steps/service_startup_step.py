@@ -294,7 +294,7 @@ class ServiceStartupStep(WizardStep):
             callback=self._stop_services,
             style=ButtonStyle.DANGER,
             height=40,
-            enabled=False,
+            enabled=True,
         )
         button_layout.addWidget(self.stop_services_button)
 
@@ -303,7 +303,7 @@ class ServiceStartupStep(WizardStep):
             callback=self._restart_services,
             style=ButtonStyle.SECONDARY,
             height=40,
-            enabled=False,
+            enabled=True,
         )
         button_layout.addWidget(self.restart_services_button)
 
@@ -328,23 +328,27 @@ class ServiceStartupStep(WizardStep):
         # Create horizontal layout for 4 columns
         columns_layout = self.ui_factory.create_horizontal_layout()
 
-        # Column 1: Full stderr log (scrollable, copy-pastable, errors highlighted in red)
+        # Column 1: Full Potential Error Log (scrollable, copy-pastable, errors highlighted in red)
         stderr_column_layout = self.ui_factory.create_vertical_layout()
-        stderr_label = self.ui_factory.create_label("stderr Log:")
+        stderr_label = self.ui_factory.create_label("Potential Error Log:")
         stderr_label.setStyleSheet("font-weight: bold;")
         stderr_column_layout.addWidget(stderr_label)
 
+        stderr_note = self.ui_factory.create_label("(Actual unexpected errors will be highlighted in red)")
+        stderr_note.setStyleSheet("font-size: 9pt; color: #666;")
+        stderr_column_layout.addWidget(stderr_note)
+
         self.stderr_output = QTextEdit()
         self.stderr_output.setReadOnly(True)
-        self.stderr_output.setPlaceholderText("stderr log will appear here...")
+        self.stderr_output.setPlaceholderText("Potential error log will appear here...")
         self.stderr_output.setLineWrapMode(QTextEdit.LineWrapMode.WidgetWidth)
         stderr_column_layout.addWidget(self.stderr_output)
 
         columns_layout.addLayout(stderr_column_layout)
 
-        # Column 2: Main model gaze output with arrow
+        # Column 2: Main log file gaze output with arrow
         main_column_layout = self.ui_factory.create_vertical_layout()
-        main_label = self.ui_factory.create_label("Main Model:")
+        main_label = self.ui_factory.create_label("Main Log File:")
         main_label.setStyleSheet("font-weight: bold;")
         main_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_column_layout.addWidget(main_label)
@@ -360,9 +364,9 @@ class ServiceStartupStep(WizardStep):
 
         columns_layout.addLayout(main_column_layout)
 
-        # Column 3: Rotation model gaze output with arrow
+        # Column 3: Rotation log file gaze output with arrow
         rot_column_layout = self.ui_factory.create_vertical_layout()
-        rot_label = self.ui_factory.create_label("Rot Model:")
+        rot_label = self.ui_factory.create_label("Rot Log File:")
         rot_label.setStyleSheet("font-weight: bold;")
         rot_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         rot_column_layout.addWidget(rot_label)
@@ -378,9 +382,9 @@ class ServiceStartupStep(WizardStep):
 
         columns_layout.addLayout(rot_column_layout)
 
-        # Column 4: Secondary model gaze output with arrow
+        # Column 4: Secondary log file gaze output with arrow
         reg_column_layout = self.ui_factory.create_vertical_layout()
-        reg_label = self.ui_factory.create_label("Reg Model:")
+        reg_label = self.ui_factory.create_label("Reg Log File:")
         reg_label.setStyleSheet("font-weight: bold;")
         reg_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         reg_column_layout.addWidget(reg_label)
@@ -553,8 +557,6 @@ class ServiceStartupStep(WizardStep):
             if all_success:
                 self.service_running = True
                 self.service_status_label.setText("FLASH-TV services running")
-                self.stop_services_button.setEnabled(True)
-                self.restart_services_button.setEnabled(True)
 
                 # Start log monitoring
                 self._start_log_monitoring()
@@ -641,9 +643,6 @@ class ServiceStartupStep(WizardStep):
 
             self.service_running = False
             self.service_status_label.setText("Services stopped")
-            self.start_services_button.setEnabled(True)
-            self.stop_services_button.setEnabled(False)
-            self.restart_services_button.setEnabled(False)
 
             # Removed old log_output widget
             # Removed old log_output widget
@@ -687,11 +686,6 @@ class ServiceStartupStep(WizardStep):
             # Services are now restarted - update UI
             self.service_running = True
             self.service_status_label.setText("FLASH-TV services restarted")
-
-            # Keep buttons in correct state (restart/stop enabled, start disabled)
-            self.start_services_button.setEnabled(False)
-            self.stop_services_button.setEnabled(True)
-            self.restart_services_button.setEnabled(True)
 
             # Restart log monitoring since services are fresh
             self._stop_log_monitoring()

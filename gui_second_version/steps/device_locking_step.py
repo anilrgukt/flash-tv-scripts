@@ -1,11 +1,13 @@
-"""Device locking step implementation."""
+"""Device locking step with comprehensive monitoring dashboard."""
 
 from __future__ import annotations
 
-from core import WizardStep
-from models import StepStatus
+import os
+import subprocess
+from datetime import datetime
+from pathlib import Path
+
 from PyQt6.QtWidgets import (
-    QCheckBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -14,156 +16,739 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
+    QGridLayout,
 )
+from PyQt6.QtCore import QTimer, Qt
+from PyQt6.QtGui import QFont
+
+from core import WizardStep
+from core.exceptions import handle_step_error
+from models import StepStatus
+from utils.ui_factory import ButtonStyle
+
+# Import the GazeArrowWidget from service_startup_step
+import sys
+import importlib.util
+spec = importlib.util.spec_from_file_location(
+    "service_startup_step",
+    os.path.join(os.path.dirname(__file__), "service_startup_step.py")
+)
+service_startup_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(service_startup_module)
+GazeArrowWidget = service_startup_module.GazeArrowWidget
 
 
 class DeviceLockingStep(WizardStep):
-    """Step 12: Device Locking and Final Setup."""
+    """Step 11: Device Locking with Live Monitoring Dashboard."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Monitoring timer
+        self.monitor_timer = QTimer()
+        self.monitor_timer.timeout.connect(self._update_dashboard)
 
     def create_content_widget(self) -> QWidget:
-        """Create the device locking UI."""
+        """Create the monitoring dashboard UI."""
         content = QWidget()
-        main_layout = QVBoxLayout(content)
-        main_layout.setContentsMargins(5, 5, 5, 5)
-        main_layout.setSpacing(8)
+        main_layout = self.ui_factory.create_main_step_layout()
+        content.setLayout(main_layout)
 
-        # Overview (full width at top)
-        overview_group = QGroupBox("Device Locking and Final Setup")
-        overview_layout = QVBoxLayout(overview_group)
-        overview_layout.setContentsMargins(8, 8, 8, 8)
+        # Overview
+        overview_section = self._create_overview_section()
+        main_layout.addWidget(overview_section)
 
-        overview_text = QLabel(
-            "Final step: Lock the device to prevent accidental changes "
-            "during the study period. This ensures the FLASH-TV system "
-            "runs uninterrupted. Complete the verification checklist before locking."
-        )
-        overview_text.setWordWrap(True)
-        overview_layout.addWidget(overview_text)
+        # Monitoring Dashboard
+        dashboard_section = self._create_dashboard_section()
+        main_layout.addWidget(dashboard_section, 1)
 
-        main_layout.addWidget(overview_group)
+        # Device Lock Controls
+        lock_section = self._create_lock_section()
+        main_layout.addWidget(lock_section)
 
-        # Top row: Verification and Lock Options side by side
-        top_row = QHBoxLayout()
-        top_row.setSpacing(12)
-
-        # Left side: Pre-Lock Verification
-        verification_group = QGroupBox("Pre-Device Lock Verification")
-        verification_layout = QVBoxLayout(verification_group)
-        verification_layout.setContentsMargins(8, 8, 8, 8)
-
-        verification_text = QLabel("Before locking the device, verify that:\n• All setup steps are complete\n• FLASH-TV system is running properly\n")
-        verification_layout.addWidget(verification_text)
-
-        verification_layout.addSpacing(10)
-
-        self.setup_complete_check = QCheckBox("✓ All setup steps verified complete")
-        self.services_running_check = QCheckBox("✓ FLASH-TV services are running properly")
-
-        verification_layout.addWidget(self.setup_complete_check)
-        verification_layout.addWidget(self.services_running_check)
-        verification_layout.addStretch()
-
-        # Connect checkboxes to progress update
-        self.setup_complete_check.stateChanged.connect(self._update_lock_readiness)
-        self.services_running_check.stateChanged.connect(self._update_lock_readiness)
-        # Right side: Device Lock Options
-        lock_group = QGroupBox("Device Locking Options")
-        lock_layout = QVBoxLayout(lock_group)
-        lock_layout.setContentsMargins(8, 8, 8, 8)
-
-        lock_info = QLabel("Choose how to secure the system during the study period:")
-        lock_info.setWordWrap(True)
-        lock_layout.addWidget(lock_info)
-
-        lock_layout.addSpacing(10)
-
-        # Lock options
-        self.lock_device_button = QPushButton("🔒 Lock Device Now")
-        self.lock_device_button.setFixedHeight(35)
-        self.lock_device_button.clicked.connect(self._lock_device)
-        self.lock_device_button.setEnabled(False)
-        lock_layout.addWidget(self.lock_device_button)
-
-        self.auto_lock_button = QPushButton("⏰ Enable Auto-Lock (5 minutes) for device")
-        self.auto_lock_button.setFixedHeight(35)
-        self.auto_lock_button.clicked.connect(self._enable_auto_lock)
-        self.auto_lock_button.setEnabled(False)
-        lock_layout.addWidget(self.auto_lock_button)
-
-        self.manual_lock_button = QPushButton("📝 Manual Lock Instructions")
-        self.manual_lock_button.setFixedHeight(35)
-        self.manual_lock_button.clicked.connect(self._show_manual_instructions)
-        self.manual_lock_button.setEnabled(False)
-        lock_layout.addWidget(self.manual_lock_button)
-
-        lock_layout.addStretch()
-
-        # Add both to top row
-        top_row.addWidget(verification_group, 3)  # 60% width
-        top_row.addWidget(lock_group, 2)  # 40% width
-
-        main_layout.addLayout(top_row)
-
-        # Final Instructions section
-        final_group = QGroupBox("Final Instructions for Participant")
-        final_layout = QVBoxLayout(final_group)
-        final_layout.setContentsMargins(8, 8, 8, 8)
-
-        final_instructions = QLabel(
-            "Please inform the participant:\n"
-            "• FLASH-TV system is now active and recording\n"
-            "• Device is locked to prevent accidental changes\n"
-            "• DO NOT unlock device during study period\n"
-            "• Contact research team if any technical issues\n"
-            "• Normal TV viewing can continue as usual"
-        )
-        final_instructions.setWordWrap(True)
-        final_layout.addWidget(final_instructions)
-
-        final_layout.addSpacing(10)
-
-        # Custom instructions text area with proper sizing
-        instructions_label = QLabel("Additional Notes for Participant:")
-        instructions_label.setStyleSheet("font-weight: bold;")
-        final_layout.addWidget(instructions_label)
-
-        self.instructions_text = QTextEdit()
-        self.instructions_text.setMaximumHeight(80)  # Limit height to prevent excessive space
-        self.instructions_text.setMinimumHeight(60)  # Ensure minimum usable height
-        self.instructions_text.setPlaceholderText("Add any specific notes for this participant...")
-        final_layout.addWidget(self.instructions_text)
-
-        final_layout.addStretch()  # Add stretch to push content to top
-
-        main_layout.addWidget(final_group)
+        # Final Instructions
+        notes_section = self._create_notes_section()
+        main_layout.addWidget(notes_section)
 
         # Continue button
-        button_layout = QHBoxLayout()
-        button_layout.setContentsMargins(0, 5, 0, 0)
-
-        self.continue_button = QPushButton("Setup Complete - Device Locked")
-        self.continue_button.setFixedHeight(30)
-        self.continue_button.clicked.connect(self._on_continue_clicked)
-        self.continue_button.setEnabled(False)
-        button_layout.addStretch()
-        button_layout.addWidget(self.continue_button)
-
-        main_layout.addLayout(button_layout)
+        continue_section = self._create_continue_section()
+        main_layout.addLayout(continue_section)
 
         return content
 
-    def _update_lock_readiness(self) -> None:
-        """Update lock button availability based on verification."""
-        all_verified = self.setup_complete_check.isChecked() and self.services_running_check.isChecked()
+    def _create_overview_section(self) -> QWidget:
+        """Create the overview section."""
+        overview_group, overview_layout = self.ui_factory.create_group_box(
+            "System Status Dashboard & Device Locking"
+        )
 
-        self.lock_device_button.setEnabled(all_verified)
-        self.auto_lock_button.setEnabled(all_verified)
-        self.manual_lock_button.setEnabled(all_verified)
+        overview_text = self.ui_factory.create_label(
+            "Monitor all system components in real-time before locking the device. "
+            "This dashboard updates every 5 seconds to show current system status. "
+            "Verify all components are working properly before locking."
+        )
+        overview_layout.addWidget(overview_text)
 
-        if all_verified:
-            self.update_status(StepStatus.USER_ACTION_REQUIRED)
+        return overview_group
 
-    def _lock_device(self) -> None:
+    def _create_dashboard_section(self) -> QWidget:
+        """Create the comprehensive monitoring dashboard."""
+        dashboard_group, dashboard_layout = self.ui_factory.create_group_box(
+            "🔍 Live System Monitoring (Updates every 5 seconds)"
+        )
+
+        # Create grid for organized status display
+        grid_layout = QGridLayout()
+        grid_layout.setSpacing(12)
+
+        # Row 0: System Information & Network & Time
+        sys_info_box = self._create_system_info_box()
+        grid_layout.addWidget(sys_info_box, 0, 0)
+
+        network_box = self._create_network_box()
+        grid_layout.addWidget(network_box, 0, 1)
+
+        time_box = self._create_time_box()
+        grid_layout.addWidget(time_box, 0, 2)
+
+        # Set equal column stretch for top row
+        grid_layout.setColumnStretch(0, 1)
+        grid_layout.setColumnStretch(1, 1)
+        grid_layout.setColumnStretch(2, 1)
+
+        # Row 1: Smart Plug Status (full width)
+        smart_plug_box = self._create_smart_plug_box()
+        grid_layout.addWidget(smart_plug_box, 1, 0, 1, 3)
+
+        # Row 2: Camera Status (single box, centered)
+        camera_box = self._create_camera_box()
+        grid_layout.addWidget(camera_box, 2, 0, 1, 3)
+
+        # Row 3: Services Status (3 gaze models with arrows)
+        services_label = QLabel("<b>FLASH-TV Services & Live Gaze Monitoring:</b>")
+        services_label.setStyleSheet("font-size: 11pt; padding: 5px;")
+        grid_layout.addWidget(services_label, 3, 0, 1, 3)
+
+        services_row = self._create_services_row()
+        grid_layout.addLayout(services_row, 4, 0, 1, 3)
+
+        # Row 5: Recent Errors
+        errors_box = self._create_errors_box()
+        grid_layout.addWidget(errors_box, 5, 0, 1, 3)
+
+        dashboard_layout.addLayout(grid_layout)
+
+        return dashboard_group
+
+    def _create_system_info_box(self) -> QWidget:
+        """Create system information status box."""
+        box, layout = self.ui_factory.create_group_box("System Information")
+
+        self.sys_participant_id = self.ui_factory.create_label("Participant: --")
+        self.sys_username = self.ui_factory.create_label("Username: --")
+        self.sys_data_path = self.ui_factory.create_label("Data Path: --")
+        self.sys_timestamp = self.ui_factory.create_label("Time: --")
+        self.sys_last_updated = self.ui_factory.create_label("Last Updated: --")
+
+        for label in [self.sys_participant_id, self.sys_username, self.sys_data_path, self.sys_timestamp]:
+            label.setFont(QFont("Monospace", 9))
+            layout.addWidget(label)
+
+        self.sys_last_updated.setFont(QFont("Monospace", 8))
+        self.sys_last_updated.setStyleSheet("color: #666;")
+        layout.addWidget(self.sys_last_updated)
+
+        layout.addStretch()
+
+        return box
+
+    def _create_network_box(self) -> QWidget:
+        """Create network status box."""
+        box, layout = self.ui_factory.create_group_box("Network Status")
+
+        self.net_wifi_status = self.ui_factory.create_label("WiFi: --")
+        self.net_ssid = self.ui_factory.create_label("Network: --")
+        self.net_ip = self.ui_factory.create_label("IP: --")
+        self.net_last_updated = self.ui_factory.create_label("Last Updated: --")
+
+        for label in [self.net_wifi_status, self.net_ssid, self.net_ip]:
+            label.setFont(QFont("Monospace", 9))
+            layout.addWidget(label)
+
+        self.net_last_updated.setFont(QFont("Monospace", 8))
+        self.net_last_updated.setStyleSheet("color: #666;")
+        layout.addWidget(self.net_last_updated)
+
+        layout.addStretch()
+
+        return box
+
+    def _create_time_box(self) -> QWidget:
+        """Create time sync status box."""
+        box, layout = self.ui_factory.create_group_box("Time Synchronization")
+
+        self.time_sync_status = self.ui_factory.create_label("Sync: --")
+        self.time_current = self.ui_factory.create_label("System: --")
+        self.time_last_updated = self.ui_factory.create_label("Last Updated: --")
+
+        for label in [self.time_sync_status, self.time_current]:
+            label.setFont(QFont("Monospace", 9))
+            layout.addWidget(label)
+
+        self.time_last_updated.setFont(QFont("Monospace", 8))
+        self.time_last_updated.setStyleSheet("color: #666;")
+        layout.addWidget(self.time_last_updated)
+
+        layout.addStretch()
+
+        return box
+
+    def _create_smart_plug_box(self) -> QWidget:
+        """Create smart plug monitoring box."""
+        box, layout = self.ui_factory.create_group_box("Smart Plug & Home Assistant")
+
+        content_layout = self.ui_factory.create_horizontal_layout()
+
+        # Left: Connection status
+        status_layout = self.ui_factory.create_vertical_layout()
+        self.sp_ha_status = self.ui_factory.create_label("HA Connection: --")
+        self.sp_verified = self.ui_factory.create_label("Verified: --")
+        self.sp_last_updated = self.ui_factory.create_label("Last Updated: --")
+
+        for label in [self.sp_ha_status, self.sp_verified]:
+            label.setFont(QFont("Monospace", 9))
+            status_layout.addWidget(label)
+
+        self.sp_last_updated.setFont(QFont("Monospace", 8))
+        self.sp_last_updated.setStyleSheet("color: #666;")
+        status_layout.addWidget(self.sp_last_updated)
+
+        status_layout.addStretch()
+        content_layout.addLayout(status_layout, 1)
+
+        # Right: Latest power readings
+        power_layout = self.ui_factory.create_vertical_layout()
+        power_label = QLabel("<b>Latest TV Power Readings:</b>")
+        power_layout.addWidget(power_label)
+
+        self.sp_power_data = QTextEdit()
+        self.sp_power_data.setReadOnly(True)
+        self.sp_power_data.setMaximumHeight(80)
+        self.sp_power_data.setFont(QFont("Monospace", 8))
+        self.sp_power_data.setPlaceholderText("No data yet...")
+        power_layout.addWidget(self.sp_power_data)
+
+        content_layout.addLayout(power_layout, 2)
+
+        layout.addLayout(content_layout)
+
+        return box
+
+    def _create_camera_box(self) -> QWidget:
+        """Create camera status box."""
+        box, layout = self.ui_factory.create_group_box("Camera Status")
+
+        self.cam_device = self.ui_factory.create_label("Device: --")
+        self.cam_tested = self.ui_factory.create_label("Tested: --")
+        self.cam_last_updated = self.ui_factory.create_label("Last Updated: --")
+
+        for label in [self.cam_device, self.cam_tested]:
+            label.setFont(QFont("Monospace", 9))
+            layout.addWidget(label)
+
+        self.cam_last_updated.setFont(QFont("Monospace", 8))
+        self.cam_last_updated.setStyleSheet("color: #666;")
+        layout.addWidget(self.cam_last_updated)
+
+        layout.addStretch()
+
+        return box
+
+    def _create_services_row(self) -> QHBoxLayout:
+        """Create services monitoring row with 3 gaze model displays."""
+        services_layout = self.ui_factory.create_horizontal_layout()
+
+        # Service status
+        service_status_layout = self.ui_factory.create_vertical_layout()
+        service_label = QLabel("<b>Service Status:</b>")
+        service_status_layout.addWidget(service_label)
+
+        self.svc_flash_boot = self.ui_factory.create_label("flash-run-on-boot: --")
+        self.svc_flash_periodic = self.ui_factory.create_label("flash-periodic: --")
+        self.svc_home_assistant = self.ui_factory.create_label("Home Assistant: --")
+
+        for label in [self.svc_flash_boot, self.svc_flash_periodic, self.svc_home_assistant]:
+            label.setFont(QFont("Monospace", 9))
+            service_status_layout.addWidget(label)
+
+        service_status_layout.addStretch()
+        services_layout.addLayout(service_status_layout, 1)
+
+        # Main model gaze
+        main_layout = self.ui_factory.create_vertical_layout()
+        main_label = QLabel("<b>Main Model</b>")
+        main_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_layout.addWidget(main_label)
+        self.gaze_main_arrow = GazeArrowWidget()
+        main_layout.addWidget(self.gaze_main_arrow, alignment=Qt.AlignmentFlag.AlignCenter)
+        services_layout.addLayout(main_layout, 1)
+
+        # Rot model gaze
+        rot_layout = self.ui_factory.create_vertical_layout()
+        rot_label = QLabel("<b>Rot Model</b>")
+        rot_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        rot_layout.addWidget(rot_label)
+        self.gaze_rot_arrow = GazeArrowWidget()
+        rot_layout.addWidget(self.gaze_rot_arrow, alignment=Qt.AlignmentFlag.AlignCenter)
+        services_layout.addLayout(rot_layout, 1)
+
+        # Reg model gaze
+        reg_layout = self.ui_factory.create_vertical_layout()
+        reg_label = QLabel("<b>Reg Model</b>")
+        reg_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        reg_layout.addWidget(reg_label)
+        self.gaze_reg_arrow = GazeArrowWidget()
+        reg_layout.addWidget(self.gaze_reg_arrow, alignment=Qt.AlignmentFlag.AlignCenter)
+        services_layout.addLayout(reg_layout, 1)
+
+        return services_layout
+
+    def _create_errors_box(self) -> QWidget:
+        """Create recent errors display box."""
+        box, layout = self.ui_factory.create_group_box("Recent Unexpected Errors")
+
+        # Header with timestamp
+        header_layout = self.ui_factory.create_horizontal_layout()
+        self.errors_last_updated = self.ui_factory.create_label("Last Updated: --")
+        self.errors_last_updated.setFont(QFont("Monospace", 8))
+        self.errors_last_updated.setStyleSheet("color: #666;")
+        header_layout.addWidget(self.errors_last_updated)
+        header_layout.addStretch()
+        layout.addLayout(header_layout)
+
+        self.errors_output = QTextEdit()
+        self.errors_output.setReadOnly(True)
+        self.errors_output.setMaximumHeight(80)
+        self.errors_output.setFont(QFont("Monospace", 8))
+        self.errors_output.setPlaceholderText("No unexpected errors detected")
+        layout.addWidget(self.errors_output)
+
+        return box
+
+    def _create_lock_section(self) -> QWidget:
+        """Create device lock controls."""
+        lock_group, lock_layout = self.ui_factory.create_group_box("Device Locking Options")
+
+        lock_info = self.ui_factory.create_label(
+            "After verifying all systems are working properly, lock the device to prevent accidental changes:"
+        )
+        lock_layout.addWidget(lock_info)
+
+        button_layout = self.ui_factory.create_horizontal_layout(spacing=10)
+
+        self.lock_device_button = self.ui_factory.create_action_button(
+            "🔒 Lock Device Now",
+            callback=self._lock_device,
+            style=ButtonStyle.DANGER,
+            height=40,
+        )
+        button_layout.addWidget(self.lock_device_button)
+
+        self.auto_lock_button = self.ui_factory.create_action_button(
+            "⏰ Enable Auto-Lock (5 min)",
+            callback=self._enable_auto_lock,
+            style=ButtonStyle.SECONDARY,
+            height=40,
+        )
+        button_layout.addWidget(self.auto_lock_button)
+
+        self.manual_lock_button = self.ui_factory.create_action_button(
+            "📝 Manual Lock Instructions",
+            callback=self._show_manual_instructions,
+            style=ButtonStyle.SECONDARY,
+            height=40,
+        )
+        button_layout.addWidget(self.manual_lock_button)
+
+        lock_layout.addLayout(button_layout)
+
+        return lock_group
+
+    def _create_notes_section(self) -> QWidget:
+        """Create final instructions section."""
+        notes_group, notes_layout = self.ui_factory.create_group_box("Final Instructions for Participant")
+
+        instructions_label = self.ui_factory.create_label("Additional Notes for Participant:")
+        notes_layout.addWidget(instructions_label)
+
+        self.instructions_text = QTextEdit()
+        self.instructions_text.setMaximumHeight(80)
+        self.instructions_text.setPlaceholderText("Add any specific notes for this participant...")
+        notes_layout.addWidget(self.instructions_text)
+
+        return notes_group
+
+    def _create_continue_section(self):
+        """Create continue button section."""
+        button_layout, self.continue_button = self.ui_factory.create_continue_button(
+            callback=self._on_continue_clicked,
+            text="Setup Complete - Device Locked"
+        )
+        self.continue_button.setEnabled(False)
+
+        return button_layout
+
+    def _update_dashboard(self) -> None:
+        """Update all dashboard components with live data."""
+        try:
+            self._update_system_info()
+            self._update_network_status()
+            self._update_time_status()
+            self._update_smart_plug_status()
+            self._update_camera_status()
+            self._update_services_status()
+            self._update_errors_status()
+
+        except Exception as e:
+            self.logger.error(f"Error updating dashboard: {e}")
+
+    def _update_system_info(self) -> None:
+        """Update system information display."""
+        participant_id = self.state.get_user_input("participant_id", "")
+        device_id = self.state.get_user_input("device_id", "")
+        username = self.state.get_user_input("username", "")
+        data_path = self.state.get_user_input("data_path", "")
+
+        full_id = f"{participant_id}{device_id}" if device_id else participant_id
+
+        self.sys_participant_id.setText(f"Participant: {full_id if full_id else '--'}")
+        self.sys_username.setText(f"Username: {username if username else '--'}")
+        self.sys_data_path.setText(f"Data: {data_path if data_path else '--'}")
+        self.sys_timestamp.setText(f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        self.sys_last_updated.setText(f"Last Updated: {datetime.now().strftime('%H:%M:%S')}")
+
+    def _update_network_status(self) -> None:
+        """Update network status display."""
+        wifi_ssid = self.state.get_user_input("wifi_ssid", "")
+
+        if wifi_ssid and wifi_ssid != "SKIPPED":
+            self.net_wifi_status.setText("WiFi: ✅ Connected")
+            self.net_ssid.setText(f"Network: {wifi_ssid}")
+
+            # Try to get IP address
+            try:
+                result = subprocess.run(
+                    ["hostname", "-I"],
+                    capture_output=True,
+                    text=True,
+                    timeout=2
+                )
+                if result.returncode == 0:
+                    ip = result.stdout.strip().split()[0]
+                    self.net_ip.setText(f"IP: {ip}")
+                else:
+                    self.net_ip.setText("IP: --")
+            except Exception:
+                self.net_ip.setText("IP: --")
+        else:
+            self.net_wifi_status.setText("WiFi: ⚠️ Skipped/Unknown")
+            self.net_ssid.setText("Network: --")
+            self.net_ip.setText("IP: --")
+
+        self.net_last_updated.setText(f"Last Updated: {datetime.now().strftime('%H:%M:%S')}")
+
+    def _update_time_status(self) -> None:
+        """Update time sync status display."""
+        time_synced = self.state.get_user_input("time_synced", False)
+
+        if time_synced:
+            self.time_sync_status.setText("Sync: ✅ Verified")
+        else:
+            self.time_sync_status.setText("Sync: ⚠️ Not verified")
+
+        self.time_current.setText(f"System: {datetime.now().strftime('%H:%M:%S')}")
+        self.time_last_updated.setText(f"Last Updated: {datetime.now().strftime('%H:%M:%S')}")
+
+    def _update_smart_plug_status(self) -> None:
+        """Update smart plug and Home Assistant status."""
+        smart_plug_verified = self.state.get_user_input("smart_plug_verified", False)
+
+        if smart_plug_verified:
+            self.sp_verified.setText("Verified: ✅ Yes")
+        else:
+            self.sp_verified.setText("Verified: ❌ No")
+
+        # Check Home Assistant connection
+        try:
+            import urllib.request
+            response = urllib.request.urlopen("http://localhost:8123", timeout=2)
+            if response.getcode() == 200:
+                self.sp_ha_status.setText("HA Connection: ✅ Connected")
+            else:
+                self.sp_ha_status.setText("HA Connection: ⚠️ Unexpected response")
+        except Exception:
+            self.sp_ha_status.setText("HA Connection: ❌ Not reachable")
+
+        # Get latest power readings from CSV
+        participant_id = self.state.get_user_input("participant_id", "")
+        device_id = self.state.get_user_input("device_id", "")
+        username = self.state.get_user_input("username", "")
+
+        if participant_id and device_id and username:
+            full_id = f"{participant_id}{device_id}"
+            csv_file = f"/home/{username}/data/{full_id}_data/{full_id}_tv_power_5s.csv"
+
+            if os.path.exists(csv_file):
+                try:
+                    with open(csv_file, 'r') as f:
+                        lines = f.readlines()
+                        last_5 = lines[-5:] if len(lines) >= 5 else lines
+
+                    self.sp_power_data.clear()
+                    for line in last_5:
+                        parts = line.strip().split(';')
+                        if len(parts) >= 3:
+                            power = parts[0]
+                            date = parts[1]
+                            time = parts[2]
+                            self.sp_power_data.append(f"{date} {time} | {power}W")
+                except Exception as e:
+                    self.sp_power_data.setPlainText(f"Error reading CSV: {e}")
+            else:
+                self.sp_power_data.setPlainText("Waiting for power data file...")
+
+        self.sp_last_updated.setText(f"Last Updated: {datetime.now().strftime('%H:%M:%S')}")
+
+    def _update_camera_status(self) -> None:
+        """Update camera status display."""
+        camera_path = self.state.get_user_input("selected_camera", "")
+        camera_name = self.state.get_user_input("selected_camera_name", "")
+        camera_tested = self.state.get_user_input("camera_tested", False)
+
+        if camera_path:
+            self.cam_device.setText(f"Device: {camera_path}")
+        else:
+            self.cam_device.setText("Device: --")
+
+        self.cam_tested.setText(f"Tested: {'✅ Yes' if camera_tested else '❌ No'}")
+        self.cam_last_updated.setText(f"Last Updated: {datetime.now().strftime('%H:%M:%S')}")
+
+    def _update_services_status(self) -> None:
+        """Update services and gaze monitoring status."""
+        # Check systemd services
+        try:
+            result = subprocess.run(
+                ["systemctl", "is-active", "flash-run-on-boot.service"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if result.stdout.strip() == "active":
+                self.svc_flash_boot.setText("flash-run-on-boot: ✅ Running")
+            else:
+                self.svc_flash_boot.setText("flash-run-on-boot: ❌ Stopped")
+        except Exception:
+            self.svc_flash_boot.setText("flash-run-on-boot: ⚠️ Unknown")
+
+        try:
+            result = subprocess.run(
+                ["systemctl", "is-active", "flash-periodic-restart.service"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if result.stdout.strip() == "active":
+                self.svc_flash_periodic.setText("flash-periodic: ✅ Running")
+            else:
+                self.svc_flash_periodic.setText("flash-periodic: ❌ Stopped")
+        except Exception:
+            self.svc_flash_periodic.setText("flash-periodic: ⚠️ Unknown")
+
+        # Check Home Assistant Docker
+        try:
+            result = subprocess.run(
+                ["docker", "ps", "--filter", "name=homeassistant", "--format", "{{.Status}}"],
+                capture_output=True,
+                text=True,
+                timeout=2
+            )
+            if "Up" in result.stdout:
+                self.svc_home_assistant.setText("Home Assistant: ✅ Running")
+            else:
+                self.svc_home_assistant.setText("Home Assistant: ❌ Stopped")
+        except Exception:
+            self.svc_home_assistant.setText("Home Assistant: ⚠️ Unknown")
+
+        # Update gaze data from log files
+        self._update_gaze_data()
+
+    def _update_gaze_data(self) -> None:
+        """Update gaze data displays from log files."""
+        participant_id = self.state.get_user_input("participant_id", "")
+        device_id = self.state.get_user_input("device_id", "")
+        username = self.state.get_user_input("username", "")
+
+        if not all([participant_id, device_id, username]):
+            return
+
+        full_id = f"{participant_id}{device_id}"
+        data_path = f"/home/{username}/data/{full_id}_data"
+
+        if not os.path.exists(data_path):
+            return
+
+        # Find most recent gaze log files
+        import glob
+        base_pattern = os.path.join(data_path, f"{full_id}_flash_log_*.txt")
+        all_files = glob.glob(base_pattern)
+
+        # Group by timestamp
+        file_groups = {}
+        for filepath in all_files:
+            filename = os.path.basename(filepath)
+            if "_flash_log_" in filename:
+                parts = filename.split("_flash_log_")
+                if len(parts) == 2:
+                    timestamp_part = parts[1].replace(".txt", "").replace("_rot", "").replace("_reg", "")
+                    base_name = f"{full_id}_flash_log_{timestamp_part}"
+
+                    if base_name not in file_groups:
+                        file_groups[base_name] = {}
+
+                    if filepath.endswith("_rot.txt"):
+                        file_groups[base_name]["rot"] = filepath
+                    elif filepath.endswith("_reg.txt"):
+                        file_groups[base_name]["reg"] = filepath
+                    elif filepath.endswith(f"{timestamp_part}.txt"):
+                        file_groups[base_name]["main"] = filepath
+
+        # Find most recent group
+        most_recent_group = None
+        most_recent_time = None
+
+        for base_name, files in file_groups.items():
+            if "main" in files:
+                mtime = os.path.getmtime(files["main"])
+                if most_recent_time is None or mtime > most_recent_time:
+                    most_recent_time = mtime
+                    most_recent_group = files
+
+        if most_recent_group:
+            # Update each gaze arrow
+            if "main" in most_recent_group:
+                gaze_data = self._parse_gaze_log_line(most_recent_group["main"])
+                if gaze_data:
+                    pitch_deg, yaw_deg, watching_tv, timestamp = gaze_data
+                    self.gaze_main_arrow.set_gaze(pitch_deg, yaw_deg, watching_tv, timestamp, "")
+
+            if "rot" in most_recent_group:
+                gaze_data = self._parse_gaze_log_line(most_recent_group["rot"])
+                if gaze_data:
+                    pitch_deg, yaw_deg, watching_tv, timestamp = gaze_data
+                    self.gaze_rot_arrow.set_gaze(pitch_deg, yaw_deg, watching_tv, timestamp, "")
+
+            if "reg" in most_recent_group:
+                gaze_data = self._parse_gaze_log_line(most_recent_group["reg"])
+                if gaze_data:
+                    pitch_deg, yaw_deg, watching_tv, timestamp = gaze_data
+                    self.gaze_reg_arrow.set_gaze(pitch_deg, yaw_deg, watching_tv, timestamp, "")
+
+    def _parse_gaze_log_line(self, filepath: str):
+        """Parse last line of gaze log file."""
+        try:
+            with open(filepath, 'r') as f:
+                lines = f.readlines()
+                for line in reversed(lines):
+                    line = line.strip()
+                    if line and not line.startswith("#"):
+                        # Parse the line
+                        parts = line.split()
+                        if len(parts) >= 14:
+                            timestamp = f"{parts[0]} {parts[1]}"
+                            pitch_str = parts[5]
+                            yaw_str = parts[6]
+                            label = parts[-1]
+
+                            if label == "Gaze-det" and pitch_str != "None" and yaw_str != "None":
+                                import math
+                                pitch_rad = float(pitch_str)
+                                yaw_rad = float(yaw_str)
+                                pitch_deg = pitch_rad * 57.2958
+                                yaw_deg = yaw_rad * 57.2958
+
+                                # Simple threshold for watching TV
+                                watching_tv = abs(pitch_deg) < 20 and abs(yaw_deg) < 20
+
+                                time_only = timestamp.split()[1][:8]
+                                return (pitch_deg, yaw_deg, watching_tv, time_only)
+                        break
+        except Exception as e:
+            self.logger.debug(f"Error parsing gaze log: {e}")
+
+        return None
+
+    def _update_errors_status(self) -> None:
+        """Update recent errors display."""
+        participant_id = self.state.get_user_input("participant_id", "")
+        device_id = self.state.get_user_input("device_id", "")
+        username = self.state.get_user_input("username", "")
+
+        if not all([participant_id, device_id, username]):
+            return
+
+        full_id = f"{participant_id}{device_id}"
+        data_path = f"/home/{username}/data/{full_id}_data"
+        stderr_log = os.path.join(data_path, f"{full_id}_flash_logstderr.log")
+
+        if os.path.exists(stderr_log):
+            try:
+                with open(stderr_log, 'r', errors='ignore') as f:
+                    lines = f.readlines()
+                    # Get last 100 lines and filter for actual errors
+                    last_lines = lines[-100:] if len(lines) > 100 else lines
+
+                    errors = []
+                    for line in last_lines:
+                        line = line.strip()
+                        if any(keyword in line for keyword in [
+                            "Exception:", "Error:", "CRITICAL:", "ERROR:",
+                            "Traceback", "Failed to", "Could not", "Unable to",
+                            "Permission denied", "No such file"
+                        ]):
+                            # Check if it's a known safe error
+                            if not self._is_known_safe_error(line):
+                                errors.append(line)
+
+                    if errors:
+                        self.errors_output.clear()
+                        # Show last 5 actual errors
+                        for error in errors[-5:]:
+                            self.errors_output.append(f'<span style="color: red;">{error}</span>')
+                    else:
+                        self.errors_output.setPlainText("No unexpected errors detected")
+
+            except Exception as e:
+                self.errors_output.setPlainText(f"Error reading log: {e}")
+        else:
+            self.errors_output.setPlainText("No error log file yet")
+
+        self.errors_last_updated.setText(f"Last Updated: {datetime.now().strftime('%H:%M:%S')}")
+
+    def _is_known_safe_error(self, line: str) -> bool:
+        """Check if error is a known safe/expected error."""
+        known_safe = [
+            "Corrupt JPEG data", "DeprecationWarning", "UserWarning",
+            "Deprecated in NumPy", "Failed to load image Python extension",
+            "Overload resolution failed", "warpAffine", "RTNETLINK answers"
+        ]
+
+        for pattern in known_safe:
+            if pattern in line:
+                return True
+        return False
+
+    @handle_step_error
+    def _lock_device(self, checked: bool = False) -> None:
         """Lock the device immediately."""
         reply = QMessageBox.question(
             self,
@@ -174,13 +759,11 @@ class DeviceLockingStep(WizardStep):
 
         if reply == QMessageBox.StandardButton.Yes:
             try:
-                # Lock the device using process runner
                 result = self.process_runner.run_command(["loginctl", "lock-session"], timeout_ms=5000)
 
                 if result and result.returncode == 0:
                     self._mark_setup_complete()
                 else:
-                    # Try alternative method
                     result = self.process_runner.run_command(["gnome-screensaver-command", "--lock"], timeout_ms=5000)
                     if result and result.returncode == 0:
                         self._mark_setup_complete()
@@ -195,33 +778,20 @@ class DeviceLockingStep(WizardStep):
                     "Could not lock device automatically.\nPlease lock manually using system controls.",
                 )
 
-    def _enable_auto_lock(self) -> None:
+    @handle_step_error
+    def _enable_auto_lock(self, checked: bool = False) -> None:
         """Enable automatic device lock after 5 minutes."""
         try:
-            # Set device to lock after 5 minutes of inactivity
             result1 = self.process_runner.run_command(
-                [
-                    "gsettings",
-                    "set",
-                    "org.gnome.desktop.screensaver",
-                    "lock-delay",
-                    "uint32 300",
-                ],
-                timeout_ms=5000
+                ["gsettings", "set", "org.gnome.desktop.screensaver", "lock-delay", "uint32 300"],
+                timeout_ms=5000,
             )
 
             result2 = self.process_runner.run_command(
-                [
-                    "gsettings",
-                    "set",
-                    "org.gnome.desktop.screensaver",
-                    "lock-enabled",
-                    "true",
-                ],
-                timeout_ms=5000
+                ["gsettings", "set", "org.gnome.desktop.screensaver", "lock-enabled", "true"],
+                timeout_ms=5000,
             )
 
-            # Check if both commands succeeded
             if not (result1 and result1.returncode == 0 and result2 and result2.returncode == 0):
                 raise Exception("gsettings commands failed")
 
@@ -241,17 +811,18 @@ class DeviceLockingStep(WizardStep):
                 "Could not enable auto-lock.\nPlease configure manually or lock immediately.",
             )
 
-    def _show_manual_instructions(self) -> None:
+    @handle_step_error
+    def _show_manual_instructions(self, checked: bool = False) -> None:
         """Show manual lock instructions."""
         instructions = """Manual Device Lock Instructions:
 
-        1. Click top right power button on screen → Lock
-        OR
-        2. Super key → Type "lock" → Enter
+1. Click top right power button on screen → Lock
+OR
+2. Super key → Type "lock" → Enter
 
-        Important:
-        • Lock device before leaving the location
-        """
+Important:
+• Lock device before leaving the location
+"""
 
         QMessageBox.information(self, "Manual Lock Instructions", instructions)
 
@@ -265,25 +836,29 @@ class DeviceLockingStep(WizardStep):
         if reply == QMessageBox.StandardButton.Yes:
             self._mark_setup_complete()
 
+    @handle_step_error
     def _mark_setup_complete(self) -> None:
         """Mark the entire setup as complete."""
-        # Save final instructions
         instructions = self.instructions_text.toPlainText().strip()
         if instructions:
             self.state.set_user_input("final_instructions", instructions)
-            # Save instructions to file using safe base class method
             self._save_notes_to_file("Device Locking", instructions)
 
-        # Mark as complete
         self.state.set_user_input("device_locked", True)
         self.state.set_user_input("setup_complete", True)
+
+        if self.state_manager:
+            self.state_manager.save_state(self.state)
+
         self.continue_button.setEnabled(True)
         self.update_status(StepStatus.COMPLETED)
 
+        self.logger.info("Device locking step completed")
+
+    @handle_step_error
     def _on_continue_clicked(self, checked: bool = False) -> None:
         """Handle continue button click."""
         if self.state.get_user_input("device_locked", False):
-            # This is the final step
             QMessageBox.information(
                 self,
                 "Setup Complete!",
@@ -294,9 +869,15 @@ class DeviceLockingStep(WizardStep):
             )
             self.request_next_step.emit()
 
+    @handle_step_error
     def activate_step(self) -> None:
         """Activate the device locking step."""
         super().activate_step()
+
+        self.logger.info("Device locking step activated")
+
+        # Start dashboard monitoring
+        self.monitor_timer.start(5000)  # Update every 5 seconds
 
         # Load any saved instructions
         saved_instructions = self.state.get_user_input("final_instructions", "")
@@ -307,17 +888,18 @@ class DeviceLockingStep(WizardStep):
         if self.state.get_user_input("device_locked", False):
             self.continue_button.setEnabled(True)
             self.update_status(StepStatus.COMPLETED)
-
-            # Auto-check verification boxes
-            self.setup_complete_check.setChecked(True)
-            self.services_running_check.setChecked(True)
-
             self.logger.info("Restored device locking completion state")
+
+        # Do initial dashboard update
+        self._update_dashboard()
 
     def _cleanup_step_resources(self) -> None:
         """Clean up step-specific resources."""
         try:
-            # Final state save before cleanup
+            # Stop monitoring timer
+            self.monitor_timer.stop()
+
+            # Final state save
             if self.state_manager:
                 self.state_manager.save_state(self.state)
 

@@ -53,7 +53,7 @@ class UI:
     BROWSE_BUTTON_TEXT = "Browse..."
     SCAN_FOR_NETWORKS = "Scan for Networks"
     CONNECT_TO_SELECTED_NETWORK = "Connect to Selected Network"
-    SKIP_WIFI_SETUP = "Skip WiFi Setup"
+    SKIP_WIFI_SETUP = "Skip WiFi Setup (If You Will Manually Set Time in the Next Step)"
     DETECT_AVAILABLE_CAMERAS = "Detect Available Cameras"
     TEST_SELECTED_CAMERA = "Test Selected Camera"
     SYNCHRONIZE_SYSTEM_TIME = "🔄 Synchronize System Time"
@@ -141,9 +141,7 @@ class Paths:
 
     # System services
     FLASH_RUN_ON_BOOT_SERVICE = "/etc/systemd/system/flash-run-on-boot.service"
-    FLASH_PERIODIC_RESTART_SERVICE = (
-        "/etc/systemd/system/flash-periodic-restart.service"
-    )
+    FLASH_PERIODIC_RESTART_SERVICE = "/etc/systemd/system/flash-periodic-restart.service"
 
 
 # Scripts
@@ -253,8 +251,8 @@ class Messages:
     CONNECTED_SUCCESS = "Connected"
     SUCCESSFULLY_CONNECTED = "Successfully connected to {ssid}"
     FAILED_TO_CONNECT = "Failed to connect to {ssid}"
-    SKIP_WIFI_SETUP = "Skip WiFi Setup"
-    SKIP_WIFI_CONFIRMATION = "Are you sure you want to skip WiFi configuration?\n\nThe device will not have internet connectivity until WiFi is configured manually."
+    SKIP_WIFI_SETUP = "Skip WiFi Setup (If You Will Manually Set Time in the Next Step)"
+    SKIP_WIFI_CONFIRMATION = "Are you sure you want to skip WiFi configuration?\n\nThe device will not be able to sync the time automatically.\nYou will need to set the time manually in the next step."
     NETWORK_REQUIRES_PASSWORD = "This network requires a password"
 
     # Camera messages
@@ -334,7 +332,9 @@ Enter your Home Assistant URL to configure integration."""
     INTEGRATION_INSTALLATION_STARTED = "Integration installation started..."
     FAILED_TO_START_INSTALLATION = "❌ Failed to start installation process"
     SKIP_HA_SETUP = "Skip Home Assistant Setup"
-    SKIP_HA_CONFIRMATION = "Are you sure you want to skip Home Assistant integration?\n\nYou will need to configure smart plug monitoring manually later."
+    SKIP_HA_CONFIRMATION = (
+        "Are you sure you want to skip Home Assistant integration?\n\nYou will need to configure smart plug monitoring manually later."
+    )
     HA_INTEGRATION_SKIPPED = "⚠️ Home Assistant integration skipped"
     HA_ALREADY_CONFIGURED = "✅ Home Assistant already configured"
     HA_INTEGRATION_COMPLETED = "\n✅ Home Assistant integration completed!"
@@ -354,12 +354,8 @@ Enter your Home Assistant URL to configure integration."""
     CREATION_PROGRESS = "Creation Progress:"
     VALIDATION_RESULTS = "Validation Results:"
     SELECT_FACE_GALLERY_DIRECTORY = "Select Face Gallery Directory"
-    ERROR_MISSING_GALLERY_INFO = (
-        "Error: Missing required information for gallery creation"
-    )
-    CREATING_GALLERY_FOR_PARTICIPANT = (
-        "Creating gallery for participant: {participant_id}"
-    )
+    ERROR_MISSING_GALLERY_INFO = "Error: Missing required information for gallery creation"
+    CREATING_GALLERY_FOR_PARTICIPANT = "Creating gallery for participant: {participant_id}"
     GALLERY_LOCATION = "Gallery location: {path}"
     GALLERY_CREATION_STARTED = "Gallery creation started..."
     FAILED_TO_START_GALLERY_CREATION = "Failed to start gallery creation process"
@@ -368,9 +364,7 @@ Enter your Home Assistant URL to configure integration."""
     FOUND_IMAGES_FOR_TYPE = "✅ Found {count} images for {type}"
     MISSING_IMAGES_FOR_TYPE = "❌ Missing images for {type}"
     GALLERY_VALIDATION_SUCCESSFUL = "\n✅ Gallery validation successful!"
-    GALLERY_VALIDATION_FAILED = (
-        "\n❌ Gallery validation failed - missing required face images"
-    )
+    GALLERY_VALIDATION_FAILED = "\n❌ Gallery validation failed - missing required face images"
     GALLERY_CREATION_COMPLETED = "\nGallery creation completed successfully!"
     GALLERY_CREATION_FAILED_STATUS = "\nGallery creation failed with status: {status}"
 
@@ -450,12 +444,12 @@ def get_path_for_user(path_template: str, username: str) -> str:
 
 def get_data_path(participant_id: str, username: str, device_id: str = "") -> str:
     """Get the data path for a specific participant.
-    
+
     Args:
         participant_id: Participant ID (e.g., 'P1-3999')
-        username: System username (e.g., 'flashsys028')  
+        username: System username (e.g., 'flashsys028')
         device_id: Optional device ID to append (e.g., '028')
-        
+
     Returns:
         Data path in format: /home/{username}/data/{participant_id}{device_id}_data
     """
@@ -465,12 +459,12 @@ def get_data_path(participant_id: str, username: str, device_id: str = "") -> st
 
 def get_faces_path(participant_id: str, username: str, device_id: str = "") -> str:
     """Get the faces directory path for a specific participant.
-    
+
     Args:
         participant_id: Participant ID (e.g., 'P1-3999')
         username: System username (e.g., 'flashsys028')
         device_id: Optional device ID to append (e.g., '028')
-        
+
     Returns:
         Faces path in format: /home/{username}/data/{participant_id}{device_id}_faces
     """

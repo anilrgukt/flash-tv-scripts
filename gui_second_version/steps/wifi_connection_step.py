@@ -47,22 +47,16 @@ class WiFiConnectionStep(WizardStep):
 
     def _create_status_section(self) -> QWidget:
         """Create the WiFi status section."""
-        status_group, status_layout = self.ui_factory.create_group_box(
-            "WiFi Connection Setup"
-        )
+        status_group, status_layout = self.ui_factory.create_group_box("WiFi Connection Setup")
 
-        self.wifi_status_label = self.ui_factory.create_status_label(
-            "Use the button below to open network settings", status_type="info"
-        )
+        self.wifi_status_label = self.ui_factory.create_status_label("Use the button below to open network settings", status_type="info")
         status_layout.addWidget(self.wifi_status_label)
 
         return status_group
 
     def _create_instructions_section(self) -> QWidget:
         """Create the instructions section."""
-        instructions_group, instructions_layout = self.ui_factory.create_group_box(
-            "WiFi Setup Instructions"
-        )
+        instructions_group, instructions_layout = self.ui_factory.create_group_box("WiFi Setup Instructions")
 
         instructions_text = (
             "To connect to WiFi:\n\n"
@@ -83,9 +77,7 @@ class WiFiConnectionStep(WizardStep):
 
     def _create_controls_section(self) -> QWidget:
         """Create the control buttons section."""
-        controls_group, controls_layout = self.ui_factory.create_group_box(
-            "Connection Controls"
-        )
+        controls_group, controls_layout = self.ui_factory.create_group_box("Connection Controls")
 
         # Auto-connect to hotspot button
         self.auto_connect_button = self.ui_factory.create_action_button(
@@ -110,7 +102,7 @@ class WiFiConnectionStep(WizardStep):
 
         # Skip button
         self.skip_button = self.ui_factory.create_action_button(
-            "Skip WiFi Setup",
+            "Skip WiFi Setup (If You Will Manually Set Time in the Next Step)",
             callback=self._skip_wifi_setup,
             style=ButtonStyle.SECONDARY,
             height=30,
@@ -121,9 +113,7 @@ class WiFiConnectionStep(WizardStep):
 
     def _create_continue_section(self):
         """Create the continue button section."""
-        button_layout, self.continue_button = self.ui_factory.create_continue_button(
-            callback=self._on_continue_clicked, text="Continue to Next Step"
-        )
+        button_layout, self.continue_button = self.ui_factory.create_continue_button(callback=self._on_continue_clicked, text="Continue to Next Step")
         return button_layout
 
     @handle_step_error
@@ -131,7 +121,7 @@ class WiFiConnectionStep(WizardStep):
         """Open the system network settings."""
         try:
             self.logger.info("Opening system network settings")
-            
+
             # Try different network settings commands based on desktop environment
             commands_to_try = [
                 ["gnome-control-center", "wifi"],
@@ -140,7 +130,7 @@ class WiFiConnectionStep(WizardStep):
                 ["nm-connection-editor"],
                 ["network-manager-gnome"],
             ]
-            
+
             success = False
             for cmd in commands_to_try:
                 try:
@@ -155,7 +145,7 @@ class WiFiConnectionStep(WizardStep):
                 except Exception as e:
                     self.logger.debug(f"Command {' '.join(cmd)} failed: {e}")
                     continue
-            
+
             if not success:
                 # Fallback: show message with manual instructions
                 QMessageBox.information(
@@ -165,16 +155,15 @@ class WiFiConnectionStep(WizardStep):
                     "Common ways to access network settings:\n"
                     "• Click on the network icon in the system tray\n"
                     "• Go to System Settings → Network\n"
-                    "• Search for 'Network' in your application launcher"
+                    "• Search for 'Network' in your application launcher",
                 )
-                
+
         except Exception as e:
             self.logger.error(f"Error opening network settings: {e}")
             QMessageBox.warning(
                 self,
                 "Error",
-                "Could not open network settings automatically. "
-                "Please open your system's network settings manually to connect to WiFi."
+                "Could not open network settings automatically. Please open your system's network settings manually to connect to WiFi.",
             )
 
     @handle_step_error
@@ -191,7 +180,7 @@ class WiFiConnectionStep(WizardStep):
 
             if os.path.exists(bashrc_path):
                 self.logger.debug(f"Reading {bashrc_path} to check for credentials")
-                with open(bashrc_path, 'r') as f:
+                with open(bashrc_path, "r") as f:
                     content = f.read()
                     if "HOTSPOT1_PSK" in content or "HOTSPOT2_PSK" in content or "HOTSPOT3_PSK" in content:
                         has_credentials = True
@@ -210,16 +199,13 @@ class WiFiConnectionStep(WizardStep):
                         self,
                         f"Configure HOTSPOT{i}",
                         f"Do you want to configure HOTSPOT{i}?",
-                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     )
 
                     if reply == QMessageBox.StandardButton.Yes:
                         self.logger.debug(f"User chose to configure HOTSPOT{i}")
                         password, ok = QInputDialog.getText(
-                            self,
-                            f"HOTSPOT{i} Password",
-                            f"Enter the password for HOTSPOT{i}:",
-                            QLineEdit.EchoMode.Normal
+                            self, f"HOTSPOT{i} Password", f"Enter the password for HOTSPOT{i}:", QLineEdit.EchoMode.Normal
                         )
 
                         if ok and password:
@@ -233,7 +219,7 @@ class WiFiConnectionStep(WizardStep):
                 # Write credentials to .bashrc if any were provided
                 if hotspot_configs:
                     self.logger.info(f"Writing {len(hotspot_configs)} hotspot credential(s) to .bashrc")
-                    with open(bashrc_path, 'a') as f:
+                    with open(bashrc_path, "a") as f:
                         f.write("\n# FLASH-TV Hotspot Credentials\n")
                         for config in hotspot_configs:
                             f.write(config + "\n")
@@ -242,9 +228,7 @@ class WiFiConnectionStep(WizardStep):
                     self.logger.warning("No hotspot credentials were provided by user")
 
             script_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                "python_scripts",
-                "setup_wifi_connection.py"
+                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "python_scripts", "setup_wifi_connection.py"
             )
 
             self.logger.info(f"WiFi setup script path: {script_path}")
@@ -258,12 +242,7 @@ class WiFiConnectionStep(WizardStep):
             self.logger.info(f"Running WiFi setup script: {script_path}")
             self.logger.info("Executing: python3 " + script_path)
 
-            result = subprocess.run(
-                ["python3", script_path],
-                capture_output=True,
-                text=True,
-                timeout=30
-            )
+            result = subprocess.run(["python3", script_path], capture_output=True, text=True, timeout=30)
 
             # Log the complete output
             self.logger.info(f"WiFi script completed with return code: {result.returncode}")
@@ -285,11 +264,7 @@ class WiFiConnectionStep(WizardStep):
                 self.continue_button.setEnabled(True)
                 self.update_status(StepStatus.COMPLETED)
 
-                QMessageBox.information(
-                    self,
-                    "Connection Successful",
-                    "Successfully connected to hotspot!\n\nClick 'Continue' to proceed."
-                )
+                QMessageBox.information(self, "Connection Successful", "Successfully connected to hotspot!\n\nClick 'Continue' to proceed.")
             else:
                 error_msg = result.stderr if result.stderr else result.stdout if result.stdout else "Unknown error - no output"
                 self.logger.error(f"WiFi connection failed with return code {result.returncode}")
@@ -301,7 +276,7 @@ class WiFiConnectionStep(WizardStep):
                     "Connection Failed",
                     f"Failed to connect to hotspot.\n\nReturn code: {result.returncode}\n\nError: {error_msg}\n\n"
                     "Would you like to try manual network settings instead?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 )
 
                 if reply == QMessageBox.StandardButton.Yes:
@@ -313,18 +288,12 @@ class WiFiConnectionStep(WizardStep):
             QMessageBox.warning(
                 self,
                 "Connection Timeout",
-                "WiFi connection attempt timed out.\n\n"
-                "Please try manual network settings or check your hotspot configuration."
+                "WiFi connection attempt timed out.\n\nPlease try manual network settings or check your hotspot configuration.",
             )
         except Exception as e:
             self.logger.error(f"Error during auto-connect: {e}")
             self.wifi_status_label.setText("❌ Auto-connect failed")
-            QMessageBox.warning(
-                self,
-                "Auto-Connect Error",
-                f"Failed to auto-connect to hotspot: {e}\n\n"
-                "Please try manual network settings instead."
-            )
+            QMessageBox.warning(self, "Auto-Connect Error", f"Failed to auto-connect to hotspot: {e}\n\nPlease try manual network settings instead.")
 
     @handle_step_error
     def _skip_wifi_setup(self, checked: bool = False) -> None:
@@ -332,15 +301,14 @@ class WiFiConnectionStep(WizardStep):
         try:
             reply = QMessageBox.question(
                 self,
-                "Skip WiFi Setup",
-                "Are you sure you want to skip WiFi setup?\n\n"
-                "Some features may not work without an internet connection.",
+                "Skip WiFi Setup (If You Will Manually Set Time in the Next Step)",
+                "Are you sure you want to skip WiFi configuration?\n\nThe device will not be able to sync the time automatically.\nYou will need to set the time manually in the next step.",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
 
             if reply == QMessageBox.StandardButton.Yes:
                 self.logger.info("User chose to skip WiFi setup")
-                
+
                 self.wifi_status_label.setText("WiFi setup skipped")
                 self.state.set_user_input("wifi_ssid", "SKIPPED")
 
