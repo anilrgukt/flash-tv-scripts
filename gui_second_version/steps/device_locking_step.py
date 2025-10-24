@@ -109,21 +109,16 @@ class DeviceLockingStep(WizardStep):
         smart_plug_box = self._create_smart_plug_box()
         grid_layout.addWidget(smart_plug_box, 1, 0, 1, 3)
 
-        # Row 2: Camera Status (single box, centered)
+        # Row 2: Camera Status and Services Status
         camera_box = self._create_camera_box()
-        grid_layout.addWidget(camera_box, 2, 0, 1, 3)
+        grid_layout.addWidget(camera_box, 2, 0, 1, 1)
 
-        # Row 3: Services Status
-        services_label = QLabel("<b>FLASH-TV Services Status:</b>")
-        services_label.setStyleSheet("font-size: 12pt; padding: 8px 5px;")
-        grid_layout.addWidget(services_label, 3, 0, 1, 3)
+        services_box = self._create_services_box()
+        grid_layout.addWidget(services_box, 2, 1, 1, 2)
 
-        services_row = self._create_services_row()
-        grid_layout.addLayout(services_row, 4, 0, 1, 3)
-
-        # Row 5: Recent Errors
+        # Row 3: Recent Errors
         errors_box = self._create_errors_box()
-        grid_layout.addWidget(errors_box, 5, 0, 1, 3)
+        grid_layout.addWidget(errors_box, 3, 0, 1, 3)
 
         dashboard_layout.addLayout(grid_layout)
 
@@ -261,14 +256,10 @@ class DeviceLockingStep(WizardStep):
 
         return box
 
-    def _create_services_row(self) -> QHBoxLayout:
-        """Create services monitoring row with status only (no gaze circles)."""
-        services_layout = self.ui_factory.create_horizontal_layout()
-
-        # Service status (takes full width)
-        service_status_layout = self.ui_factory.create_vertical_layout()
-        service_label = QLabel("<b>Service Status:</b>")
-        service_status_layout.addWidget(service_label)
+    def _create_services_box(self) -> QWidget:
+        """Create services monitoring box with status only (no gaze circles)."""
+        box, layout = self.ui_factory.create_group_box("FLASH-TV Services Status")
+        box.setMinimumHeight(120)
 
         self.svc_flash_boot = self.ui_factory.create_label("flash-run-on-boot: --")
         self.svc_flash_periodic = self.ui_factory.create_label("flash-periodic: --")
@@ -276,12 +267,12 @@ class DeviceLockingStep(WizardStep):
 
         for label in [self.svc_flash_boot, self.svc_flash_periodic, self.svc_home_assistant]:
             label.setFont(QFont("Monospace", 10))
-            service_status_layout.addWidget(label)
+            layout.addWidget(label)
+            layout.addSpacing(3)
 
-        service_status_layout.addStretch()
-        services_layout.addLayout(service_status_layout)
+        layout.addStretch()
 
-        return services_layout
+        return box
 
     def _create_errors_box(self) -> QWidget:
         """Create recent errors display box."""

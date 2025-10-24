@@ -396,20 +396,19 @@ class Logging:
 
 # Step Information
 class Steps:
-    TOTAL = 12
+    TOTAL = 11
     TITLES = {
         1: "Participant Setup",
         2: "WiFi Connection",
         3: "Time Synchronization",
         4: "Smart Plug Physical Setup",
         5: "Smart Plug Data Verification",
-        6: "Camera Positioning and Setup",
-        7: "Point of View Picture",
-        8: "Face Gallery Building",
-        9: "Gaze Detection Testing",
-        10: "Starting and Verifying Long Term FLASH-TV Services",
-        11: "Cord and Connection Check",
-        12: "Screen Locking and Final Setup",
+        6: "Camera Setup and POV Picture",
+        7: "Face Gallery Building",
+        8: "Gaze Detection Testing",
+        9: "Starting and Verifying Long Term FLASH-TV Services",
+        10: "Cord and Connection Check",
+        11: "Screen Locking and Final Setup",
     }
 
 

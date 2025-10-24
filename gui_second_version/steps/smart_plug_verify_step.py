@@ -674,6 +674,11 @@ class SmartPlugVerifyStep(WizardStep):
     def _cleanup_step_resources(self) -> None:
         """Clean up step-specific resources."""
         try:
+            # Stop the status monitoring timer
+            if hasattr(self, "status_timer") and self.status_timer.isActive():
+                self.status_timer.stop()
+                self.logger.info("Stopped status monitoring timer")
+
             # Final state save before cleanup
             if self.state_manager:
                 self.state_manager.save_state(self.state)

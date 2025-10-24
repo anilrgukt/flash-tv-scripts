@@ -104,6 +104,8 @@ class GazeDetectionTestingStep(WizardStep):
         """)
         launch_layout.addWidget(self.loading_progress_bar)
 
+        launch_layout.addSpacing(15)
+
         test_info = self.ui_factory.create_label(
             "<b>Status Indicators:</b><br><br>"
             "<b>Gaze Arrows (on target child):</b><br>"
@@ -115,7 +117,10 @@ class GazeDetectionTestingStep(WizardStep):
             "All detected faces are shown with colored boxes based on their verified identity."
         )
         test_info.setWordWrap(True)
+        test_info.setMinimumHeight(200)
         launch_layout.addWidget(test_info)
+
+        launch_layout.addStretch()
 
         return launch_group
 
@@ -530,6 +535,11 @@ class GazeDetectionTestingStep(WizardStep):
     def _cleanup_step_resources(self) -> None:
         """Clean up step-specific resources."""
         try:
+            # Stop loading timer
+            if hasattr(self, "loading_timer") and self.loading_timer.isActive():
+                self.loading_timer.stop()
+                self.logger.info("Stopped loading timer")
+
             # Stop any running gaze test process
             process_info = self.state.get_process("gaze_test")
             if process_info and process_info.is_running():
