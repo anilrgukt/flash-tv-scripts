@@ -240,14 +240,18 @@ def main():
     # Load TV gaze thresholds (spatial limits for determining TV viewing)
     print("Loading TV gaze thresholds...")
     try:
+        # Use absolute path based on script location
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        limits_file = os.path.join(script_dir, "4331_v3r50reg_reg_testlims_35_53_7_9.npy")
+
         loc_lims = load_limits(
-            file_path="./4331_v3r50reg_reg_testlims_35_53_7_9.npy", 
+            file_path=limits_file,
             setting="center-big-med"
         )
         num_locs = loc_lims.shape[0]
         print(f"TV gaze thresholds loaded ({num_locs} spatial regions)")
     except Exception as e:
-        print(f"Error loading TV gaze thresholds: {e}")
+        print(f"Could not load location limits file: {e}")
         print("Using fallback simple threshold...")
         loc_lims = None
         num_locs = 0

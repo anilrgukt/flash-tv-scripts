@@ -72,12 +72,20 @@ gaze_face_processing = FaceProcessing(
     frame_resolution=[1080, 1920], detector_resolution=[342, 608], face_size=160, face_crop_offset=45, small_face_padding=3, small_face_size=65
 )
 
-loc_lims = load_limits(file_path="./4331_v3r50reg_reg_testlims_35_53_7_9.npy", setting="center-big-med")
+# Use absolute path based on script location
+script_dir = os.path.dirname(os.path.abspath(__file__))
+limits_file = os.path.join(script_dir, "4331_v3r50reg_reg_testlims_35_53_7_9.npy")
+loc_lims = load_limits(file_path=limits_file, setting="center-big-med")
 num_locs = loc_lims.shape[0]
 
 
 if not skip_detector:
-    faces, lmarks = fd.face_detect(cv2.imread("frame_00000.png"))
+    # Initialize detector with a test frame (warms up the model)
+    test_frame_path = os.path.join(script_dir, "frame_00000.png")
+    if os.path.exists(test_frame_path):
+        faces, lmarks = fd.face_detect(cv2.imread(test_frame_path))
+    else:
+        print(f"Warning: Test frame not found at {test_frame_path}, skipping detector warmup")
 
 stream = WebcamVideoStream()
 stream.start(src="/dev/video0", width=1920, height=1080, fps=30)

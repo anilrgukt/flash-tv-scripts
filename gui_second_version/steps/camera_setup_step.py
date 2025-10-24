@@ -108,18 +108,19 @@ class CameraSetupStep(WizardStep):
 
         positioning_text = (
             "Position your camera to view the TV-watching seating area:\n\n"
-            "📏 HEIGHT: Mount camera 3-4 feet above floor level (eye level when seated)\n\n"
-            "📐 ANGLE: Point camera toward the seating area (couch, chairs, etc.)\n\n"
-            "📍 DISTANCE: Place 6-10 feet from the main TV viewing seating area\n\n"
-            "👥 FIELD OF VIEW: Camera should capture the entire seating area\n\n"
-            "💡 LIGHTING: Avoid backlighting from windows behind subjects\n\n"
-            "🔌 CONNECTION: Use a stable USB connection to the Jetson device\n\n"
+            "HEIGHT: Mount camera 3-4 feet above floor level (eye level when seated)\n\n"
+            "ANGLE: Point camera toward the seating area (couch, chairs, etc.)\n\n"
+            "DISTANCE: Place 6-10 feet from the main TV viewing seating area\n\n"
+            "FIELD OF VIEW: Camera should capture the entire seating area\n\n"
+            "LIGHTING: Avoid backlighting from windows behind subjects\n\n"
+            "CONNECTION: Use a stable USB connection to the Jetson device\n\n"
             "The camera should clearly see faces of people in their normal TV watching positions."
         )
 
         positioning_label = self.ui_factory.create_label(positioning_text)
-        positioning_label.setMinimumHeight(250)
         positioning_label.setWordWrap(True)
+        positioning_label.setMinimumHeight(280)
+        positioning_label.setMaximumHeight(400)
         positioning_layout.addWidget(positioning_label)
 
         # Add live preview button directly in positioning section

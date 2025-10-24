@@ -171,7 +171,17 @@ class ServiceStartupStep(WizardStep):
         self.loc_lims = None
         try:
             import numpy as np
-            limits_path = "/mnt/d/Scripts/flash-tv-scripts/python_scripts/4331_v3r50reg_reg_testlims_35_53_7_9.npy"
+
+            # Construct path relative to this script's location
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            repo_root = os.path.dirname(os.path.dirname(script_dir))  # Go up two levels from gui_second_version/steps/
+            limits_path = os.path.join(repo_root, "python_scripts", "4331_v3r50reg_reg_testlims_35_53_7_9.npy")
+
+            # Fallback for production environment if file not found
+            if not os.path.exists(limits_path):
+                username = os.getenv('USER', 'flashsys007')
+                limits_path = f"/home/{username}/flash-tv-scripts/python_scripts/4331_v3r50reg_reg_testlims_35_53_7_9.npy"
+
             loc_lims = np.load(limits_path).reshape(-1, 4)  # Shape: (120, 4)
 
             # Apply "center-big-med" transformation (same as demo script)
