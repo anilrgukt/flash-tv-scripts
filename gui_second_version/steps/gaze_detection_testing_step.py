@@ -42,9 +42,6 @@ class GazeDetectionTestingStep(WizardStep):
         launch_section = self._create_launch_section()
         main_layout.addWidget(launch_section)
 
-        status_section = self._create_status_section()
-        main_layout.addWidget(status_section)
-
         verification_section = self._create_verification_section()
         main_layout.addWidget(verification_section)
 
@@ -117,30 +114,11 @@ class GazeDetectionTestingStep(WizardStep):
             "All detected faces are shown with colored boxes based on their verified identity."
         )
         test_info.setWordWrap(True)
-        test_info.setMinimumHeight(200)
+        test_info.setMinimumHeight(250)
+        test_info.setMaximumHeight(350)
         launch_layout.addWidget(test_info)
 
-        launch_layout.addStretch()
-
         return launch_group
-
-    def _create_status_section(self) -> QWidget:
-        """Create the test status section."""
-        status_group, status_layout = self.ui_factory.create_group_box("Test Status")
-
-        self.test_status_label = self.ui_factory.create_status_label(
-            "🎯 Gaze test not started", status_type="info"
-        )
-        status_layout.addWidget(self.test_status_label)
-
-        self.output_text = self.ui_factory.create_text_area(
-            placeholder="Gaze test output will appear here...",
-            max_height=120,
-            read_only=True,
-        )
-        status_layout.addWidget(self.output_text)
-
-        return status_group
 
     def _create_verification_section(self) -> QWidget:
         """Create the verification section."""
@@ -235,7 +213,6 @@ class GazeDetectionTestingStep(WizardStep):
 
             self.logger.info(f"Starting gaze detection test for participant: {full_participant_id}")
             self.launch_button.setEnabled(False)
-            self.test_status_label.setText("🎯 Launching gaze detection test...")
             self.update_status(StepStatus.AUTOMATION_RUNNING)
 
             # Start loading progress bar countdown
@@ -269,20 +246,12 @@ class GazeDetectionTestingStep(WizardStep):
 
             if process_info:
                 self.logger.info("Gaze detection test script started successfully")
-                self.test_status_label.setText("✅ Gaze detection test running")
-                self.output_text.append("🎯 Gaze detection test started")
-                self.output_text.append("📺 Have the target child watch TV")
-                self.output_text.append("👀 Watch for gaze arrows and face boxes")
-                self.output_text.append("\n✓ Green arrow = Looking at TV")
-                self.output_text.append("✓ Blue arrow = Looking away")
-                self.output_text.append("✓ Red box = TC detected, no gaze yet")
 
                 # Enable verification buttons
                 self.working_button.setEnabled(True)
                 self.not_working_button.setEnabled(True)
             else:
                 self.logger.error("Failed to start gaze detection test script")
-                self.test_status_label.setText("❌ Failed to launch gaze test")
                 self.launch_button.setEnabled(True)
                 self.update_status(StepStatus.FAILED)
                 raise FlashTVError(
@@ -384,7 +353,6 @@ class GazeDetectionTestingStep(WizardStep):
     def _cleanup_test_files(self) -> None:
         """Clean up test files."""
         try:
-            self.output_text.append("\n🧹 Cleaning up test files...")
             self.logger.info("Starting test file cleanup")
 
             test_folders = ["test_res", "test_frames"]
@@ -393,16 +361,13 @@ class GazeDetectionTestingStep(WizardStep):
             for folder in test_folders:
                 if os.path.exists(folder):
                     shutil.rmtree(folder)
-                    self.output_text.append(f"✓ Removed {folder}/")
                     cleaned_folders += 1
                     self.logger.debug(f"Removed test folder: {folder}")
 
-            self.output_text.append("✅ Test cleanup completed")
             self.logger.info(f"Test file cleanup completed - removed {cleaned_folders} folders")
 
         except Exception as e:
             self.logger.error(f"Error during test file cleanup: {e}")
-            self.output_text.append(f"⚠️ Cleanup error: {e}")
             # Don't raise error - cleanup failure shouldn't block progress
 
     @handle_step_error
@@ -421,7 +386,6 @@ class GazeDetectionTestingStep(WizardStep):
                 self.logger.info("Terminating gaze test process due to issues")
                 self.process_runner.terminate_process("gaze_test")
 
-            self.test_status_label.setText("❌ Gaze detection issues detected")
             self.launch_button.setEnabled(True)
             self.update_status(StepStatus.FAILED)
 
@@ -431,9 +395,6 @@ class GazeDetectionTestingStep(WizardStep):
                 "Please check camera positioning, lighting, and gallery quality.\n\n"
                 "You can rerun the test after making adjustments.",
             )
-
-            self.output_text.append("\n❌ Test failed - adjustments needed")
-            self.output_text.append("Check: camera position, lighting, face gallery quality")
 
             # Reset verification buttons
             self.working_button.setEnabled(False)
@@ -490,7 +451,6 @@ class GazeDetectionTestingStep(WizardStep):
 
         # Check if already verified
         if self.state.get_user_input("gaze_detection_verified", False):
-            self.test_status_label.setText("✅ Gaze detection already verified")
             self.continue_button.setEnabled(True)
             self.update_status(StepStatus.COMPLETED)
             self.logger.info("Gaze detection already verified, skipping")
@@ -509,23 +469,13 @@ class GazeDetectionTestingStep(WizardStep):
 
             if status.value == "completed":
                 self.logger.info("Gaze test process ended normally")
-                self.output_text.append("\n⚠️ Gaze test process ended")
-                self.output_text.append("Please verify if testing was successful")
             else:
                 self.logger.warning(f"Gaze test process ended with status: {status}")
-                self.output_text.append(f"\n❌ Process failed with status: {status}")
 
-                # Show error output
+                # Log error output
                 if stderr_lines:
-                    self.output_text.append("\nError output:")
-                    for line in stderr_lines[-10:]:  # Show last 10 lines
-                        self.output_text.append(f"  {line}")
+                    for line in stderr_lines[-10:]:  # Log last 10 lines
                         self.logger.error(f"Gaze test stderr: {line}")
-
-                if stdout_lines:
-                    self.output_text.append("\nLast output:")
-                    for line in stdout_lines[-5:]:  # Show last 5 lines
-                        self.output_text.append(f"  {line}")
 
             # Reset launch button
             self.launch_button.setEnabled(True)

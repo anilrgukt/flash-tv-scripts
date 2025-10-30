@@ -28,25 +28,24 @@ class GalleryCreationStep(WizardStep):
         # Create sections in a two-column layout
         content_row = self.ui_factory.create_horizontal_layout(spacing=12)
 
-        # Left column: Setup and creation
+        # Left column: Setup and shortcuts
         left_column = self.ui_factory.create_vertical_layout(spacing=8)
 
         setup_section = self._create_setup_section()
         left_column.addWidget(setup_section)
 
-        creation_section = self._create_creation_section()
-        left_column.addWidget(creation_section, 1)
+        shortcuts_section = self._create_shortcuts_section()
+        left_column.addWidget(shortcuts_section)
+
+        left_column.addStretch()
 
         content_row.addLayout(left_column, 1)
 
-        # Right column: Keyboard shortcuts and validation
+        # Right column: Status
         right_column = self.ui_factory.create_vertical_layout(spacing=8)
 
-        shortcuts_section = self._create_shortcuts_section()
-        right_column.addWidget(shortcuts_section)
-
-        validation_section = self._create_validation_section()
-        right_column.addWidget(validation_section, 1)
+        status_section = self._create_status_section()
+        right_column.addWidget(status_section, 1)
 
         content_row.addLayout(right_column, 1)
 
@@ -93,10 +92,10 @@ class GalleryCreationStep(WizardStep):
 
         return setup_group
 
-    def _create_creation_section(self) -> QWidget:
-        """Create the gallery creation section using UI factory."""
-        creation_group, creation_layout = self.ui_factory.create_group_box(
-            UI.CREATE_NEW_GALLERY
+    def _create_status_section(self) -> QWidget:
+        """Create the combined status section for gallery creation and validation."""
+        status_group, status_layout = self.ui_factory.create_group_box(
+            "Gallery Creation and Validation"
         )
 
         # Create gallery button
@@ -104,32 +103,27 @@ class GalleryCreationStep(WizardStep):
             "🎥 Create Gallery from Camera Captures (Manual)",
             callback=self._create_gallery,
             style=ButtonStyle.PRIMARY,
-            height=35,
+            height=40,
         )
-        creation_layout.addWidget(self.create_gallery_button)
+        status_layout.addWidget(self.create_gallery_button)
 
-        # Progress bar with detailed status
+        # Progress bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setValue(0)
-        self.progress_bar.setFormat("Initializing gallery creation... %p%")
-        creation_layout.addWidget(self.progress_bar)
+        self.progress_bar.setFormat("Initializing... %p%")
+        status_layout.addWidget(self.progress_bar)
 
-        # Gallery creation output
-        creation_progress_label = self.ui_factory.create_label(
-            "📋 Gallery Creation Status:"
-        )
-        creation_layout.addWidget(creation_progress_label)
-
+        # Combined status output
         self.gallery_output = self.ui_factory.create_text_area(
-            placeholder="Gallery creation status will appear here...",
-            max_height=200,
+            placeholder="Click 'Create Gallery' to begin. Status will appear here...",
+            max_height=300,
             read_only=True,
         )
-        creation_layout.addWidget(self.gallery_output)
+        status_layout.addWidget(self.gallery_output)
 
-        return creation_group
+        return status_group
 
     def _create_shortcuts_section(self) -> QWidget:
         """Create the keyboard shortcuts reference section."""
@@ -158,26 +152,6 @@ class GalleryCreationStep(WizardStep):
         shortcuts_layout.addWidget(shortcuts_text)
 
         return shortcuts_group
-
-    def _create_validation_section(self) -> QWidget:
-        """Create the validation section using UI factory."""
-        validation_group, validation_layout = self.ui_factory.create_group_box(
-            UI.GALLERY_VALIDATION
-        )
-
-        validation_results_label = self.ui_factory.create_label(
-            "📊 Gallery Validation Results:"
-        )
-        validation_layout.addWidget(validation_results_label)
-
-        self.validation_output = self.ui_factory.create_text_area(
-            placeholder="Gallery will be automatically validated after creation...",
-            max_height=200,
-            read_only=True,
-        )
-        validation_layout.addWidget(self.validation_output)
-
-        return validation_group
 
     def _create_continue_section(self):
         """Create the continue button section using UI factory."""
@@ -388,15 +362,14 @@ class GalleryCreationStep(WizardStep):
                 return
 
             self.logger.info(f"Validating gallery at path: {gallery_path}")
-            self.validation_output.clear()
-            self.validation_output.append(f"🔍 Validating gallery structure...")
+            self.gallery_output.append(f"\n🔍 Validating gallery structure...")
 
             gallery_dir = Path(gallery_path)
 
             if not gallery_dir.exists():
                 self.logger.error(f"Gallery directory does not exist: {gallery_path}")
-                self.validation_output.append("❌ Gallery directory does not exist")
-                self.validation_output.append("💡 Please create the gallery first")
+                self.gallery_output.append("❌ Gallery directory does not exist")
+                self.gallery_output.append("💡 Please create the gallery first")
                 raise FlashTVError(
                     f"Gallery directory does not exist: {gallery_path}",
                     ErrorType.SYSTEM_ERROR,
@@ -418,18 +391,18 @@ class GalleryCreationStep(WizardStep):
                 if face_files:
                     count = len(face_files)
                     total_images += count
-                    self.validation_output.append(f"✅ Found {count} images for {face_type}")
+                    self.gallery_output.append(f"✅ Found {count} images for {face_type}")
                     self.logger.debug(f"Found {count} images for {face_type}")
                 else:
-                    self.validation_output.append(f"❌ Missing images for {face_type}")
+                    self.gallery_output.append(f"❌ Missing images for {face_type}")
                     self.logger.warning(f"Missing images for face type: {face_type}")
                     validation_passed = False
 
             if validation_passed:
                 self.logger.info(f"Gallery validation successful - {total_images} total images")
-                self.validation_output.append(f"\n🎉 Gallery validation successful!")
-                self.validation_output.append(f"📊 Total images found: {total_images}")
-                self.validation_output.append("✨ Your face gallery is ready for use!")
+                self.gallery_output.append(f"\n🎉 Gallery validation successful!")
+                self.gallery_output.append(f"📊 Total images found: {total_images}")
+                self.gallery_output.append("✨ Your face gallery is ready for use!")
 
                 # Save validation status
                 self.state.set_user_input("gallery_validated", True)
@@ -443,8 +416,8 @@ class GalleryCreationStep(WizardStep):
                 self.continue_button.setEnabled(True)
             else:
                 self.logger.warning("Gallery validation failed - missing required images")
-                self.validation_output.append(f"\n❌ Gallery validation failed")
-                self.validation_output.append("💡 Please complete gallery creation for all categories")
+                self.gallery_output.append(f"\n❌ Gallery validation failed")
+                self.gallery_output.append("💡 Please complete gallery creation for all categories")
                 self.update_status(StepStatus.USER_ACTION_REQUIRED)
 
         except Exception as e:
@@ -504,8 +477,8 @@ class GalleryCreationStep(WizardStep):
             gallery_path = self.state.get_user_input("gallery_path", "")
             total_images = self.state.get_user_input("gallery_total_images", 0)
             if gallery_path:
-                self.validation_output.append(
-                    f"✅ Gallery already validated: {total_images} images at {gallery_path}"
+                self.gallery_output.append(
+                    f"✅ Gallery already validated: {total_images} images"
                 )
                 self.continue_button.setEnabled(True)
                 self.update_status(StepStatus.COMPLETED)
@@ -515,13 +488,11 @@ class GalleryCreationStep(WizardStep):
         # Check if gallery path is already set and validate it
         gallery_path = self.state.get_user_input("gallery_path", "")
         if gallery_path and Path(gallery_path).exists():
-            self.gallery_output.append(f"📁 Found existing gallery at: {gallery_path}")
-            self.gallery_output.append("🔍 Validating existing gallery...")
+            self.gallery_output.append(f"📁 Found existing gallery")
             self._validate_gallery()
         else:
             self.gallery_output.append("📋 Ready to create face gallery")
-            self.gallery_output.append("👆 Click 'Create Gallery from Camera Captures' to begin")
-            self.gallery_output.append("\n⌨️ See keyboard shortcuts in the right panel →")
+            self.gallery_output.append("👆 Click button above to begin")
 
     def update_ui(self) -> None:
         """Update UI elements periodically with framework integration."""
