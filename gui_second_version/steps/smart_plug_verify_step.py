@@ -196,7 +196,7 @@ class SmartPlugVerifyStep(WizardStep):
         self.plot_widget = pg.PlotWidget()
         self.plot_widget.setBackground('w')
         self.plot_widget.setLabel('left', 'Power (W)')
-        self.plot_widget.setLabel('bottom', 'Time Index')
+        self.plot_widget.setLabel('bottom', 'Time (seconds)')
         self.plot_widget.setTitle('Click to place markers: Green=ON period, Red=OFF period | Press Delete to remove selected marker set')
         self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
         self.plot_widget.setMinimumHeight(300)
@@ -363,14 +363,14 @@ class SmartPlugVerifyStep(WizardStep):
         self._redraw_plot()
 
     def _snap_to_nearest_data_point(self, x_pos: float) -> float:
-        """Snap position to nearest data point."""
+        """Snap position to nearest data point based on time."""
         if not hasattr(self, 'power_times') or len(self.power_times) == 0:
             return x_pos
 
-        # Find nearest index
-        nearest_idx = int(round(x_pos))
-        nearest_idx = max(0, min(nearest_idx, len(self.power_times) - 1))
-        return float(nearest_idx)
+        # Find nearest timestamp
+        distances = np.abs(self.power_times - x_pos)
+        nearest_idx = np.argmin(distances)
+        return float(self.power_times[nearest_idx])
 
     def _create_marker_line(self, x_pos: float, marker_type: str, marker_position: str, is_incomplete: bool) -> pg.InfiniteLine:
         """Create a draggable marker line with proper styling and behavior."""
@@ -387,12 +387,17 @@ class SmartPlugVerifyStep(WizardStep):
         line_width = 5 if is_selected else 3
 
         # Create the InfiniteLine with movable=True for dragging
+        # Set bounds based on time range, not indices
+        time_bounds = None
+        if hasattr(self, 'power_times') and len(self.power_times) > 0:
+            time_bounds = [self.power_times[0], self.power_times[-1]]
+
         line = pg.InfiniteLine(
             pos=x_pos,
             angle=90,  # Vertical line
             pen=pg.mkPen(color, width=line_width, style=Qt.PenStyle.DashLine),
             movable=True,
-            bounds=[0, len(self.power_times) - 1] if hasattr(self, 'power_times') else None,
+            bounds=time_bounds,
         )
 
         # Store metadata on the line object
@@ -449,7 +454,7 @@ class SmartPlugVerifyStep(WizardStep):
         if abs(new_pos - snapped_pos) > 0.1:
             line.setValue(snapped_pos)
 
-        self.logger.info(f"Moved {line.marker_type.upper()} {line.marker_position} marker to index {snapped_pos:.0f}")
+        self.logger.info(f"Moved {line.marker_type.upper()} {line.marker_position} marker to {snapped_pos:.2f} seconds")
         self._redraw_plot()
 
     def _update_marker_selection_visual(self):
@@ -486,10 +491,21 @@ class SmartPlugVerifyStep(WizardStep):
             self.plot_widget.plotItem.removeItem(item)
         self.region_items = []
 
-        # Replot power data if needed
+        # Always update or create the power data curve
         if self.power_curve is None:
-            x_data = np.arange(len(self.power_values))
-            self.power_curve = self.plot_widget.plot(x_data, self.power_values, pen=pg.mkPen('b', width=2), name='TV Power')
+            # Create new plot curve
+            self.power_curve = self.plot_widget.plot(
+                self.power_times,
+                self.power_values,
+                pen=pg.mkPen('b', width=2),
+                name='TV Power'
+            )
+        else:
+            # Update existing curve with new data
+            self.power_curve.setData(self.power_times, self.power_values)
+
+        # Update x-axis label to show time
+        self.plot_widget.setLabel('bottom', 'Time (seconds)')
 
         # Draw shaded regions for completed marker pairs
         for marker_type in ['on', 'off']:
@@ -535,28 +551,56 @@ class SmartPlugVerifyStep(WizardStep):
             if not os.path.exists(csv_file):
                 return
 
-            # Read CSV file
+            # Read CSV file and parse timestamps
+            # Format: power_value;date;time (e.g., 45.2;01.15.2025;14.30.45)
             powers = []
+            timestamps = []
+            first_timestamp = None
 
             with open(csv_file, 'r') as f:
                 for line in f:
                     parts = line.strip().split(';')
-                    if len(parts) >= 1:
+                    if len(parts) >= 3:
                         try:
                             power = float(parts[0])
+                            date_str = parts[1]  # MM.DD.YYYY
+                            time_str = parts[2]  # HH.MM.SS
+
+                            # Parse timestamp
+                            datetime_str = f"{date_str} {time_str}"
+                            dt = datetime.strptime(datetime_str, "%m.%d.%Y %H.%M.%S")
+
+                            if first_timestamp is None:
+                                first_timestamp = dt
+
+                            # Calculate seconds from first timestamp
+                            elapsed_seconds = (dt - first_timestamp).total_seconds()
+
                             powers.append(power)
-                        except:
+                            timestamps.append(elapsed_seconds)
+                        except Exception as parse_error:
+                            # Skip malformed lines
                             continue
 
-            if powers:
-                self.power_times = list(range(len(powers)))  # Use indices for x-axis
+            if powers and timestamps:
+                # Store both timestamps and power values
+                self.power_times = np.array(timestamps)
                 self.power_values = np.array(powers)
+                self.first_timestamp = first_timestamp
+
+                # Always redraw plot with latest data
                 self._redraw_plot()
 
                 # Only log once
                 if not hasattr(self, '_data_loaded_logged'):
                     self.logger.info(f"Loaded {len(powers)} power readings")
                     self._data_loaded_logged = True
+
+                # Update bounds for markers if they exist
+                if hasattr(self, 'marker_lines'):
+                    for line in self.marker_lines:
+                        if hasattr(line, 'setBounds'):
+                            line.setBounds([0, self.power_times[-1]])
 
         except Exception as e:
             self.logger.error(f"Error loading power data: {e}")
@@ -1010,25 +1054,41 @@ class SmartPlugVerifyStep(WizardStep):
 
             self.logger.info(f"Plot image saved to: {plot_path}")
 
-            # Extract marker positions
+            # Extract marker positions (in seconds)
             on_onset = self.marker_pairs['on']['onset'].value()
             on_offset = self.marker_pairs['on']['offset'].value()
             off_onset = self.marker_pairs['off']['onset'].value()
             off_offset = self.marker_pairs['off']['offset'].value()
 
+            # Convert time positions to indices for data extraction
+            on_start_time = min(on_onset, on_offset)
+            on_end_time = max(on_onset, on_offset)
+            off_start_time = min(off_onset, off_offset)
+            off_end_time = max(off_onset, off_offset)
+
+            # Find indices for ON period
+            on_mask = (self.power_times >= on_start_time) & (self.power_times <= on_end_time)
+            on_values = self.power_values[on_mask]
+            on_start_idx = np.argmax(self.power_times >= on_start_time)
+            on_end_idx = np.argmax(self.power_times > on_end_time) - 1
+            if on_end_idx < on_start_idx:
+                on_end_idx = len(self.power_times) - 1
+
             # Calculate ON period stats
-            on_start = int(min(on_onset, on_offset))
-            on_end = int(max(on_onset, on_offset))
-            on_values = self.power_values[on_start:on_end+1]
             on_avg = np.mean(on_values)
             on_std = np.std(on_values)
             on_min = np.min(on_values)
             on_max = np.max(on_values)
 
+            # Find indices for OFF period
+            off_mask = (self.power_times >= off_start_time) & (self.power_times <= off_end_time)
+            off_values = self.power_values[off_mask]
+            off_start_idx = np.argmax(self.power_times >= off_start_time)
+            off_end_idx = np.argmax(self.power_times > off_end_time) - 1
+            if off_end_idx < off_start_idx:
+                off_end_idx = len(self.power_times) - 1
+
             # Calculate OFF period stats
-            off_start = int(min(off_onset, off_offset))
-            off_end = int(max(off_onset, off_offset))
-            off_values = self.power_values[off_start:off_end+1]
             off_avg = np.mean(off_values)
             off_std = np.std(off_values)
             off_min = np.min(off_values)
@@ -1043,13 +1103,18 @@ class SmartPlugVerifyStep(WizardStep):
                 f.write("=" * 60 + "\n\n")
                 f.write(f"Participant ID: {full_id}\n")
                 f.write(f"Verification Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-                f.write(f"Total Data Points: {len(self.power_values)}\n\n")
+                f.write(f"First Timestamp: {self.first_timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write(f"Total Data Points: {len(self.power_values)}\n")
+                f.write(f"Total Duration: {self.power_times[-1]:.2f} seconds ({self.power_times[-1]/60:.2f} minutes)\n\n")
 
                 f.write("ON PERIOD MARKERS\n")
                 f.write("-" * 60 + "\n")
-                f.write(f"Start Index: {on_start}\n")
-                f.write(f"End Index: {on_end}\n")
-                f.write(f"Duration: {on_end - on_start + 1} data points\n")
+                f.write(f"Start Time: {on_start_time:.2f} seconds ({on_start_time/60:.2f} minutes)\n")
+                f.write(f"End Time: {on_end_time:.2f} seconds ({on_end_time/60:.2f} minutes)\n")
+                f.write(f"Start Index: {on_start_idx}\n")
+                f.write(f"End Index: {on_end_idx}\n")
+                f.write(f"Duration: {on_end_time - on_start_time:.2f} seconds ({(on_end_time - on_start_time)/60:.2f} minutes)\n")
+                f.write(f"Data Points: {len(on_values)}\n")
                 f.write(f"Average Power: {on_avg:.2f} W\n")
                 f.write(f"Std Deviation: {on_std:.2f} W\n")
                 f.write(f"Min Power: {on_min:.2f} W\n")
@@ -1057,9 +1122,12 @@ class SmartPlugVerifyStep(WizardStep):
 
                 f.write("OFF PERIOD MARKERS\n")
                 f.write("-" * 60 + "\n")
-                f.write(f"Start Index: {off_start}\n")
-                f.write(f"End Index: {off_end}\n")
-                f.write(f"Duration: {off_end - off_start + 1} data points\n")
+                f.write(f"Start Time: {off_start_time:.2f} seconds ({off_start_time/60:.2f} minutes)\n")
+                f.write(f"End Time: {off_end_time:.2f} seconds ({off_end_time/60:.2f} minutes)\n")
+                f.write(f"Start Index: {off_start_idx}\n")
+                f.write(f"End Index: {off_end_idx}\n")
+                f.write(f"Duration: {off_end_time - off_start_time:.2f} seconds ({(off_end_time - off_start_time)/60:.2f} minutes)\n")
+                f.write(f"Data Points: {len(off_values)}\n")
                 f.write(f"Average Power: {off_avg:.2f} W\n")
                 f.write(f"Std Deviation: {off_std:.2f} W\n")
                 f.write(f"Min Power: {off_min:.2f} W\n")
@@ -1070,12 +1138,12 @@ class SmartPlugVerifyStep(WizardStep):
                 f.write(f"Average Power Difference (ON - OFF): {on_avg - off_avg:.2f} W\n")
                 f.write(f"Power Ratio (ON / OFF): {on_avg / off_avg if off_avg > 0 else float('inf'):.2f}x\n\n")
 
-                f.write("RAW MARKER POSITIONS\n")
+                f.write("RAW MARKER POSITIONS (Time in seconds)\n")
                 f.write("-" * 60 + "\n")
-                f.write(f"ON Onset: {on_onset:.2f}\n")
-                f.write(f"ON Offset: {on_offset:.2f}\n")
-                f.write(f"OFF Onset: {off_onset:.2f}\n")
-                f.write(f"OFF Offset: {off_offset:.2f}\n")
+                f.write(f"ON Onset: {on_onset:.2f} seconds\n")
+                f.write(f"ON Offset: {on_offset:.2f} seconds\n")
+                f.write(f"OFF Onset: {off_onset:.2f} seconds\n")
+                f.write(f"OFF Offset: {off_offset:.2f} seconds\n")
 
             self.logger.info(f"Marker info saved to: {info_path}")
 
