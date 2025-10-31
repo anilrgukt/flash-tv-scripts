@@ -67,9 +67,7 @@ class DeviceLockingStep(WizardStep):
 
     def _create_overview_section(self) -> QWidget:
         """Create the overview section."""
-        overview_group, overview_layout = self.ui_factory.create_group_box(
-            "System Status Dashboard & Device Locking"
-        )
+        overview_group, overview_layout = self.ui_factory.create_group_box("System Status Dashboard & Device Locking")
 
         overview_text = self.ui_factory.create_label(
             "Monitor all system components in real-time before locking the device. "
@@ -82,9 +80,7 @@ class DeviceLockingStep(WizardStep):
 
     def _create_dashboard_section(self) -> QWidget:
         """Create the comprehensive monitoring dashboard."""
-        dashboard_group, dashboard_layout = self.ui_factory.create_group_box(
-            "System Status (Updates every 5 seconds)"
-        )
+        dashboard_group, dashboard_layout = self.ui_factory.create_group_box("System Status (Updates every 5 seconds)")
 
         # Simple vertical layout with clear sections
         content_layout = self.ui_factory.create_vertical_layout(spacing=15)
@@ -136,6 +132,17 @@ class DeviceLockingStep(WizardStep):
         self.smart_plug_label.setFont(QFont("Arial", 11))
         layout.addWidget(self.smart_plug_label)
 
+        # Last stderr log entry
+        self.stderr_log_label = QLabel("<b>Last FLASH Log Line:</b> --")
+        self.stderr_log_label.setFont(QFont("Arial", 11))
+        self.stderr_log_label.setWordWrap(True)
+        layout.addWidget(self.stderr_log_label)
+
+        # RTC times
+        self.rtc_times_label = QLabel("<b>RTC Times:</b> --")
+        self.rtc_times_label.setFont(QFont("Arial", 11))
+        layout.addWidget(self.rtc_times_label)
+
         return box
 
     def _create_services_status_section(self) -> QWidget:
@@ -166,9 +173,7 @@ class DeviceLockingStep(WizardStep):
         """Create device lock controls."""
         lock_group, lock_layout = self.ui_factory.create_group_box("Lock Device")
 
-        lock_info = self.ui_factory.create_label(
-            "After verifying all systems are working properly above, lock the device to complete setup."
-        )
+        lock_info = self.ui_factory.create_label("After verifying all systems are working properly above, lock the device to complete setup.")
         lock_info.setFont(QFont("Arial", 11))
         lock_layout.addWidget(lock_info)
 
@@ -202,8 +207,7 @@ class DeviceLockingStep(WizardStep):
     def _create_continue_section(self):
         """Create continue button section."""
         button_layout, self.continue_button = self.ui_factory.create_continue_button(
-            callback=self._on_continue_clicked,
-            text="Setup Complete - Device Locked"
+            callback=self._on_continue_clicked, text="Setup Complete - Device Locked"
         )
         self.continue_button.setEnabled(False)
 
@@ -231,12 +235,22 @@ class DeviceLockingStep(WizardStep):
             else:
                 self.camera_label.setText(f"<b>Camera:</b> ❌ Not tested")
 
-            # Update smart plug
+            # Update smart plug with last power reading
             smart_plug_verified = self.state.get_user_input("smart_plug_verified", False)
+            last_power = self._get_last_power_reading()
+
             if smart_plug_verified:
-                self.smart_plug_label.setText(f"<b>Smart Plug:</b> ✅ Verified")
+                self.smart_plug_label.setText(f"<b>Smart Plug:</b> ✅ Verified | Last Reading: {last_power}")
             else:
-                self.smart_plug_label.setText(f"<b>Smart Plug:</b> ❌ Not verified")
+                self.smart_plug_label.setText(f"<b>Smart Plug:</b> ❌ Not verified | Last Reading: {last_power}")
+
+            # Update last stderr log entry
+            last_stderr = self._get_last_stderr_entry()
+            self.stderr_log_label.setText(f"<b>Last FLASH Log Line:</b> {last_stderr}")
+
+            # Update RTC times
+            rtc_times = self._get_rtc_times()
+            self.rtc_times_label.setText(f"<b>RTC Times:</b> {rtc_times}")
 
             # Update services
             self._update_services_status()
@@ -248,12 +262,7 @@ class DeviceLockingStep(WizardStep):
         """Update services status."""
         # Check flash-run-on-boot
         try:
-            result = subprocess.run(
-                ["systemctl", "is-active", "flash-run-on-boot.service"],
-                capture_output=True,
-                text=True,
-                timeout=2
-            )
+            result = subprocess.run(["systemctl", "is-active", "flash-run-on-boot.service"], capture_output=True, text=True, timeout=2)
             if result.stdout.strip() == "active":
                 self.svc_flash_boot_label.setText("  flash-run-on-boot: ✅ Running")
             else:
@@ -263,12 +272,7 @@ class DeviceLockingStep(WizardStep):
 
         # Check flash-periodic-restart
         try:
-            result = subprocess.run(
-                ["systemctl", "is-active", "flash-periodic-restart.service"],
-                capture_output=True,
-                text=True,
-                timeout=2
-            )
+            result = subprocess.run(["systemctl", "is-active", "flash-periodic-restart.service"], capture_output=True, text=True, timeout=2)
             if result.stdout.strip() == "active":
                 self.svc_flash_periodic_label.setText("  flash-periodic: ✅ Running")
             else:
@@ -279,10 +283,7 @@ class DeviceLockingStep(WizardStep):
         # Check Home Assistant
         try:
             result = subprocess.run(
-                ["docker", "ps", "--filter", "name=homeassistant", "--format", "{{.Status}}"],
-                capture_output=True,
-                text=True,
-                timeout=2
+                ["docker", "ps", "--filter", "name=homeassistant", "--format", "{{.Status}}"], capture_output=True, text=True, timeout=2
             )
             if "Up" in result.stdout:
                 self.svc_home_assistant_label.setText("  Home Assistant: ✅ Running")
@@ -291,6 +292,99 @@ class DeviceLockingStep(WizardStep):
         except Exception:
             self.svc_home_assistant_label.setText("  Home Assistant: ⚠️ Unknown")
 
+    def _get_last_power_reading(self) -> str:
+        """Get the last TV power reading from CSV."""
+        try:
+            participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
+            username = self.state.get_user_input("username", "")
+
+            if not all([participant_id, device_id, username]):
+                return "No data"
+
+            full_id = f"{participant_id}{device_id}"
+            csv_file = f"/home/{username}/data/{full_id}_data/{full_id}_tv_power_5s.csv"
+
+            if os.path.exists(csv_file):
+                with open(csv_file, "r") as f:
+                    lines = f.readlines()
+                    if lines:
+                        last_line = lines[-1].strip()
+                        parts = last_line.split(";")
+                        if len(parts) >= 3:
+                            power = parts[0]
+                            time_str = parts[2]
+                            return f"{power}W at {time_str}"
+            return "No data yet"
+        except Exception as e:
+            self.logger.debug(f"Error reading power data: {e}")
+            return "Error"
+
+    def _get_last_stderr_entry(self) -> str:
+        """Get the last stderr log entry."""
+        try:
+            participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
+            username = self.state.get_user_input("username", "")
+
+            if not all([participant_id, device_id, username]):
+                return "No log yet"
+
+            full_id = f"{participant_id}{device_id}"
+            stderr_log = f"/home/{username}/data/{full_id}_data/{full_id}_flash_logstderr.log"
+
+            if os.path.exists(stderr_log):
+                with open(stderr_log, "r", errors="ignore") as f:
+                    lines = f.readlines()
+                    if lines:
+                        # Get last non-empty line
+                        for line in reversed(lines):
+                            line = line.strip()
+                            if line:
+                                # Truncate if too long
+                                return line[:100] + "..." if len(line) > 100 else line
+            return "No entries yet"
+        except Exception as e:
+            self.logger.debug(f"Error reading stderr log: {e}")
+            return "Error"
+
+    def _get_rtc_times(self) -> str:
+        """Get RTC times from both RTCs and system time."""
+        try:
+            participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
+            username = self.state.get_user_input("username", "")
+
+            if not all([participant_id, device_id, username]):
+                return "No data"
+
+            full_id = f"{participant_id}{device_id}"
+
+            # Get system time
+            system_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+            # Try to read RTC times
+            rtc0_time = "N/A"
+            rtc1_time = "N/A"
+
+            try:
+                result = subprocess.run(["hwclock", "-r", "-f", "/dev/rtc0"], capture_output=True, text=True, timeout=2)
+                if result.returncode == 0:
+                    rtc0_time = result.stdout.strip()
+            except Exception:
+                pass
+
+            try:
+                result = subprocess.run(["hwclock", "-r", "-f", "/dev/rtc1"], capture_output=True, text=True, timeout=2)
+                if result.returncode == 0:
+                    rtc1_time = result.stdout.strip()
+            except Exception:
+                pass
+
+            return f"System: {system_time} | RTC0: {rtc0_time} | RTC1: {rtc1_time}"
+        except Exception as e:
+            self.logger.debug(f"Error reading RTC times: {e}")
+            return "Error"
 
     @handle_step_error
     def _lock_device(self, checked: bool = False) -> None:
@@ -308,12 +402,7 @@ class DeviceLockingStep(WizardStep):
             locked = False
             for cmd in lock_commands:
                 try:
-                    result = subprocess.run(
-                        cmd,
-                        capture_output=True,
-                        text=True,
-                        timeout=5
-                    )
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
                     if result.returncode == 0:
                         self.logger.info(f"Device locked successfully using: {' '.join(cmd)}")
                         locked = True
@@ -330,8 +419,7 @@ class DeviceLockingStep(WizardStep):
                 QMessageBox.information(
                     self,
                     "Device Locked",
-                    "The device has been locked successfully.\n\n"
-                    "Setup is complete!",
+                    "The device has been locked successfully.\n\nSetup is complete!",
                 )
             else:
                 self.logger.error("All lock methods failed")
@@ -378,9 +466,7 @@ class DeviceLockingStep(WizardStep):
             QMessageBox.information(
                 self,
                 "Setup Complete!",
-                "FLASH-TV setup is now complete!\n\n"
-                "The system is ready for data collection.\n"
-                "Participant can resume normal TV viewing.",
+                "FLASH-TV setup is now complete!\n\nThe system is ready for data collection.\nParticipant can resume normal TV viewing.",
             )
             self.request_next_step.emit()
 

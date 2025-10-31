@@ -116,8 +116,6 @@ class CameraSetupStep(WizardStep):
 
         positioning_label = self.ui_factory.create_label(positioning_text)
         positioning_label.setWordWrap(True)
-        positioning_label.setMinimumHeight(280)
-        positioning_label.setMaximumHeight(400)
         positioning_layout.addWidget(positioning_label)
 
         # Add live preview button directly in positioning section
