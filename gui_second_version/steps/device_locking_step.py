@@ -117,11 +117,6 @@ class DeviceLockingStep(WizardStep):
         self.time_sync_label.setFont(QFont("Arial", 11))
         layout.addWidget(self.time_sync_label)
 
-        # Network status
-        self.network_label = QLabel("<b>Network:</b> --")
-        self.network_label.setFont(QFont("Arial", 11))
-        layout.addWidget(self.network_label)
-
         # Camera status
         self.camera_label = QLabel("<b>Camera:</b> --")
         self.camera_label.setFont(QFont("Arial", 11))
@@ -171,18 +166,18 @@ class DeviceLockingStep(WizardStep):
 
     def _create_lock_section(self) -> QWidget:
         """Create device lock controls."""
-        lock_group, lock_layout = self.ui_factory.create_group_box("Lock Device")
+        lock_group, lock_layout = self.ui_factory.create_group_box("Turn Off WiFi and Lock Device")
 
-        lock_info = self.ui_factory.create_label("After verifying all systems are working properly above, lock the device to complete setup.")
+        lock_info = self.ui_factory.create_label("After verifying all systems are working properly above, turn off WiFi and lock the device to complete setup.")
         lock_info.setFont(QFont("Arial", 11))
         lock_layout.addWidget(lock_info)
 
         lock_layout.addSpacing(15)
 
-        # Button to actually lock the device
+        # Button to turn off WiFi and lock the device
         self.lock_device_button = self.ui_factory.create_action_button(
-            "🔒 Lock the Device Now",
-            callback=self._lock_device,
+            "📡 Turn Off WiFi and Lock Device",
+            callback=self._turnoff_wifi_and_lock,
             style=ButtonStyle.SUCCESS,
             height=50,
         )
@@ -219,13 +214,6 @@ class DeviceLockingStep(WizardStep):
             # Update time sync
             time_synced = self.state.get_user_input("time_synced", False)
             self.time_sync_label.setText(f"<b>Time Sync:</b> {'✅ Verified' if time_synced else '⚠️ Not verified'}")
-
-            # Update network
-            wifi_ssid = self.state.get_user_input("wifi_ssid", "")
-            if wifi_ssid and wifi_ssid != "SKIPPED":
-                self.network_label.setText(f"<b>Network:</b> ✅ Connected to {wifi_ssid}")
-            else:
-                self.network_label.setText(f"<b>Network:</b> ⚠️ Not configured")
 
             # Update camera
             camera_tested = self.state.get_user_input("camera_tested", False)
@@ -349,7 +337,7 @@ class DeviceLockingStep(WizardStep):
             return "Error"
 
     def _get_rtc_times(self) -> str:
-        """Get RTC times from both RTCs and system time."""
+        """Get RTC times from both RTCs and system time using the existing Python script."""
         try:
             participant_id = self.state.get_user_input("participant_id", "")
             device_id = self.state.get_user_input("device_id", "")
@@ -360,39 +348,98 @@ class DeviceLockingStep(WizardStep):
 
             full_id = f"{participant_id}{device_id}"
 
-            # Get system time
-            system_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            # Path to the RTC check script
+            script_path = f"/home/{username}/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py"
+            start_datetime_file = f"/home/{username}/data/{full_id}_data/{full_id}_start_datetime.txt"
+            python_path = f"/home/{username}/py38/bin/python"
 
-            # Try to read RTC times
-            rtc0_time = "N/A"
-            rtc1_time = "N/A"
+            # Run the RTC check script
+            result = subprocess.run(
+                [python_path, script_path, "check", start_datetime_file],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
 
-            try:
-                result = subprocess.run(["hwclock", "-r", "-f", "/dev/rtc0"], capture_output=True, text=True, timeout=2)
-                if result.returncode == 0:
-                    rtc0_time = result.stdout.strip()
-            except Exception:
-                pass
+            if result.returncode == 0:
+                output = result.stdout.strip()
+                # Parse the output to extract key times
+                lines = output.split('\n')
 
-            try:
-                result = subprocess.run(["hwclock", "-r", "-f", "/dev/rtc1"], capture_output=True, text=True, timeout=2)
-                if result.returncode == 0:
-                    rtc1_time = result.stdout.strip()
-            except Exception:
-                pass
+                system_time = "N/A"
+                rtc0_time = "N/A"
+                rtc1_time = "N/A"
+                external_rtc_time = "N/A"
 
-            return f"System: {system_time} | RTC0: {rtc0_time} | RTC1: {rtc1_time}"
+                for line in lines:
+                    if "Local time:" in line:
+                        # Extract system time from timedatectl output
+                        parts = line.split("Local time:", 1)
+                        if len(parts) > 1:
+                            system_time = parts[1].strip().split()[0:2]  # Get date and time
+                            system_time = ' '.join(system_time)
+                    elif "Time from internal RTC rtc0" in line:
+                        parts = line.split("is:", 1)
+                        if len(parts) > 1:
+                            rtc0_time = parts[1].strip()
+                    elif "Time from external RTC" in line:
+                        parts = line.split("is:", 1)
+                        if len(parts) > 1:
+                            external_rtc_time = parts[1].strip()
+                    elif "Time from internal RTC rtc1" in line:
+                        parts = line.split("is:", 1)
+                        if len(parts) > 1:
+                            rtc1_time = parts[1].strip()
+
+                return f"System: {system_time} | RTC0: {rtc0_time} | External: {external_rtc_time} | RTC1: {rtc1_time}"
+            else:
+                self.logger.debug(f"RTC script error: {result.stderr}")
+                return "Error running RTC script"
+
         except Exception as e:
             self.logger.debug(f"Error reading RTC times: {e}")
             return "Error"
 
     @handle_step_error
-    def _lock_device(self, checked: bool = False) -> None:
-        """Lock the device screen."""
+    def _turnoff_wifi_and_lock(self, checked: bool = False) -> None:
+        """Turn off WiFi and lock the device screen."""
         try:
-            self.logger.info("Attempting to lock device screen")
+            self.logger.info("Attempting to turn off WiFi and lock device")
 
-            # Try multiple lock methods in order of preference
+            # Step 1: Turn off WiFi
+            wifi_disabled = False
+            wifi_commands = [
+                ["nmcli", "radio", "wifi", "off"],  # NetworkManager
+                ["rfkill", "block", "wifi"],  # rfkill
+            ]
+
+            for cmd in wifi_commands:
+                try:
+                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                    if result.returncode == 0:
+                        self.logger.info(f"WiFi disabled successfully using: {' '.join(cmd)}")
+                        wifi_disabled = True
+                        break
+                except FileNotFoundError:
+                    self.logger.debug(f"WiFi command not found: {' '.join(cmd)}")
+                    continue
+                except Exception as e:
+                    self.logger.debug(f"Failed to disable WiFi with {' '.join(cmd)}: {e}")
+                    continue
+
+            if not wifi_disabled:
+                self.logger.warning("Could not disable WiFi automatically")
+                QMessageBox.warning(
+                    self,
+                    "WiFi Turnoff Failed",
+                    "Could not turn off WiFi automatically.\n\n"
+                    "Please turn off WiFi manually:\n"
+                    "• Click network icon → Turn off WiFi\n\n"
+                    "Then click the button again to lock the device.",
+                )
+                return
+
+            # Step 2: Lock the device
             lock_commands = [
                 ["loginctl", "lock-session"],  # Modern systemd method
                 ["gnome-screensaver-command", "-l"],  # GNOME screensaver
@@ -416,28 +463,24 @@ class DeviceLockingStep(WizardStep):
 
             if locked:
                 self._mark_setup_complete()
-                QMessageBox.information(
-                    self,
-                    "Device Locked",
-                    "The device has been locked successfully.\n\nSetup is complete!",
-                )
+                # No dialog box - screen is locked now
             else:
                 self.logger.error("All lock methods failed")
                 QMessageBox.warning(
                     self,
                     "Lock Failed",
-                    "Could not lock the device automatically.\n\n"
+                    "WiFi has been turned off, but could not lock the device automatically.\n\n"
                     "Please lock the device manually:\n"
                     "• Click the power button (top right) → Lock\n"
                     "• Or press Super key → Type 'lock' → Enter",
                 )
 
         except Exception as e:
-            self.logger.error(f"Error attempting to lock device: {e}")
+            self.logger.error(f"Error attempting to turn off WiFi and lock device: {e}")
             QMessageBox.critical(
                 self,
                 "Error",
-                f"An error occurred while trying to lock the device:\n{e}",
+                f"An error occurred:\n{e}",
             )
 
     @handle_step_error

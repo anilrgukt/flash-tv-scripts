@@ -9,8 +9,12 @@ import subprocess
 from glob import glob
 from datetime import datetime
 
-from PyQt6.QtWidgets import QWidget, QMessageBox, QLineEdit
-from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QWidget, QMessageBox, QLineEdit, QVBoxLayout
+from PyQt6.QtCore import QTimer, Qt
+
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
+import matplotlib.dates as mdates
 
 from core import WizardStep
 from core.exceptions import handle_step_error, FlashTVError, ErrorType
@@ -29,15 +33,11 @@ class SmartPlugVerifyStep(WizardStep):
         main_layout = self.ui_factory.create_main_step_layout()
         content.setLayout(main_layout)
 
-        # Create top row sections
-        top_section = self._create_top_section()
-        main_layout.addLayout(top_section)
+        # Create interactive plot section
+        plot_section = self._create_plot_section()
+        main_layout.addWidget(plot_section, 1)
 
-        # Create middle row sections
-        middle_section = self._create_middle_section()
-        main_layout.addLayout(middle_section)
-
-        # Create output section
+        # Create output section (verification log and CSV data)
         output_section = self._create_output_section()
         main_layout.addWidget(output_section, 1)
 
@@ -174,6 +174,61 @@ class SmartPlugVerifyStep(WizardStep):
 
         return instruction_group
 
+    def _create_plot_section(self) -> QWidget:
+        """Create the interactive power plot section."""
+        plot_group, plot_layout = self.ui_factory.create_group_box("Interactive TV Power Plot - Click to Mark ON/OFF Periods")
+
+        # Initialize marker state
+        self.markers = {
+            'on': [],    # Will hold [start_marker, end_marker] or [marker] if incomplete
+            'off': []    # Will hold [start_marker, end_marker] or [marker] if incomplete
+        }
+        self.selected_marker = None
+        self.dragging = False
+        self.current_marker_type = 'on'  # Toggle between 'on' and 'off'
+
+        # Create matplotlib figure
+        self.figure = Figure(figsize=(12, 4))
+        self.canvas = FigureCanvas(self.figure)
+        self.ax = self.figure.add_subplot(111)
+
+        # Initialize empty plot
+        self.ax.set_xlabel('Time')
+        self.ax.set_ylabel('Power (W)')
+        self.ax.set_title('Click to place markers: Green=ON period, Red=OFF period | Press Delete to remove selected marker set')
+        self.ax.grid(True, alpha=0.3)
+
+        # Connect events
+        self.canvas.mpl_connect('button_press_event', self._on_plot_click)
+        self.canvas.mpl_connect('button_release_event', self._on_plot_release)
+        self.canvas.mpl_connect('motion_notify_event', self._on_plot_motion)
+        self.canvas.mpl_connect('key_press_event', self._on_plot_key)
+
+        # Add canvas to layout
+        plot_layout.addWidget(self.canvas)
+
+        # Add marker type toggle button
+        button_layout = self.ui_factory.create_horizontal_layout()
+        self.marker_type_button = self.ui_factory.create_action_button(
+            "Current: ON Period (Green) - Click to Toggle",
+            callback=self._toggle_marker_type,
+            style=ButtonStyle.SUCCESS,
+            height=35,
+        )
+        button_layout.addWidget(self.marker_type_button)
+
+        self.clear_markers_button = self.ui_factory.create_action_button(
+            "Clear All Markers",
+            callback=self._clear_all_markers,
+            style=ButtonStyle.DANGER,
+            height=35,
+        )
+        button_layout.addWidget(self.clear_markers_button)
+
+        plot_layout.addLayout(button_layout)
+
+        return plot_group
+
     def _create_output_section(self) -> QWidget:
         """Create the verification log output section using UI factory."""
         # Create a horizontal layout for two columns
@@ -206,6 +261,170 @@ class SmartPlugVerifyStep(WizardStep):
         )
 
         return button_layout
+
+    def _toggle_marker_type(self, checked: bool = False) -> None:
+        """Toggle between ON and OFF marker types."""
+        self.current_marker_type = 'off' if self.current_marker_type == 'on' else 'on'
+        if self.current_marker_type == 'on':
+            self.marker_type_button.setText("Current: ON Period (Green) - Click to Toggle")
+            self.marker_type_button.setStyleSheet("background-color: #4CAF50;")
+        else:
+            self.marker_type_button.setText("Current: OFF Period (Red) - Click to Toggle")
+            self.marker_type_button.setStyleSheet("background-color: #f44336;")
+
+    def _clear_all_markers(self, checked: bool = False) -> None:
+        """Clear all markers from the plot."""
+        self.markers = {'on': [], 'off': []}
+        self.selected_marker = None
+        self._redraw_plot()
+        self.output_text.append("Cleared all markers")
+
+    def _on_plot_click(self, event):
+        """Handle mouse click on plot."""
+        if event.inaxes != self.ax or not hasattr(self, 'power_times'):
+            return
+
+        # Check if clicking near an existing marker to select it
+        clicked_marker = self._find_marker_at_position(event.xdata)
+
+        if clicked_marker:
+            self.selected_marker = clicked_marker
+            self.dragging = True
+            self.output_text.append(f"Selected marker at {event.xdata:.2f}")
+        else:
+            # Place new marker
+            marker_type = self.current_marker_type
+            if len(self.markers[marker_type]) < 2:
+                self.markers[marker_type].append(event.xdata)
+                self.output_text.append(f"Placed {marker_type.upper()} marker {len(self.markers[marker_type])}/2")
+
+                # Enable data verified button if both marker sets are complete
+                if len(self.markers['on']) == 2 and len(self.markers['off']) == 2:
+                    self.data_verified_button.setEnabled(True)
+                    self.output_text.append("✅ Both ON and OFF periods marked - ready to verify")
+            else:
+                self.output_text.append(f"⚠️ {marker_type.upper()} period already has 2 markers. Toggle type or delete existing markers.")
+
+            self._redraw_plot()
+
+    def _on_plot_release(self, event):
+        """Handle mouse button release."""
+        if self.dragging:
+            self.dragging = False
+            self.selected_marker = None
+
+    def _on_plot_motion(self, event):
+        """Handle mouse motion for dragging markers."""
+        if self.dragging and self.selected_marker and event.inaxes == self.ax:
+            # Update marker position
+            marker_type, marker_index = self.selected_marker
+            self.markers[marker_type][marker_index] = event.xdata
+            self._redraw_plot()
+
+    def _on_plot_key(self, event):
+        """Handle key press events."""
+        if event.key == 'delete' and self.selected_marker:
+            marker_type, marker_index = self.selected_marker
+            # Delete the entire marker set
+            self.markers[marker_type] = []
+            self.selected_marker = None
+            self.output_text.append(f"Deleted {marker_type.upper()} marker set")
+            self.data_verified_button.setEnabled(False)
+            self._redraw_plot()
+
+    def _find_marker_at_position(self, x_pos):
+        """Find if a marker exists near the clicked position."""
+        if not hasattr(self, 'power_times') or len(self.power_times) == 0:
+            return None
+
+        # Convert x_pos to data coordinates
+        x_range = self.power_times[-1] - self.power_times[0]
+        tolerance = x_range * 0.02  # 2% of x-axis range
+
+        for marker_type in ['on', 'off']:
+            for i, marker_x in enumerate(self.markers[marker_type]):
+                if abs(marker_x - x_pos) < tolerance:
+                    return (marker_type, i)
+        return None
+
+    def _redraw_plot(self):
+        """Redraw the plot with current data and markers."""
+        if not hasattr(self, 'power_values') or not hasattr(self, 'power_times'):
+            return
+
+        self.ax.clear()
+
+        # Plot power data
+        self.ax.plot(self.power_times, self.power_values, 'b-', linewidth=1.5, label='TV Power')
+
+        # Draw completed marker sets with shaded regions
+        for marker_type in ['on', 'off']:
+            markers = self.markers[marker_type]
+            color = '#4CAF50' if marker_type == 'on' else '#f44336'
+            gray_color = '#808080'
+
+            if len(markers) == 2:
+                # Draw shaded region for complete marker set
+                start, end = sorted(markers)
+                self.ax.axvspan(start, end, alpha=0.3, color=color, label=f'{marker_type.upper()} Period')
+                # Draw marker lines
+                self.ax.axvline(start, color=color, linestyle='--', linewidth=2)
+                self.ax.axvline(end, color=color, linestyle='--', linewidth=2)
+            elif len(markers) == 1:
+                # Draw single gray marker for incomplete set
+                self.ax.axvline(markers[0], color=gray_color, linestyle='--', linewidth=2, label=f'{marker_type.upper()} (incomplete)')
+
+        self.ax.set_xlabel('Time')
+        self.ax.set_ylabel('Power (W)')
+        self.ax.set_title('Click to place markers: Green=ON period, Red=OFF period | Press Delete to remove selected marker set')
+        self.ax.grid(True, alpha=0.3)
+        self.ax.legend()
+
+        self.canvas.draw()
+
+    def _load_power_data(self):
+        """Load power data from CSV and plot it."""
+        try:
+            participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
+            username = self.state.get_user_input("username", "")
+
+            if not all([participant_id, device_id, username]):
+                return
+
+            full_id = f"{participant_id}{device_id}"
+            csv_file = f"/home/{username}/data/{full_id}_data/{full_id}_tv_power_5s.csv"
+
+            if not os.path.exists(csv_file):
+                return
+
+            # Read CSV file
+            times = []
+            powers = []
+
+            with open(csv_file, 'r') as f:
+                for line in f:
+                    parts = line.strip().split(';')
+                    if len(parts) >= 3:
+                        try:
+                            power = float(parts[0])
+                            date_str = parts[1]
+                            time_str = parts[2]
+                            datetime_str = f"{date_str} {time_str}"
+                            dt = datetime.strptime(datetime_str, "%Y-%m-%d %H:%M:%S")
+                            times.append(dt.timestamp())
+                            powers.append(power)
+                        except:
+                            continue
+
+            if times and powers:
+                self.power_times = times
+                self.power_values = powers
+                self._redraw_plot()
+                self.output_text.append(f"✅ Loaded {len(powers)} power readings")
+
+        except Exception as e:
+            self.logger.error(f"Error loading power data: {e}")
 
     @handle_step_error
     def _launch_browser_automation(self, checked: bool = False) -> None:
@@ -501,11 +720,15 @@ class SmartPlugVerifyStep(WizardStep):
                     # Read and display CSV file content
                     self._display_csv_file(csv_file, full_id)
 
+                    # Reload power data for the plot
+                    self._load_power_data()
+
                     # Only log once when file is first detected
                     if "Smart plug data file detected" not in self.output_text.toPlainText():
                         self.logger.info(f"Smart plug CSV file found: {csv_file}")
                         self.output_text.append(f"✅ Smart plug data file detected: {full_id}_tv_power_5s.csv")
                         self.output_text.append(f"📊 CSV data is being displayed in the right panel")
+                        self.output_text.append(f"📈 Interactive plot is updating - click to mark ON/OFF periods")
                 else:
                     self.logger.debug(f"Smart plug CSV file not found yet: {csv_file}")
                     self.csv_output.setPlainText(f"Waiting for file: {csv_file}\n\nThe file will be created once Home Assistant starts logging power data.")
@@ -581,8 +804,17 @@ class SmartPlugVerifyStep(WizardStep):
                 self.state.set_user_input("smart_plug_verified", True)
                 self.state.set_user_input(
                     "smart_plug_verification_method",
-                    "browser" if self.browser_launched else "manual",
+                    "interactive_plot",
                 )
+
+                # Save marked ON/OFF periods
+                if len(self.markers['on']) == 2 and len(self.markers['off']) == 2:
+                    self.state.set_user_input("tv_on_period_start", min(self.markers['on']))
+                    self.state.set_user_input("tv_on_period_end", max(self.markers['on']))
+                    self.state.set_user_input("tv_off_period_start", min(self.markers['off']))
+                    self.state.set_user_input("tv_off_period_end", max(self.markers['off']))
+                    self.output_text.append(f"📊 Saved ON period: {min(self.markers['on']):.2f} - {max(self.markers['on']):.2f}")
+                    self.output_text.append(f"📊 Saved OFF period: {min(self.markers['off']):.2f} - {max(self.markers['off']):.2f}")
 
                 # Persist state
                 if self.state_manager:
@@ -643,6 +875,9 @@ class SmartPlugVerifyStep(WizardStep):
         # Start status monitoring immediately when step is activated
         self.logger.info("Starting status monitoring timer")
         self.status_timer.start(5000)  # Check every 5 seconds
+
+        # Load power data for the plot
+        self._load_power_data()
 
         # Check if already verified
         if self.state.get_user_input("smart_plug_verified", False):
