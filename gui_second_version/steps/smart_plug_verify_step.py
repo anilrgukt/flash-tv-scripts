@@ -20,12 +20,58 @@ from core import WizardStep
 
 
 class TimeAxisItem(pg.AxisItem):
-    """Custom axis item that formats time values as MM:SS."""
+    """Custom axis item that formats time values as MM:SS with limited tick count."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.enableAutoSIPrefix(False)  # Disable SI prefix scaling
+
+    def tickValues(self, minVal, maxVal, size):
+        """Override to generate a reasonable number of ticks (max ~20)."""
+        # Calculate range
+        data_range = maxVal - minVal
+
+        if data_range <= 0:
+            return []
+
+        # Determine appropriate tick spacing based on range
+        # Aim for 10-20 ticks
+        target_ticks = 15
+        raw_spacing = data_range / target_ticks
+
+        # Round to nice intervals (1s, 5s, 10s, 30s, 1min, 5min, 10min, 30min, 1hr, etc.)
+        nice_intervals = [1, 5, 10, 30, 60, 300, 600, 1800, 3600, 7200, 10800, 21600, 43200, 86400]
+
+        # Find the closest nice interval
+        spacing = min(nice_intervals, key=lambda x: abs(x - raw_spacing))
+
+        # Generate major ticks
+        major_ticks = []
+        tick = np.ceil(minVal / spacing) * spacing
+        while tick <= maxVal:
+            major_ticks.append(tick)
+            tick += spacing
+
+        # Generate minor ticks (5x denser)
+        minor_spacing = spacing / 5
+        minor_ticks = []
+        tick = np.ceil(minVal / minor_spacing) * minor_spacing
+        while tick <= maxVal:
+            if tick not in major_ticks:  # Don't duplicate major ticks
+                minor_ticks.append(tick)
+            tick += minor_spacing
+
+        return [(spacing, major_ticks), (minor_spacing, minor_ticks)]
 
     def tickStrings(self, values, scale, spacing):
         """Override to format tick labels as MM:SS or HH:MM:SS."""
         strings = []
         for value in values:
+            # Handle edge cases
+            if not np.isfinite(value):
+                strings.append("")
+                continue
+
             total_seconds = int(value)
             hours = total_seconds // 3600
             minutes = (total_seconds % 3600) // 60
@@ -595,9 +641,8 @@ class SmartPlugVerifyStep(WizardStep):
             # Update existing curve with new data
             self.power_curve.setData(self.power_times, self.power_values)
 
-        # Configure tick spacing (TimeAxisItem handles formatting)
-        axis = self.plot_widget.getAxis('bottom')
-        axis.setTickSpacing(major=60, minor=10)  # Major ticks every minute, minor every 10 seconds
+        # Let pyqtgraph auto-calculate tick spacing - manual spacing can cause memory issues
+        # TimeAxisItem will format the ticks as MM:SS or HH:MM:SS
 
         # Draw shaded regions for completed marker pairs
         for marker_type in ['on', 'off']:
