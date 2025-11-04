@@ -17,6 +17,28 @@ import pyqtgraph as pg
 import numpy as np
 
 from core import WizardStep
+
+
+class TimeAxisItem(pg.AxisItem):
+    """Custom axis item that formats time values as MM:SS."""
+
+    def tickStrings(self, values, scale, spacing):
+        """Override to format tick labels as MM:SS or HH:MM:SS."""
+        strings = []
+        for value in values:
+            total_seconds = int(value)
+            hours = total_seconds // 3600
+            minutes = (total_seconds % 3600) // 60
+            seconds = total_seconds % 60
+
+            if hours > 0:
+                # Show HH:MM:SS if duration is over 1 hour
+                strings.append(f"{hours:02d}:{minutes:02d}:{seconds:02d}")
+            else:
+                # Show MM:SS for durations under 1 hour
+                strings.append(f"{minutes:02d}:{seconds:02d}")
+
+        return strings
 from core.exceptions import handle_step_error, FlashTVError, ErrorType
 from models import StepStatus
 from utils.ui_factory import ButtonStyle
@@ -192,14 +214,24 @@ class SmartPlugVerifyStep(WizardStep):
         self.current_marker_type = 'on'  # Toggle between 'on' and 'off' when placing
         self.region_items = []  # Store LinearRegionItem objects for shaded regions
 
-        # Create pyqtgraph plot widget
-        self.plot_widget = pg.PlotWidget()
+        # Data boundaries for axis restrictions
+        self.data_start_time = None
+        self.data_end_time = None
+        self.data_min_y = 0
+        self.data_max_y = 100
+
+        # Create pyqtgraph plot widget with custom time axis
+        time_axis = TimeAxisItem(orientation='bottom')
+        self.plot_widget = pg.PlotWidget(axisItems={'bottom': time_axis})
         self.plot_widget.setBackground('w')
         self.plot_widget.setLabel('left', 'Power (W)')
-        self.plot_widget.setLabel('bottom', 'Time (seconds)')
+        self.plot_widget.setLabel('bottom', 'Time')
         self.plot_widget.setTitle('Click to place markers: Green=ON period, Red=OFF period | Press Delete to remove selected marker set')
         self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
         self.plot_widget.setMinimumHeight(300)
+
+        # Set to panning mode instead of rectangle selection
+        self.plot_widget.plotItem.getViewBox().setMouseMode(pg.ViewBox.PanMode)
 
         # Enable keyboard events for Delete key
         self.plot_widget.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -210,6 +242,10 @@ class SmartPlugVerifyStep(WizardStep):
 
         # Connect mouse click events for adding markers
         self.plot_widget.scene().sigMouseClicked.connect(self._on_plot_click)
+
+        # Connect range change signal for axis restrictions
+        self.vb = self.plot_widget.plotItem.getViewBox()
+        self.vb.sigRangeChanged.connect(self._enforce_range_limits)
 
         # Add plot to layout
         plot_layout.addWidget(self.plot_widget)
@@ -481,6 +517,61 @@ class SmartPlugVerifyStep(WizardStep):
             if pairs['offset']:
                 pairs['offset'].setPen(pg.mkPen(color, width=line_width, style=Qt.PenStyle.DashLine))
 
+    def _enforce_range_limits(self) -> None:
+        """Enforce strict pan/zoom boundaries."""
+        if self.data_start_time is None or self.data_end_time is None:
+            return
+
+        current_range = self.vb.viewRange()
+        x_range = current_range[0]  # [xmin, xmax]
+        y_range = current_range[1]  # [ymin, ymax]
+
+        # X-axis boundaries
+        max_start = self.data_start_time
+        max_end = self.data_end_time
+
+        # Correct out-of-bounds X ranges
+        x_min = max(x_range[0], max_start)  # Can't pan before start
+        x_max = min(x_range[1], max_end)  # Can't pan after end
+
+        # Prevent zooming out beyond allowed range
+        current_width = x_max - x_min
+        max_width = max_end - max_start
+
+        if current_width > max_width:
+            # Force back to full allowed range
+            x_min = max_start
+            x_max = max_end
+        elif current_width < 60:  # Minimum 1 minute visible (60 seconds)
+            # Prevent over-zooming
+            center = (x_range[0] + x_range[1]) / 2
+            x_min = center - 30  # 30 seconds before center
+            x_max = center + 30  # 30 seconds after center
+
+            # Adjust if this pushes us out of bounds
+            if x_min < max_start:
+                x_min = max_start
+                x_max = x_min + 60
+            elif x_max > max_end:
+                x_max = max_end
+                x_min = x_max - 60
+
+        # Force Y range to always be the full data range (no Y-axis zooming)
+        y_min = self.data_min_y  # Always 0
+        y_max = self.data_max_y  # Always 1.5x max value
+
+        # Fix Y-axis range on the axis itself to prevent visual changes
+        self.plot_widget.getAxis("left").setRange(y_min, y_max)
+
+        # Apply corrected ranges if needed
+        x_changed = abs(x_min - x_range[0]) > 0.1 or abs(x_max - x_range[1]) > 0.1
+        y_changed = abs(y_min - y_range[0]) > 0.1 or abs(y_max - y_range[1]) > 0.1
+
+        if x_changed or y_changed:
+            self.vb.blockSignals(True)
+            self.vb.setRange(xRange=[x_min, x_max], yRange=[y_min, y_max], padding=0)
+            self.vb.blockSignals(False)
+
     def _redraw_plot(self):
         """Redraw the plot with current data and shaded regions."""
         if not hasattr(self, 'power_values') or not hasattr(self, 'power_times'):
@@ -504,8 +595,9 @@ class SmartPlugVerifyStep(WizardStep):
             # Update existing curve with new data
             self.power_curve.setData(self.power_times, self.power_values)
 
-        # Update x-axis label to show time
-        self.plot_widget.setLabel('bottom', 'Time (seconds)')
+        # Configure tick spacing (TimeAxisItem handles formatting)
+        axis = self.plot_widget.getAxis('bottom')
+        axis.setTickSpacing(major=60, minor=10)  # Major ticks every minute, minor every 10 seconds
 
         # Draw shaded regions for completed marker pairs
         for marker_type in ['on', 'off']:
@@ -588,8 +680,23 @@ class SmartPlugVerifyStep(WizardStep):
                 self.power_values = np.array(powers)
                 self.first_timestamp = first_timestamp
 
+                # Set data boundaries for axis restrictions
+                self.data_start_time = 0  # Start at 0 seconds
+                self.data_end_time = self.power_times[-1]  # End at last timestamp
+                self.data_min_y = 0  # Always start at 0
+                self.data_max_y = max(powers) * 1.5 if powers else 100  # 1.5x max power
+
                 # Always redraw plot with latest data
                 self._redraw_plot()
+
+                # Set initial view range (only on first load)
+                if not hasattr(self, '_initial_view_set'):
+                    self.vb.setRange(
+                        xRange=[self.data_start_time, self.data_end_time],
+                        yRange=[self.data_min_y, self.data_max_y],
+                        padding=0
+                    )
+                    self._initial_view_set = True
 
                 # Only log once
                 if not hasattr(self, '_data_loaded_logged'):
@@ -600,7 +707,7 @@ class SmartPlugVerifyStep(WizardStep):
                 if hasattr(self, 'marker_lines'):
                     for line in self.marker_lines:
                         if hasattr(line, 'setBounds'):
-                            line.setBounds([0, self.power_times[-1]])
+                            line.setBounds([self.data_start_time, self.data_end_time])
 
         except Exception as e:
             self.logger.error(f"Error loading power data: {e}")

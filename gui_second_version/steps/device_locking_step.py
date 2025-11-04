@@ -127,11 +127,17 @@ class DeviceLockingStep(WizardStep):
         self.smart_plug_label.setFont(QFont("Arial", 11))
         layout.addWidget(self.smart_plug_label)
 
-        # Last stderr log entry
-        self.stderr_log_label = QLabel("<b>Last FLASH Log Line:</b> --")
+        # Last FLASH error from stderr
+        self.stderr_log_label = QLabel("<b>Last FLASH Error:</b> --")
         self.stderr_log_label.setFont(QFont("Arial", 11))
         self.stderr_log_label.setWordWrap(True)
         layout.addWidget(self.stderr_log_label)
+
+        # Last main gaze log line
+        self.gaze_log_label = QLabel("<b>Last Main Gaze Log Line:</b> --")
+        self.gaze_log_label.setFont(QFont("Arial", 11))
+        self.gaze_log_label.setWordWrap(True)
+        layout.addWidget(self.gaze_log_label)
 
         # RTC times
         self.rtc_times_label = QLabel("<b>RTC Times:</b> --")
@@ -232,9 +238,13 @@ class DeviceLockingStep(WizardStep):
             else:
                 self.smart_plug_label.setText(f"<b>Smart Plug:</b> ❌ Not verified | Last Reading: {last_power}")
 
-            # Update last stderr log entry
-            last_stderr = self._get_last_stderr_entry()
-            self.stderr_log_label.setText(f"<b>Last FLASH Log Line:</b> {last_stderr}")
+            # Update last FLASH error from stderr
+            last_error = self._get_last_flash_error()
+            self.stderr_log_label.setText(f"<b>Last FLASH Error:</b> {last_error}")
+
+            # Update last main gaze log line
+            last_gaze_line = self._get_last_gaze_log_line()
+            self.gaze_log_label.setText(f"<b>Last Main Gaze Log Line:</b> {last_gaze_line}")
 
             # Update RTC times
             rtc_times = self._get_rtc_times()
@@ -308,8 +318,44 @@ class DeviceLockingStep(WizardStep):
             self.logger.debug(f"Error reading power data: {e}")
             return "Error"
 
-    def _get_last_stderr_entry(self) -> str:
-        """Get the last stderr log entry."""
+    def _get_last_flash_error(self) -> str:
+        """Get the last FLASH error from stderr log."""
+        try:
+            participant_id = self.state.get_user_input("participant_id", "")
+            device_id = self.state.get_user_input("device_id", "")
+            username = self.state.get_user_input("username", "")
+
+            if not all([participant_id, device_id, username]):
+                return "No errors yet"
+
+            full_id = f"{participant_id}{device_id}"
+            stderr_log = f"/home/{username}/data/{full_id}_data/{full_id}_flash_logstderr.log"
+
+            if os.path.exists(stderr_log):
+                with open(stderr_log, "r", errors="ignore") as f:
+                    lines = f.readlines()
+                    if lines:
+                        # Get last non-empty line that looks like an error
+                        # Errors typically contain keywords like "error", "Error", "failed", "Failed", "exception", "Exception"
+                        for line in reversed(lines):
+                            line = line.strip()
+                            if line:
+                                # Check if it's an error line
+                                lower_line = line.lower()
+                                if any(keyword in lower_line for keyword in ["error", "failed", "exception", "traceback", "warning"]):
+                                    # Truncate if too long
+                                    return line[:100] + "..." if len(line) > 100 else line
+                        # If no error keywords found, return the last line anyway
+                        last_line = lines[-1].strip()
+                        if last_line:
+                            return last_line[:100] + "..." if len(last_line) > 100 else last_line
+            return "No errors yet"
+        except Exception as e:
+            self.logger.debug(f"Error reading stderr log: {e}")
+            return "Error reading log"
+
+    def _get_last_gaze_log_line(self) -> str:
+        """Get the last line from the main gaze log file."""
         try:
             participant_id = self.state.get_user_input("participant_id", "")
             device_id = self.state.get_user_input("device_id", "")
@@ -319,10 +365,22 @@ class DeviceLockingStep(WizardStep):
                 return "No log yet"
 
             full_id = f"{participant_id}{device_id}"
-            stderr_log = f"/home/{username}/data/{full_id}_data/{full_id}_flash_logstderr.log"
+            data_path = f"/home/{username}/data/{full_id}_data"
 
-            if os.path.exists(stderr_log):
-                with open(stderr_log, "r", errors="ignore") as f:
+            # Find the most recent main gaze log file
+            # Pattern: {full_id}_flash_log_YYYY-MM-DD_HH-MM-SS.txt (not _rot or _reg)
+            import glob
+            log_pattern = os.path.join(data_path, f"{full_id}_flash_log_*.txt")
+            log_files = glob.glob(log_pattern)
+
+            # Filter out _rot.txt and _reg.txt files
+            main_logs = [f for f in log_files if not (f.endswith("_rot.txt") or f.endswith("_reg.txt"))]
+
+            if main_logs:
+                # Get the most recent log file
+                latest_log = max(main_logs, key=os.path.getmtime)
+
+                with open(latest_log, "r", errors="ignore") as f:
                     lines = f.readlines()
                     if lines:
                         # Get last non-empty line
@@ -330,11 +388,12 @@ class DeviceLockingStep(WizardStep):
                             line = line.strip()
                             if line:
                                 # Truncate if too long
-                                return line[:100] + "..." if len(line) > 100 else line
-            return "No entries yet"
+                                return line[:150] + "..." if len(line) > 150 else line
+
+            return "No log entries yet"
         except Exception as e:
-            self.logger.debug(f"Error reading stderr log: {e}")
-            return "Error"
+            self.logger.debug(f"Error reading gaze log: {e}")
+            return "Error reading log"
 
     def _get_rtc_times(self) -> str:
         """Get RTC times from both RTCs and system time using the existing Python script."""
@@ -371,27 +430,70 @@ class DeviceLockingStep(WizardStep):
                 rtc1_time = "N/A"
                 external_rtc_time = "N/A"
 
+                import re
+
                 for line in lines:
                     if "Local time:" in line:
                         # Extract system time from timedatectl output
+                        # Format: "Local time: Wed 2025-01-15 14:30:45 EST"
                         parts = line.split("Local time:", 1)
                         if len(parts) > 1:
-                            system_time = parts[1].strip().split()[0:2]  # Get date and time
-                            system_time = ' '.join(system_time)
+                            time_str = parts[1].strip()
+                            # Try to extract date and time using regex
+                            # Pattern: skip weekday, extract date and time
+                            match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}', time_str)
+                            if match:
+                                system_time = match.group(0)
+                            else:
+                                # Fallback: split and take date + time parts
+                                time_parts = time_str.split()
+                                if len(time_parts) >= 3:
+                                    system_time = ' '.join(time_parts[1:3])
                     elif "Time from internal RTC rtc0" in line:
+                        # Format: "Time from internal RTC rtc0 (PSEQ_RTC, being used) is: 2025-01-15 14:30:45.123456..."
                         parts = line.split("is:", 1)
                         if len(parts) > 1:
                             rtc0_time = parts[1].strip()
+                            # Extract just the datetime if present
+                            match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}', rtc0_time)
+                            if match:
+                                rtc0_time = match.group(0)
+                            elif not rtc0_time or "None" in rtc0_time or "Unable" in rtc0_time:
+                                rtc0_time = "Not available"
                     elif "Time from external RTC" in line:
+                        # Format: "Time from external RTC (DS3231) is: 2025-01-15 14:30:45" or error message
                         parts = line.split("is:", 1)
                         if len(parts) > 1:
                             external_rtc_time = parts[1].strip()
+                            # Check if it's an error message
+                            if "was incomparable or incorrect" in external_rtc_time:
+                                # Extract datetime from error message
+                                match = re.search(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})', external_rtc_time)
+                                if match:
+                                    external_rtc_time = f"{match.group(1)} (⚠️ validation failed)"
+                                else:
+                                    external_rtc_time = "Validation failed"
+                            else:
+                                # Extract just the datetime
+                                match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}', external_rtc_time)
+                                if match:
+                                    external_rtc_time = match.group(0)
+                                elif not external_rtc_time or "None" in external_rtc_time:
+                                    external_rtc_time = "Not available"
                     elif "Time from internal RTC rtc1" in line:
+                        # Format: "Time from internal RTC rtc1 (tegra-RTC, not being used) is: 2025-01-15 14:30:45..."
                         parts = line.split("is:", 1)
                         if len(parts) > 1:
                             rtc1_time = parts[1].strip()
+                            # Extract just the datetime if present
+                            match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}', rtc1_time)
+                            if match:
+                                rtc1_time = match.group(0)
+                            elif not rtc1_time or "None" in rtc1_time or "Unable" in rtc1_time:
+                                rtc1_time = "Not available"
 
-                return f"System: {system_time} | RTC0: {rtc0_time} | External: {external_rtc_time} | RTC1: {rtc1_time}"
+                # Format the display - Note: External RTC (DS3231) may be exposed as /dev/rtc1 on some systems
+                return f"System: {system_time} | RTC0: {rtc0_time} | External RTC: {external_rtc_time} | RTC1: {rtc1_time}"
             else:
                 self.logger.debug(f"RTC script error: {result.stderr}")
                 return "Error running RTC script"
