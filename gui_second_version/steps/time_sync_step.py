@@ -731,6 +731,19 @@ class TimeSyncStep(WizardStep):
         super().update_ui()
         # No longer monitoring RTC processes since we use synchronous run_sudo_command
 
+    def deactivate_step(self) -> None:
+        """Deactivate step when navigating away - stop timers."""
+        try:
+            self.logger.info("Deactivating time synchronization step")
+
+            # Stop time update timer to prevent resource leaks
+            if hasattr(self, "time_update_timer") and self.time_update_timer.isActive():
+                self.time_update_timer.stop()
+                self.logger.info("Stopped time update timer on deactivation")
+
+        except Exception as e:
+            self.logger.error(f"Error during step deactivation: {e}")
+
     def cleanup(self) -> None:
         """Clean up resources when step is destroyed."""
         try:

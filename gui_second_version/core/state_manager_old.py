@@ -94,10 +94,10 @@ class StateManager:
 
         recovery_text = (
             f"Found incomplete setup session:\n\n"
-            f"• Participant ID: {session_info['participant_id']}\n"
-            f"• Current step: {session_info['current_step']}\n"
-            f"• Completed steps: {session_info['completed_steps']}/{session_info['total_steps']}\n"
-            f"• Last saved: {session_info['last_saved']}\n\n"
+            f"Participant ID: {session_info['participant_id']}\n"
+            f"Current step: {session_info['current_step']}\n"
+            f"Completed steps: {session_info['completed_steps']}/{session_info['total_steps']}\n"
+            f"Last saved: {session_info['last_saved']}\n\n"
             f"Would you like to resume this session?"
         )
 

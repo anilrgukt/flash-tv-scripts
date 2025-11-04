@@ -322,9 +322,9 @@ class ServiceStartupStep(WizardStep):
         # Service info
         service_info = self.ui_factory.create_label(
             "Services to be started:\n"
-            "• flash-run-on-boot.service (systemd)\n"
-            "• flash-periodic-restart.service (systemd)\n"
-            "• Home Assistant Docker container\n\n"
+            "flash-run-on-boot.service (systemd)\n"
+            "flash-periodic-restart.service (systemd)\n"
+            "Home Assistant Docker container\n\n"
             "These manage FLASH-TV data collection and restarts."
         )
         service_layout.addWidget(service_info)
@@ -1321,11 +1321,11 @@ class ServiceStartupStep(WizardStep):
                 "Service Issues",
                 "Service issues detected.\n\n"
                 "Common troubleshooting steps:\n"
-                "• Check camera connection\n"
-                "• Verify face gallery setup\n"
-                "• Check file permissions\n"
-                "• Review error messages above\n"
-                "• Try restarting services\n\n"
+                "Check camera connection\n"
+                "Verify face gallery setup\n"
+                "Check file permissions\n"
+                "Review error messages above\n"
+                "Try restarting services\n\n"
                 "Fix issues and restart services before continuing."
             )
 
@@ -1365,10 +1365,25 @@ class ServiceStartupStep(WizardStep):
             self.continue_button.setEnabled(True)
             self.update_status(StepStatus.COMPLETED)
 
+            # Start log monitoring if services are already running
+            self.logger.info("Services already verified - starting log monitoring")
+            self._start_log_monitoring()
+
     def update_ui(self) -> None:
         """Update UI elements periodically."""
         super().update_ui()
         # Services are managed by systemd, no need to monitor processes
+
+    def deactivate_step(self) -> None:
+        """Deactivate step when navigating away - stop timers."""
+        try:
+            self.logger.info("Deactivating service startup step")
+
+            # Stop log monitoring to prevent resource leaks
+            self._stop_log_monitoring()
+
+        except Exception as e:
+            self.logger.error(f"Error during step deactivation: {e}")
 
     def _configure_service_files(self, username: str, participant_id: str, device_id: str) -> None:
         """Configure service files by replacing placeholder values with participant details."""

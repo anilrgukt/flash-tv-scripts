@@ -62,9 +62,7 @@ class GalleryCreationStep(WizardStep):
 
     def _create_setup_section(self) -> QWidget:
         """Create the gallery setup section using UI factory."""
-        setup_group, setup_layout = self.ui_factory.create_group_box(
-            UI.FACE_GALLERY_SETUP
-        )
+        setup_group, setup_layout = self.ui_factory.create_group_box(UI.FACE_GALLERY_SETUP)
 
         # Instructions
         instructions = self.ui_factory.create_label(
@@ -80,12 +78,8 @@ class GalleryCreationStep(WizardStep):
         path_label.setMinimumWidth(120)
         path_layout.addWidget(path_label)
 
-        self.gallery_path_input = self.ui_factory.create_label(
-            "Will be auto-generated from participant info"
-        )
-        self.gallery_path_input.setStyleSheet(
-            "border: 1px solid #ccc; padding: 5px; background: #f5f5f5; color: #666;"
-        )
+        self.gallery_path_input = self.ui_factory.create_label("Will be auto-generated from participant info")
+        self.gallery_path_input.setStyleSheet("border: 1px solid #ccc; padding: 5px; background: #f5f5f5; color: #666;")
         path_layout.addWidget(self.gallery_path_input, 1)
 
         setup_layout.addLayout(path_layout)
@@ -94,9 +88,7 @@ class GalleryCreationStep(WizardStep):
 
     def _create_status_section(self) -> QWidget:
         """Create the combined status section for gallery creation and validation."""
-        status_group, status_layout = self.ui_factory.create_group_box(
-            "Gallery Creation and Validation"
-        )
+        status_group, status_layout = self.ui_factory.create_group_box("Gallery Creation and Validation")
 
         # Create gallery button
         self.create_gallery_button = self.ui_factory.create_action_button(
@@ -127,21 +119,19 @@ class GalleryCreationStep(WizardStep):
 
     def _create_shortcuts_section(self) -> QWidget:
         """Create the keyboard shortcuts reference section."""
-        shortcuts_group, shortcuts_layout = self.ui_factory.create_group_box(
-            "⌨️ Keyboard Shortcuts"
-        )
+        shortcuts_group, shortcuts_layout = self.ui_factory.create_group_box("⌨️ Keyboard Shortcuts")
 
         shortcuts_text = self.ui_factory.create_label(
             "<b>Category Selection:</b><br>"
-            "• <b>T</b> - Target Child mode<br>"
-            "• <b>S</b> - Sibling mode<br>"
-            "• <b>P</b> - Parent mode<br>"
-            "• <b>E</b> - Extra person mode<br>"
-            "• <b>U</b> - Unselect current face<br><br>"
+            "<b>T</b> - Target Child mode<br>"
+            "<b>S</b> - Sibling mode<br>"
+            "<b>P</b> - Parent mode<br>"
+            "<b>E</b> - Extra person mode<br>"
+            "<b>U</b> - Unselect current face<br><br>"
             "<b>Capture:</b><br>"
-            "• Click face → Press <b>1-5</b> to save<br>"
-            "• <b>R</b> - Refresh/restart<br>"
-            "• <b>Q</b> - Quit gallery creation<br><br>"
+            "Click face → Press <b>1-5</b> to save<br>"
+            "<b>R</b> - Refresh/restart<br>"
+            "<b>Q</b> - Quit gallery creation<br><br>"
             "<b>Workflow:</b><br>"
             "1. Press category key (T/S/P/E)<br>"
             "2. Click on a face in video<br>"
@@ -240,13 +230,7 @@ class GalleryCreationStep(WizardStep):
 
             self.gallery_output.append(f"\n🚀 Launching gallery creation window...")
 
-            command = [
-                "bash",
-                script_path,
-                full_participant_id,
-                username,
-                data_path
-            ]
+            command = ["bash", script_path, full_participant_id, username, data_path]
 
             process_info = self.process_runner.run_script(
                 command=command,
@@ -304,6 +288,7 @@ class GalleryCreationStep(WizardStep):
 
             # Count existing extra faces
             import glob
+
             extra_pattern = os.path.join(faces_folder, f"{combined_id}_extra*.png")
             extra_faces = glob.glob(extra_pattern)
             extra_count = len(extra_faces)
@@ -334,6 +319,7 @@ class GalleryCreationStep(WizardStep):
 
                 # Copy poster faces to fill the gaps
                 import shutil
+
                 faces_copied = 0
                 for i in range(extra_count + 1, min_faces + 1):
                     # Use modulo to cycle through poster faces
@@ -477,9 +463,7 @@ class GalleryCreationStep(WizardStep):
             gallery_path = self.state.get_user_input("gallery_path", "")
             total_images = self.state.get_user_input("gallery_total_images", 0)
             if gallery_path:
-                self.gallery_output.append(
-                    f"✅ Gallery already validated: {total_images} images"
-                )
+                self.gallery_output.append(f"✅ Gallery already validated: {total_images} images")
                 self.continue_button.setEnabled(True)
                 self.update_status(StepStatus.COMPLETED)
                 self.logger.info("Gallery already validated, skipping")

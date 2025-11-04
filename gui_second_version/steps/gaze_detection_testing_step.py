@@ -106,11 +106,11 @@ class GazeDetectionTestingStep(WizardStep):
         test_info = self.ui_factory.create_label(
             "<b>Status Indicators:</b><br><br>"
             "<b>Gaze Arrows (on target child):</b><br>"
-            "• <b style='color: green;'>GREEN arrow</b> = Looking at TV (gaze detected on-screen)<br>"
-            "• <b style='color: blue;'>BLUE arrow</b> = Looking away from TV (gaze detected off-screen)<br><br>"
+            "<b style='color: green;'>GREEN arrow</b> = Looking at TV (gaze detected on-screen)<br>"
+            "<b style='color: blue;'>BLUE arrow</b> = Looking away from TV (gaze detected off-screen)<br><br>"
             "<b>Face Box Colors:</b><br>"
-            "• <b style='color: red;'>RED box</b> = Target child (TC) detected but no gaze estimation<br>"
-            "• <b>No overlay</b> = No faces detected in frame<br><br>"
+            "<b style='color: red;'>RED box</b> = Target child (TC) detected but no gaze estimation<br>"
+            "<b>No overlay</b> = No faces detected in frame<br><br>"
             "All detected faces are shown with colored boxes based on their verified identity."
         )
         test_info.setWordWrap(True)
@@ -481,6 +481,19 @@ class GazeDetectionTestingStep(WizardStep):
             self.launch_button.setEnabled(True)
             # Remove completed process
             self.state.remove_process("gaze_test")
+
+    def deactivate_step(self) -> None:
+        """Deactivate step when navigating away - stop timers."""
+        try:
+            self.logger.info("Deactivating gaze detection testing step")
+
+            # Stop loading timer to prevent resource leaks
+            if hasattr(self, "loading_timer") and self.loading_timer.isActive():
+                self.loading_timer.stop()
+                self.logger.info("Stopped loading timer on deactivation")
+
+        except Exception as e:
+            self.logger.error(f"Error during step deactivation: {e}")
 
     def _cleanup_step_resources(self) -> None:
         """Clean up step-specific resources."""

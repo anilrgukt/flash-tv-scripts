@@ -219,7 +219,11 @@ class WizardStep(QWidget):
         try:
             self.logger.info(f"Activating step {self.step_definition.step_id}")
 
-            if not self.check_prerequisites():
+            # If step is already completed, skip prerequisite check
+            if self.is_completed():
+                self.logger.info(f"Step {self.step_definition.step_id} already completed, skipping prerequisite check")
+                self.update_status(StepStatus.COMPLETED)
+            elif not self.check_prerequisites():
                 self.update_status(StepStatus.PENDING)
                 self.logger.warning(
                     f"Step {self.step_definition.step_id} prerequisites not met"

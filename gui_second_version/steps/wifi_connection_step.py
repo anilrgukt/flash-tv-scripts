@@ -61,12 +61,12 @@ class WiFiConnectionStep(WizardStep):
         instructions_text = (
             "To connect to WiFi:\n\n"
             "Option 1 - Auto-Connect (Recommended):\n"
-            "• Click 'Auto-Connect to Hotspot' to automatically connect\n"
-            "• If credentials are not in .bashrc, you'll be prompted to enter them\n"
-            "• Supports HOTSPOT1_PSK, HOTSPOT2_PSK, and HOTSPOT3_PSK\n\n"
+            "Click 'Auto-Connect to Hotspot' to automatically connect\n"
+            "If credentials are not in .bashrc, you'll be prompted to enter them\n"
+            "Supports HOTSPOT1_PSK, HOTSPOT2_PSK, and HOTSPOT3_PSK\n\n"
             "Option 2 - Manual Setup:\n"
-            "• Click 'Manual Network Settings' to configure manually\n"
-            "• Connect to your WiFi network using the system settings\n\n"
+            "Click 'Manual Network Settings' to configure manually\n"
+            "Connect to your WiFi network using the system settings\n\n"
             "Click 'Continue' when connected to proceed"
         )
 
@@ -153,9 +153,9 @@ class WiFiConnectionStep(WizardStep):
                     "Open Network Settings",
                     "Please open your system's network settings manually to connect to WiFi.\n\n"
                     "Common ways to access network settings:\n"
-                    "• Click on the network icon in the system tray\n"
-                    "• Go to System Settings → Network\n"
-                    "• Search for 'Network' in your application launcher",
+                    "Click on the network icon in the system tray\n"
+                    "Go to System Settings → Network\n"
+                    "Search for 'Network' in your application launcher",
                 )
 
         except Exception as e:
@@ -242,22 +242,36 @@ class WiFiConnectionStep(WizardStep):
             self.logger.info(f"Running WiFi setup script: {script_path}")
             self.logger.info("Executing: python3 " + script_path)
 
-            result = subprocess.run(["python3", script_path], capture_output=True, text=True, timeout=30)
+            # Use Popen to stream output in real-time
+            process = subprocess.Popen(
+                ["python3", script_path],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,  # Merge stderr into stdout
+                text=True,
+                bufsize=1,  # Line buffered
+                universal_newlines=True
+            )
 
-            # Log the complete output
-            self.logger.info(f"WiFi script completed with return code: {result.returncode}")
+            # Stream output line by line
+            self.logger.info("=== WiFi Script Output (Real-Time) ===")
+            output_lines = []
+            for line in process.stdout:
+                line = line.rstrip()
+                if line:
+                    self.logger.info(f"  {line}")
+                    output_lines.append(line)
 
-            if result.stdout:
-                self.logger.info(f"WiFi script stdout:\n{result.stdout}")
-            else:
-                self.logger.warning("WiFi script produced no stdout output")
+            # Wait for completion with timeout
+            try:
+                returncode = process.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                self.logger.error("WiFi script timeout - process killed")
+                raise
 
-            if result.stderr:
-                self.logger.error(f"WiFi script stderr:\n{result.stderr}")
-            else:
-                self.logger.debug("WiFi script produced no stderr output")
+            self.logger.info(f"=== WiFi Script Completed with return code: {returncode} ===")
 
-            if result.returncode == 0:
+            if returncode == 0:
                 self.wifi_status_label.setText("✅ Successfully connected to hotspot!")
                 self.logger.info("WiFi connection successful - script exited with code 0")
                 self.state.set_user_input("wifi_ssid", "HOTSPOT_CONNECTED")
@@ -266,15 +280,15 @@ class WiFiConnectionStep(WizardStep):
 
                 QMessageBox.information(self, "Connection Successful", "Successfully connected to hotspot!\n\nClick 'Continue' to proceed.")
             else:
-                error_msg = result.stderr if result.stderr else result.stdout if result.stdout else "Unknown error - no output"
-                self.logger.error(f"WiFi connection failed with return code {result.returncode}")
-                self.logger.error(f"Error details: {error_msg}")
+                error_msg = "\n".join(output_lines[-10:]) if output_lines else "Unknown error - no output"
+                self.logger.error(f"WiFi connection failed with return code {returncode}")
+                self.logger.error(f"Last 10 lines of output: {error_msg}")
                 self.wifi_status_label.setText("❌ Failed to connect to hotspot")
 
                 reply = QMessageBox.warning(
                     self,
                     "Connection Failed",
-                    f"Failed to connect to hotspot.\n\nReturn code: {result.returncode}\n\nError: {error_msg}\n\n"
+                    f"Failed to connect to hotspot.\n\nReturn code: {returncode}\n\nLast output:\n{error_msg}\n\n"
                     "Would you like to try manual network settings instead?",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 )

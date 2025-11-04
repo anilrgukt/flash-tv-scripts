@@ -313,10 +313,8 @@ class Messages:
     # Home Assistant messages
     HOME_ASSISTANT_OVERVIEW = """Home Assistant integration allows FLASH-TV to:
 
-• Monitor smart plug power consumption data
-• Track TV on/off states automatically  
-• Integrate with home automation workflows
-• Provide real-time viewing behavior insights
+Monitor smart plug power consumption data
+Track TV on/off states with a plot  
 
 Enter your Home Assistant URL to configure integration."""
     TESTING_CONNECTION_TO = "🔍 Testing connection to: {url}"

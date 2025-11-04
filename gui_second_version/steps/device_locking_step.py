@@ -536,7 +536,7 @@ class DeviceLockingStep(WizardStep):
                     "WiFi Turnoff Failed",
                     "Could not turn off WiFi automatically.\n\n"
                     "Please turn off WiFi manually:\n"
-                    "• Click network icon → Turn off WiFi\n\n"
+                    "Click network icon → Turn off WiFi\n\n"
                     "Then click the button again to lock the device.",
                 )
                 return
@@ -573,8 +573,8 @@ class DeviceLockingStep(WizardStep):
                     "Lock Failed",
                     "WiFi has been turned off, but could not lock the device automatically.\n\n"
                     "Please lock the device manually:\n"
-                    "• Click the power button (top right) → Lock\n"
-                    "• Or press Super key → Type 'lock' → Enter",
+                    "Click the power button (top right) → Lock\n"
+                    "Or press Super key → Type 'lock' → Enter",
                 )
 
         except Exception as e:
@@ -638,6 +638,19 @@ class DeviceLockingStep(WizardStep):
 
         # Do initial dashboard update
         self._update_dashboard()
+
+    def deactivate_step(self) -> None:
+        """Deactivate step when navigating away - stop timers."""
+        try:
+            self.logger.info("Deactivating device locking step")
+
+            # Stop monitor timer to prevent resource leaks
+            if hasattr(self, "monitor_timer") and self.monitor_timer.isActive():
+                self.monitor_timer.stop()
+                self.logger.info("Stopped monitor timer on deactivation")
+
+        except Exception as e:
+            self.logger.error(f"Error during step deactivation: {e}")
 
     def _cleanup_step_resources(self) -> None:
         """Clean up step-specific resources."""

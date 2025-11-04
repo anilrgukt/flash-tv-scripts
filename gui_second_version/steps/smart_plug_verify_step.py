@@ -147,11 +147,11 @@ class SmartPlugVerifyStep(WizardStep):
 
         automation_text = self.ui_factory.create_label(
             """This will open Firefox and automatically:\n
-            • Navigate to Home Assistant\n
-            • Go to History page\n
-            • You will then manually select the power data from the dropdown if not already selected\n
-            • You will then test by turning the TV on/off\n
-            • You will then click the 'Capture Screenshot' button to capture a screenshot that best represents the on and off power states"""
+            Navigate to Home Assistant\n
+            Go to History page\n
+            You will then manually select the power data from the dropdown if not already selected\n
+            You will then test by turning the TV on/off\n
+            You will then click the 'Capture Screenshot' button to capture a screenshot that best represents the on and off power states"""
         )
         automation_layout.addWidget(automation_text)
         automation_layout.addStretch()
@@ -1116,8 +1116,8 @@ class SmartPlugVerifyStep(WizardStep):
                 self,
                 "Confirm Verification",
                 "Did you successfully see the TV power changes in the monitoring system?\n\n"
-                "• TV OFF showed low/zero power\n"
-                "• TV ON showed increased power usage",
+                "TV OFF showed low/zero power\n"
+                "TV ON showed increased power usage",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             )
 
@@ -1221,6 +1221,7 @@ class SmartPlugVerifyStep(WizardStep):
             # Find indices for ON period
             on_mask = (self.power_times >= on_start_time) & (self.power_times <= on_end_time)
             on_values = self.power_values[on_mask]
+            on_times = self.power_times[on_mask]
             on_start_idx = np.argmax(self.power_times >= on_start_time)
             on_end_idx = np.argmax(self.power_times > on_end_time) - 1
             if on_end_idx < on_start_idx:
@@ -1235,6 +1236,7 @@ class SmartPlugVerifyStep(WizardStep):
             # Find indices for OFF period
             off_mask = (self.power_times >= off_start_time) & (self.power_times <= off_end_time)
             off_values = self.power_values[off_mask]
+            off_times = self.power_times[off_mask]
             off_start_idx = np.argmax(self.power_times >= off_start_time)
             off_end_idx = np.argmax(self.power_times > off_end_time) - 1
             if off_end_idx < off_start_idx:
@@ -1272,6 +1274,14 @@ class SmartPlugVerifyStep(WizardStep):
                 f.write(f"Min Power: {on_min:.2f} W\n")
                 f.write(f"Max Power: {on_max:.2f} W\n\n")
 
+                # Write all ON period time values as a list
+                f.write("ON Period - Time Values (seconds):\n")
+                f.write(str(on_times.tolist()) + "\n\n")
+
+                # Write all ON period power values as a list
+                f.write("ON Period - Power Values (W):\n")
+                f.write(str(on_values.tolist()) + "\n\n")
+
                 f.write("OFF PERIOD MARKERS\n")
                 f.write("-" * 60 + "\n")
                 f.write(f"Start Time: {off_start_time:.2f} seconds ({off_start_time/60:.2f} minutes)\n")
@@ -1284,6 +1294,14 @@ class SmartPlugVerifyStep(WizardStep):
                 f.write(f"Std Deviation: {off_std:.2f} W\n")
                 f.write(f"Min Power: {off_min:.2f} W\n")
                 f.write(f"Max Power: {off_max:.2f} W\n\n")
+
+                # Write all OFF period time values as a list
+                f.write("OFF Period - Time Values (seconds):\n")
+                f.write(str(off_times.tolist()) + "\n\n")
+
+                # Write all OFF period power values as a list
+                f.write("OFF Period - Power Values (W):\n")
+                f.write(str(off_values.tolist()) + "\n\n")
 
                 f.write("POWER DIFFERENCE ANALYSIS\n")
                 f.write("-" * 60 + "\n")
@@ -1365,6 +1383,19 @@ class SmartPlugVerifyStep(WizardStep):
             # Not verified yet - show initial message
             self.logger.info("Monitoring Home Assistant connection and TV power data...")
             self.logger.info("Check the panel for live data updates")
+
+    def deactivate_step(self) -> None:
+        """Deactivate step when navigating away - stop timers."""
+        try:
+            self.logger.info("Deactivating smart plug verification step")
+
+            # Stop status timer to prevent resource leaks
+            if hasattr(self, "status_timer") and self.status_timer.isActive():
+                self.status_timer.stop()
+                self.logger.info("Stopped status monitoring timer on deactivation")
+
+        except Exception as e:
+            self.logger.error(f"Error during step deactivation: {e}")
 
     def cleanup(self) -> None:
         """Clean up resources when step is destroyed."""

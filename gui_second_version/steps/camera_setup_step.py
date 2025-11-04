@@ -523,11 +523,11 @@ class CameraSetupStep(WizardStep):
                 "POV Picture Capture",
                 "The camera app will now open.\n\n"
                 "IMPORTANT:\n"
-                "• Make sure NO PEOPLE are visible in the camera's view\n"
-                "• The camera will capture the empty seating area\n"
-                "• This is a baseline image of what the camera sees\n"
-                "• Take the picture when the room is empty\n"
-                "• Close the camera app after taking the picture\n\n"
+                "Make sure NO PEOPLE are visible in the camera's view\n"
+                "The camera will capture the empty seating area\n"
+                "This is a baseline image of what the camera sees\n"
+                "Take the picture when the room is empty\n"
+                "Close the camera app after taking the picture\n\n"
                 "Click OK to continue...",
                 QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel,
             )
@@ -796,9 +796,9 @@ class CameraSetupStep(WizardStep):
             "No Picture Found",
             "No new POV picture was found.\n\n"
             "This could happen if:\n"
-            "• You didn't take a picture\n"
-            "• The camera app saved to a different location\n"
-            "• There was an error saving the picture\n\n"
+            "You didn't take a picture\n"
+            "The camera app saved to a different location\n"
+            "There was an error saving the picture\n\n"
             "Would you like to try again?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
@@ -1038,6 +1038,19 @@ class CameraSetupStep(WizardStep):
         camera_tested = self.state.get_user_input("camera_tested", False)
         pov_complete = self.state.get_user_input("pov_picture_complete", False)
         self.continue_button.setEnabled(has_camera and camera_tested and pov_complete)
+
+    def deactivate_step(self) -> None:
+        """Deactivate step when navigating away - stop timers."""
+        try:
+            self.logger.info("Deactivating camera setup step")
+
+            # Stop monitor timer to prevent resource leaks
+            if hasattr(self, "monitor_timer") and self.monitor_timer.isActive():
+                self.monitor_timer.stop()
+                self.logger.info("Stopped monitor timer on deactivation")
+
+        except Exception as e:
+            self.logger.error(f"Error during step deactivation: {e}")
 
     def _cleanup_step_resources(self) -> None:
         """Clean up step-specific resources."""
