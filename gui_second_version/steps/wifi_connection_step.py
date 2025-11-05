@@ -177,16 +177,17 @@ class WiFiConnectionStep(WizardStep):
             bashrc_path = os.path.expanduser("~/.bashrc")
             self.logger.info(f"Checking for hotspot credentials in: {bashrc_path}")
 
-            # Check which specific hotspots have credentials
+            # Check which specific hotspots have BOTH SSID and PSK
             existing_hotspots = set()
             if os.path.exists(bashrc_path):
                 self.logger.debug(f"Reading {bashrc_path} to check for credentials")
                 with open(bashrc_path, "r") as f:
                     content = f.read()
                     for i in range(1, 4):
-                        if f"HOTSPOT{i}_PSK" in content:
+                        # Check if BOTH SSID and PSK exist
+                        if f"HOTSPOT{i}_SSID" in content and f"HOTSPOT{i}_PSK" in content:
                             existing_hotspots.add(i)
-                            self.logger.info(f"Found credentials for HOTSPOT{i}")
+                            self.logger.info(f"Found complete credentials for HOTSPOT{i}")
 
             # Prompt for missing credentials
             hotspot_configs = []
@@ -202,13 +203,25 @@ class WiFiConnectionStep(WizardStep):
 
                     if reply == QMessageBox.StandardButton.Yes:
                         self.logger.debug(f"User chose to configure HOTSPOT{i}")
+
+                        # Prompt for SSID
+                        ssid, ok = QInputDialog.getText(
+                            self, f"HOTSPOT{i} SSID", f"Enter the network name (SSID) for HOTSPOT{i}:", QLineEdit.EchoMode.Normal
+                        )
+
+                        if not ok or not ssid:
+                            self.logger.info(f"User cancelled SSID input for HOTSPOT{i}")
+                            continue
+
+                        # Prompt for password
                         password, ok = QInputDialog.getText(
-                            self, f"HOTSPOT{i} Password", f"Enter the password for HOTSPOT{i}:", QLineEdit.EchoMode.Normal
+                            self, f"HOTSPOT{i} Password", f"Enter the password for HOTSPOT{i} ({ssid}):", QLineEdit.EchoMode.Normal
                         )
 
                         if ok and password:
+                            hotspot_configs.append(f"export HOTSPOT{i}_SSID='{ssid}'")
                             hotspot_configs.append(f"export HOTSPOT{i}_PSK='{password}'")
-                            self.logger.info(f"User provided password for HOTSPOT{i}")
+                            self.logger.info(f"User provided SSID and password for HOTSPOT{i}")
                         else:
                             self.logger.info(f"User cancelled password input for HOTSPOT{i}")
                     else:
