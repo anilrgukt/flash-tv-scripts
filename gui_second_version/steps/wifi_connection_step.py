@@ -176,29 +176,27 @@ class WiFiConnectionStep(WizardStep):
 
             bashrc_path = os.path.expanduser("~/.bashrc")
             self.logger.info(f"Checking for hotspot credentials in: {bashrc_path}")
-            has_credentials = False
 
+            # Check which specific hotspots have credentials
+            existing_hotspots = set()
             if os.path.exists(bashrc_path):
                 self.logger.debug(f"Reading {bashrc_path} to check for credentials")
                 with open(bashrc_path, "r") as f:
                     content = f.read()
-                    if "HOTSPOT1_PSK" in content or "HOTSPOT2_PSK" in content or "HOTSPOT3_PSK" in content:
-                        has_credentials = True
-                        self.logger.info("Found existing hotspot credentials in .bashrc")
-                    else:
-                        self.logger.info("No hotspot credentials found in .bashrc")
-            else:
-                self.logger.warning(f".bashrc not found at {bashrc_path}")
+                    for i in range(1, 4):
+                        if f"HOTSPOT{i}_PSK" in content:
+                            existing_hotspots.add(i)
+                            self.logger.info(f"Found credentials for HOTSPOT{i}")
 
-            if not has_credentials:
-                self.logger.info("No credentials found - prompting user for hotspot passwords")
-                # Prompt for credentials
-                hotspot_configs = []
-                for i in range(1, 4):
+            # Prompt for missing credentials
+            hotspot_configs = []
+            for i in range(1, 4):
+                if i not in existing_hotspots:
+                    self.logger.info(f"HOTSPOT{i} credentials missing - prompting user")
                     reply = QMessageBox.question(
                         self,
                         f"Configure HOTSPOT{i}",
-                        f"Do you want to configure HOTSPOT{i}?",
+                        f"HOTSPOT{i} does not have credentials saved.\n\nDo you want to configure HOTSPOT{i}?",
                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     )
 
@@ -216,16 +214,21 @@ class WiFiConnectionStep(WizardStep):
                     else:
                         self.logger.debug(f"User skipped configuration for HOTSPOT{i}")
 
-                # Write credentials to .bashrc if any were provided
-                if hotspot_configs:
-                    self.logger.info(f"Writing {len(hotspot_configs)} hotspot credential(s) to .bashrc")
-                    with open(bashrc_path, "a") as f:
-                        f.write("\n# FLASH-TV Hotspot Credentials\n")
-                        for config in hotspot_configs:
-                            f.write(config + "\n")
-                    self.logger.info("Successfully saved hotspot credentials to .bashrc")
-                else:
-                    self.logger.warning("No hotspot credentials were provided by user")
+            # Write credentials to .bashrc if any were provided
+            if hotspot_configs:
+                self.logger.info(f"Writing {len(hotspot_configs)} hotspot credential(s) to .bashrc")
+                with open(bashrc_path, "a") as f:
+                    f.write("\n# FLASH-TV Hotspot Credentials\n")
+                    for config in hotspot_configs:
+                        f.write(config + "\n")
+                self.logger.info("Successfully saved hotspot credentials to .bashrc")
+            elif not existing_hotspots:
+                self.logger.warning("No hotspot credentials were provided by user")
+                QMessageBox.warning(
+                    self,
+                    "No Credentials",
+                    "No hotspot credentials were configured.\n\nThe WiFi script may not be able to connect.",
+                )
 
             script_path = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "python_scripts", "setup_wifi_connection.py"
@@ -243,8 +246,10 @@ class WiFiConnectionStep(WizardStep):
             self.logger.info("Executing: python3 " + script_path)
 
             # Use Popen to stream output in real-time
+            # Close stdin to prevent script from blocking on input prompts
             process = subprocess.Popen(
                 ["python3", script_path],
+                stdin=subprocess.DEVNULL,  # Close stdin to prevent hanging on prompts
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,  # Merge stderr into stdout
                 text=True,

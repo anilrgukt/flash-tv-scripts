@@ -167,14 +167,20 @@ def setup_hotspot(hotspot_num):
     print(f"\nSetting up Hotspot {hotspot_num}: {ssid}")
 
     if not psk:
-        # Try GUI first, fall back to CLI if no DISPLAY or GUI fails
-        try:
-            if os.environ.get('DISPLAY'):
-                psk, save_to_bashrc = prompt_for_password_gui(hotspot_num, ssid)
-            else:
+        # Check if stdin is available for prompting
+        if sys.stdin.isatty():
+            # Try GUI first, fall back to CLI if no DISPLAY or GUI fails
+            try:
+                if os.environ.get('DISPLAY'):
+                    psk, save_to_bashrc = prompt_for_password_gui(hotspot_num, ssid)
+                else:
+                    psk, save_to_bashrc = prompt_for_password_cli(hotspot_num, ssid)
+            except:
                 psk, save_to_bashrc = prompt_for_password_cli(hotspot_num, ssid)
-        except:
-            psk, save_to_bashrc = prompt_for_password_cli(hotspot_num, ssid)
+        else:
+            # stdin not available (closed or piped), skip prompting
+            print(f"No password available for Hotspot {hotspot_num} and stdin unavailable. Skipping...")
+            return False
 
         if not psk:
             print(f"No password entered for Hotspot {hotspot_num}. Skipping...")
