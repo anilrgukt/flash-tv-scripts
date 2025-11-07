@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import os
 import subprocess
-from PyQt6.QtWidgets import QWidget, QMessageBox, QInputDialog, QLineEdit
+from PyQt6.QtWidgets import QWidget, QMessageBox, QInputDialog, QLineEdit, QTextEdit, QComboBox
+from PyQt6.QtCore import Qt
 
 from core import WizardStep
 from core.exceptions import handle_step_error, FlashTVError, ErrorType
@@ -18,6 +19,7 @@ class WiFiConnectionStep(WizardStep):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.available_networks = []  # Store scanned networks
 
     def create_content_widget(self) -> QWidget:
         """Create the simplified WiFi connection UI."""
@@ -49,8 +51,24 @@ class WiFiConnectionStep(WizardStep):
         """Create the WiFi status section."""
         status_group, status_layout = self.ui_factory.create_group_box("WiFi Connection Setup")
 
-        self.wifi_status_label = self.ui_factory.create_status_label("Use the button below to open network settings", status_type="info")
+        self.wifi_status_label = self.ui_factory.create_status_label("Click 'Scan Networks' to see available WiFi networks", status_type="info")
         status_layout.addWidget(self.wifi_status_label)
+
+        # Network scan display
+        self.network_display = QTextEdit()
+        self.network_display.setReadOnly(True)
+        self.network_display.setMaximumHeight(150)
+        self.network_display.setPlaceholderText("Available networks will appear here after scanning...")
+        status_layout.addWidget(self.network_display)
+
+        # Scan button
+        self.scan_button = self.ui_factory.create_action_button(
+            "🔍 Scan Networks",
+            callback=self._scan_networks,
+            style=ButtonStyle.SECONDARY,
+            height=35,
+        )
+        status_layout.addWidget(self.scan_button)
 
         return status_group
 
@@ -60,13 +78,18 @@ class WiFiConnectionStep(WizardStep):
 
         instructions_text = (
             "To connect to WiFi:\n\n"
+            "📡 Network Scanning:\n"
+            "• Networks are automatically scanned when you open this step\n"
+            "• Click 'Scan Networks' to refresh the list\n"
+            "• Signal strength and security type are shown for each network\n\n"
             "Option 1 - Auto-Connect (Recommended):\n"
-            "Click 'Auto-Connect to Hotspot' to automatically connect\n"
-            "If credentials are not in .bashrc, you'll be prompted to enter them\n"
-            "Supports HOTSPOT1_PSK, HOTSPOT2_PSK, and HOTSPOT3_PSK\n\n"
+            "• Click 'Auto-Connect to Hotspot' to configure and connect\n"
+            "• Select your network from the dropdown list (or type manually)\n"
+            "• Enter the password when prompted\n"
+            "• Supports up to 3 hotspots (HOTSPOT1, HOTSPOT2, HOTSPOT3)\n\n"
             "Option 2 - Manual Setup:\n"
-            "Click 'Manual Network Settings' to configure manually\n"
-            "Connect to your WiFi network using the system settings\n\n"
+            "• Click 'Manual Network Settings' to configure manually\n"
+            "• Connect using the system network settings\n\n"
             "Click 'Continue' when connected to proceed"
         )
 
@@ -115,6 +138,75 @@ class WiFiConnectionStep(WizardStep):
         """Create the continue button section."""
         button_layout, self.continue_button = self.ui_factory.create_continue_button(callback=self._on_continue_clicked, text="Continue to Next Step")
         return button_layout
+
+    def _scan_networks(self, checked: bool = False) -> list[str]:
+        """Scan for available WiFi networks."""
+        try:
+            self.logger.info("Scanning for available WiFi networks")
+            self.wifi_status_label.setText("Scanning for networks...")
+            self.scan_button.setEnabled(False)
+
+            # Run nmcli to scan networks
+            result = subprocess.run(
+                ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "device", "wifi", "list"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            available_networks = []
+            if result.returncode == 0:
+                lines = result.stdout.strip().split('\n')
+                self.network_display.clear()
+                self.network_display.append("📡 Available WiFi Networks:\n")
+
+                seen_ssids = set()
+                for line in lines:
+                    if line:
+                        parts = line.split(':')
+                        if len(parts) >= 3:
+                            ssid = parts[0].strip()
+                            signal = parts[1].strip()
+                            security = parts[2].strip()
+
+                            if ssid and ssid not in seen_ssids:
+                                seen_ssids.add(ssid)
+                                available_networks.append(ssid)
+
+                                # Format with signal strength indicator
+                                signal_int = int(signal) if signal.isdigit() else 0
+                                signal_bars = "▂▄▆█"[:max(1, signal_int // 25)]
+                                security_icon = "🔒" if security else "🔓"
+
+                                self.network_display.append(
+                                    f"{security_icon} {ssid:<30} {signal_bars} {signal}% {security if security else '(Open)'}"
+                                )
+
+                self.logger.info(f"Found {len(available_networks)} networks")
+                self.wifi_status_label.setText(f"✅ Found {len(available_networks)} networks")
+
+                # Store for later use
+                self.available_networks = available_networks
+
+                return available_networks
+            else:
+                self.logger.error(f"Network scan failed: {result.stderr}")
+                self.network_display.setText(f"Failed to scan networks: {result.stderr}")
+                self.wifi_status_label.setText("❌ Network scan failed")
+                return []
+
+        except subprocess.TimeoutExpired:
+            self.logger.error("Network scan timeout")
+            self.network_display.setText("Network scan timed out")
+            self.wifi_status_label.setText("❌ Scan timeout")
+            return []
+        except Exception as e:
+            self.logger.error(f"Error scanning networks: {e}")
+            self.network_display.setText(f"Error: {e}")
+            self.wifi_status_label.setText("❌ Scan error")
+            return []
+        finally:
+            self.scan_button.setEnabled(True)
 
     @handle_step_error
     def _open_network_settings(self, checked: bool = False) -> None:
@@ -204,10 +296,39 @@ class WiFiConnectionStep(WizardStep):
                     if reply == QMessageBox.StandardButton.Yes:
                         self.logger.debug(f"User chose to configure HOTSPOT{i}")
 
-                        # Prompt for SSID
-                        ssid, ok = QInputDialog.getText(
-                            self, f"HOTSPOT{i} SSID", f"Enter the network name (SSID) for HOTSPOT{i}:", QLineEdit.EchoMode.Normal
-                        )
+                        # Scan networks if not already done
+                        if not hasattr(self, 'available_networks') or not self.available_networks:
+                            self.logger.info("Scanning networks for SSID selection")
+                            available_networks = self._scan_networks()
+                        else:
+                            available_networks = self.available_networks
+
+                        # Show SSID selection dialog
+                        if available_networks:
+                            ssid, ok = QInputDialog.getItem(
+                                self,
+                                f"HOTSPOT{i} SSID",
+                                f"Select the network for HOTSPOT{i}:\n\n"
+                                f"If your network is not listed, click Cancel to type it manually.",
+                                available_networks,
+                                0,
+                                False  # Not editable
+                            )
+
+                            # If user cancelled, offer to type manually
+                            if not ok:
+                                ssid, ok = QInputDialog.getText(
+                                    self, f"HOTSPOT{i} SSID (Manual)",
+                                    f"Enter the network name (SSID) for HOTSPOT{i} manually:",
+                                    QLineEdit.EchoMode.Normal
+                                )
+                        else:
+                            # No networks found, use text input
+                            ssid, ok = QInputDialog.getText(
+                                self, f"HOTSPOT{i} SSID",
+                                f"Enter the network name (SSID) for HOTSPOT{i}:",
+                                QLineEdit.EchoMode.Normal
+                            )
 
                         if not ok or not ssid:
                             self.logger.info(f"User cancelled SSID input for HOTSPOT{i}")
@@ -215,7 +336,9 @@ class WiFiConnectionStep(WizardStep):
 
                         # Prompt for password
                         password, ok = QInputDialog.getText(
-                            self, f"HOTSPOT{i} Password", f"Enter the password for HOTSPOT{i} ({ssid}):", QLineEdit.EchoMode.Normal
+                            self, f"HOTSPOT{i} Password",
+                            f"Enter the password for HOTSPOT{i} ({ssid}):",
+                            QLineEdit.EchoMode.Normal
                         )
 
                         if ok and password:
@@ -278,6 +401,21 @@ class WiFiConnectionStep(WizardStep):
                 if line:
                     self.logger.info(f"  {line}")
                     output_lines.append(line)
+
+                    # Update status label based on script output
+                    if "Setting up Hotspot" in line:
+                        hotspot_num = line.split("Hotspot")[1].split(":")[0].strip()
+                        self.wifi_status_label.setText(f"⚙️ Configuring Hotspot {hotspot_num}...")
+                    elif "Connection attempt cycle" in line:
+                        cycle_info = line.split("cycle")[1].strip()
+                        self.wifi_status_label.setText(f"🔄 Attempting connection {cycle_info}")
+                    elif "Trying Hotspot" in line:
+                        hotspot_num = line.split("Hotspot")[1].split(".")[0].strip()
+                        self.wifi_status_label.setText(f"📡 Trying to connect to Hotspot {hotspot_num}...")
+                    elif "Successfully connected" in line:
+                        self.wifi_status_label.setText(f"✅ Successfully connected!")
+                    elif "not available" in line.lower() or "not configured" in line.lower():
+                        self.wifi_status_label.setText(f"⏭️ Checking next hotspot...")
 
             # Wait for completion with timeout
             try:
@@ -390,7 +528,11 @@ class WiFiConnectionStep(WizardStep):
         """Activate the network configuration step."""
         super().activate_step()
         self.logger.info("WiFi connection step activated")
-        # Don't check WiFi automatically - let user handle it
+
+        # Auto-scan networks on first activation
+        if not self.available_networks:
+            from PyQt6.QtCore import QTimer
+            QTimer.singleShot(500, self._scan_networks)  # Delay slightly for UI to render
 
     def update_ui(self) -> None:
         """Update UI elements periodically."""

@@ -91,10 +91,10 @@ class TimeSyncStep(WizardStep):
         # Add spacing
         actions_layout.addSpacing(10)
 
-        # Row 1: NTP and Manual time buttons (1 & 2)
+        # Row 1: NTP and Manual time buttons (1 & 1b)
         time_buttons_layout = self.ui_factory.create_horizontal_layout(spacing=10)
 
-        # 1. NTP Synchronize time button (PRIMARY - FIRST)
+        # 1a. NTP Synchronize time button (PRIMARY - FIRST)
         self.sync_button = self.ui_factory.create_action_button(
             "1 🌐 Synchronize with Network Time (NTP)",
             callback=self._synchronize_time,
@@ -103,7 +103,7 @@ class TimeSyncStep(WizardStep):
         )
         time_buttons_layout.addWidget(self.sync_button)
 
-        # 2. Manual time setting button (BACKUP - SECOND)
+        # 1b. Manual time setting button (BACKUP - SECOND)
         self.manual_time_button = self.ui_factory.create_action_button(
             "1b 📅 Manually Set Time (Backup Option)",
             callback=self._set_time_manually,
@@ -125,27 +125,27 @@ class TimeSyncStep(WizardStep):
         # Row 2: RTC operation buttons (3, 4 & 5)
         rtc_buttons_layout = self.ui_factory.create_horizontal_layout(spacing=10)
 
-        # 3. Set RTC button
+        # 2. Set RTC button
         self.set_external_rtc_button = self.ui_factory.create_action_button(
-            "3 Set External RTC to System Time",
+            "2 Set External RTC to System Time",
             callback=self._set_external_rtc,
             style=ButtonStyle.SECONDARY,
             height=35,
         )
         rtc_buttons_layout.addWidget(self.set_external_rtc_button)
 
-        # 4. Check RTC status button
+        # 3. Check RTC status button
         self.check_rtc_button = self.ui_factory.create_action_button(
-            "4 Check All RTC Status",
+            "3 Check All RTC Status",
             callback=self._check_rtc_status,
             style=ButtonStyle.SECONDARY,
             height=35,
         )
         rtc_buttons_layout.addWidget(self.check_rtc_button)
 
-        # 5. Sync from RTC button
+        # 4. Sync from RTC button
         self.sync_from_external_rtc_button = self.ui_factory.create_action_button(
-            "5 Sync from External RTC",
+            "4 Sync from External RTC",
             callback=self._sync_from_external_rtc,
             style=ButtonStyle.SECONDARY,
             height=35,
