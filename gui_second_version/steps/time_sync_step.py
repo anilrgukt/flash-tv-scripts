@@ -91,26 +91,26 @@ class TimeSyncStep(WizardStep):
         # Add spacing
         actions_layout.addSpacing(10)
 
-        # Row 1: NTP and Manual time buttons (1 & 1b)
+        # Row 1: Manual time and NTP buttons
         time_buttons_layout = self.ui_factory.create_horizontal_layout(spacing=10)
 
-        # 1a. NTP Synchronize time button (PRIMARY - FIRST)
-        self.sync_button = self.ui_factory.create_action_button(
-            "1 🌐 Synchronize with Network Time (NTP)",
-            callback=self._synchronize_time,
-            style=ButtonStyle.PRIMARY,
-            height=40,
-        )
-        time_buttons_layout.addWidget(self.sync_button)
-
-        # 1b. Manual time setting button (BACKUP - SECOND)
+        # 1a. Manual time setting button (PRIMARY - RECOMMENDED)
         self.manual_time_button = self.ui_factory.create_action_button(
-            "1b 📅 Manually Set Time (Backup Option)",
+            "1 📅 Manually Set Time",
             callback=self._set_time_manually,
-            style=ButtonStyle.SECONDARY,
-            height=40,
+            style=ButtonStyle.PRIMARY,
+            height=45,
         )
         time_buttons_layout.addWidget(self.manual_time_button)
+
+        # 1b. NTP Synchronize time button (SECONDARY - ALTERNATIVE)
+        self.sync_button = self.ui_factory.create_action_button(
+            "1b 🌐 Synchronize with Network Time (NTP)",
+            callback=self._synchronize_time,
+            style=ButtonStyle.SECONDARY,
+            height=35,
+        )
+        time_buttons_layout.addWidget(self.sync_button)
 
         actions_layout.addLayout(time_buttons_layout)
 
@@ -721,10 +721,12 @@ class TimeSyncStep(WizardStep):
         self._check_time_status()
 
         # Show instruction to user
-        self.details_text.append("\n📌 Please follow the RTC setup workflow:")
-        self.details_text.append("1. Click 'Set External RTC to System Time' first")
-        self.details_text.append("2. Click 'Check All RTC Status' to verify")
-        self.details_text.append("3. Click 'Sync from External RTC' if needed")
+        self.details_text.append("\n📌 Please follow the time setup workflow:")
+        self.details_text.append("1. Click 'Manually Set Time' to set the current date and time")
+        self.details_text.append("   (Alternatively, use 'Synchronize with Network Time' if WiFi is connected)")
+        self.details_text.append("2. Click 'Set External RTC to System Time' to save time to RTC")
+        self.details_text.append("3. Click 'Check All RTC Status' to verify synchronization")
+        self.details_text.append("4. Click 'Sync from External RTC' if needed to restore time from RTC")
 
     def update_ui(self) -> None:
         """Update UI elements periodically with framework integration."""

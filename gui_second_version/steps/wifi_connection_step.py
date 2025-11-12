@@ -51,24 +51,8 @@ class WiFiConnectionStep(WizardStep):
         """Create the WiFi status section."""
         status_group, status_layout = self.ui_factory.create_group_box("WiFi Connection Setup")
 
-        self.wifi_status_label = self.ui_factory.create_status_label("Click 'Scan Networks' to see available WiFi networks", status_type="info")
+        self.wifi_status_label = self.ui_factory.create_status_label("Use Manual Network Settings to configure WiFi", status_type="info")
         status_layout.addWidget(self.wifi_status_label)
-
-        # Network scan display
-        self.network_display = QTextEdit()
-        self.network_display.setReadOnly(True)
-        self.network_display.setMaximumHeight(150)
-        self.network_display.setPlaceholderText("Available networks will appear here after scanning...")
-        status_layout.addWidget(self.network_display)
-
-        # Scan button
-        self.scan_button = self.ui_factory.create_action_button(
-            "🔍 Scan Networks",
-            callback=self._scan_networks,
-            style=ButtonStyle.SECONDARY,
-            height=35,
-        )
-        status_layout.addWidget(self.scan_button)
 
         return status_group
 
@@ -78,19 +62,14 @@ class WiFiConnectionStep(WizardStep):
 
         instructions_text = (
             "To connect to WiFi:\n\n"
-            "📡 Network Scanning:\n"
-            "• Networks are automatically scanned when you open this step\n"
-            "• Click 'Scan Networks' to refresh the list\n"
-            "• Signal strength and security type are shown for each network\n\n"
-            "Option 1 - Auto-Connect (Recommended):\n"
-            "• Click 'Auto-Connect to Hotspot' to configure and connect\n"
-            "• Select your network from the dropdown list (or type manually)\n"
-            "• Enter the password when prompted\n"
-            "• Supports up to 3 hotspots (HOTSPOT1, HOTSPOT2, HOTSPOT3)\n\n"
-            "Option 2 - Manual Setup:\n"
-            "• Click 'Manual Network Settings' to configure manually\n"
-            "• Connect using the system network settings\n\n"
-            "Click 'Continue' when connected to proceed"
+            "RECOMMENDED - Manual Network Settings:\n"
+            "• Click 'Manual Network Settings' to open system network configuration\n"
+            "• Connect to your WiFi network using the system settings\n"
+            "• This is the most reliable method for WiFi setup\n\n"
+            "Alternative - Skip WiFi:\n"
+            "• Click 'Skip WiFi Setup' if you will manually set the time in the next step\n"
+            "• WiFi is required for automatic time synchronization\n\n"
+            "Click 'Continue' when connected (or skipped) to proceed"
         )
 
         instructions_label = self.ui_factory.create_label(instructions_text)
@@ -102,35 +81,48 @@ class WiFiConnectionStep(WizardStep):
         """Create the control buttons section."""
         controls_group, controls_layout = self.ui_factory.create_group_box("Connection Controls")
 
-        # Auto-connect to hotspot button
-        self.auto_connect_button = self.ui_factory.create_action_button(
-            "Auto-Connect to Hotspot",
-            callback=self._auto_connect_hotspot,
-            style=ButtonStyle.PRIMARY,
-            height=50,
-        )
-        controls_layout.addWidget(self.auto_connect_button)
-
-        controls_layout.addSpacing(10)
-
+        # Manual network settings button (PRIMARY)
         self.network_settings_button = self.ui_factory.create_action_button(
             "Manual Network Settings",
             callback=self._open_network_settings,
-            style=ButtonStyle.SECONDARY,
-            height=40,
+            style=ButtonStyle.PRIMARY,
+            height=50,
         )
         controls_layout.addWidget(self.network_settings_button)
 
-        controls_layout.addSpacing(20)
+        controls_layout.addSpacing(10)
 
         # Skip button
         self.skip_button = self.ui_factory.create_action_button(
             "Skip WiFi Setup (If You Will Manually Set Time in the Next Step)",
             callback=self._skip_wifi_setup,
             style=ButtonStyle.SECONDARY,
-            height=30,
+            height=35,
         )
         controls_layout.addWidget(self.skip_button)
+
+        controls_layout.addSpacing(30)
+
+        # Separator line
+        separator_label = self.ui_factory.create_label("─" * 80)
+        separator_label.setStyleSheet("color: #ccc;")
+        controls_layout.addWidget(separator_label)
+
+        controls_layout.addSpacing(10)
+
+        # Auto-connect to hotspot button (DE-EMPHASIZED - NON-FUNCTIONAL)
+        auto_connect_label = self.ui_factory.create_label("Auto-Connect to Hotspot (Currently Non-Functional)")
+        auto_connect_label.setStyleSheet("color: #888; font-style: italic; font-size: 10pt;")
+        controls_layout.addWidget(auto_connect_label)
+
+        self.auto_connect_button = self.ui_factory.create_action_button(
+            "Auto-Connect to Hotspot",
+            callback=self._auto_connect_hotspot,
+            style=ButtonStyle.SECONDARY,
+            height=30,
+        )
+        self.auto_connect_button.setEnabled(False)  # Disabled
+        controls_layout.addWidget(self.auto_connect_button)
 
         return controls_group
 
@@ -528,11 +520,6 @@ class WiFiConnectionStep(WizardStep):
         """Activate the network configuration step."""
         super().activate_step()
         self.logger.info("WiFi connection step activated")
-
-        # Auto-scan networks on first activation
-        if not self.available_networks:
-            from PyQt6.QtCore import QTimer
-            QTimer.singleShot(500, self._scan_networks)  # Delay slightly for UI to render
 
     def update_ui(self) -> None:
         """Update UI elements periodically."""
