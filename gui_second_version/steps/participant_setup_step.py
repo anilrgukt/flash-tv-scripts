@@ -178,11 +178,11 @@ class ParticipantSetupStep(WizardStep):
         instruction_label = self.ui_factory.create_label(
             "Enter the participant ID. Device information will be auto-detected."
         )
-        instruction_label.setStyleSheet("color: #666; font-size: 12px; margin-bottom: 8px;")
+        instruction_label.setStyleSheet("color: #666; font-size: 24px; margin-bottom: 8px;")
         participant_layout.addWidget(instruction_label)
 
         participant_id_label = self.ui_factory.create_label("Participant ID:")
-        participant_id_label.setStyleSheet("font-weight: bold; margin-top: 8px;")
+        participant_id_label.setStyleSheet("font-weight: bold; margin-top: 8px; font-size: 24px;")
         participant_layout.addWidget(participant_id_label)
 
         def validate_participant_id(text: str) -> tuple[bool, str]:
@@ -197,13 +197,13 @@ class ParticipantSetupStep(WizardStep):
             Templates.PARTICIPANT_ID_PLACEHOLDER, validator=validate_participant_id
         )
         self.participant_id_input.textChanged.connect(self._on_participant_id_changed)
-        self.participant_id_input.setStyleSheet("padding: 8px; font-size: 14px;")
+        self.participant_id_input.setStyleSheet("padding: 8px; font-size: 28px;")
         participant_layout.addWidget(self.participant_id_input)
 
         participant_layout.addSpacing(15)
 
         sudo_password_label = self.ui_factory.create_label("Sudo Password:")
-        sudo_password_label.setStyleSheet("font-weight: bold; margin-top: 8px;")
+        sudo_password_label.setStyleSheet("font-weight: bold; margin-top: 8px; font-size: 24px;")
         participant_layout.addWidget(sudo_password_label)
 
         self.sudo_password_input = self.ui_factory.create_input_field(
@@ -211,7 +211,7 @@ class ParticipantSetupStep(WizardStep):
         )
         self.sudo_password_input.setEchoMode(self.sudo_password_input.EchoMode.Password)
         self.sudo_password_input.textChanged.connect(self._on_sudo_password_changed)
-        self.sudo_password_input.setStyleSheet("padding: 8px; font-size: 14px;")
+        self.sudo_password_input.setStyleSheet("padding: 8px; font-size: 28px;")
         participant_layout.addWidget(self.sudo_password_input)
 
         participant_layout.addStretch()
@@ -231,7 +231,7 @@ class ParticipantSetupStep(WizardStep):
             detection_layout.addWidget(error_label)
 
             error_detail = self.ui_factory.create_label(self._detection_error)
-            error_detail.setStyleSheet("color: #666; font-size: 12px; padding: 8px; background-color: #ffebee; border-radius: 4px;")
+            error_detail.setStyleSheet("color: #666; font-size: 24px; padding: 8px; background-color: #ffebee; border-radius: 4px;")
             error_detail.setWordWrap(True)
             detection_layout.addWidget(error_detail)
         else:
@@ -263,7 +263,7 @@ class ParticipantSetupStep(WizardStep):
                 detection_layout.addWidget(self.data_path_label)
 
                 info_note = self.ui_factory.create_label("* Data directory will be created when you continue to the next step")
-                info_note.setStyleSheet("color: #666; font-size: 11px; font-style: italic; margin-top: 8px;")
+                info_note.setStyleSheet("color: #666; font-size: 22px; font-style: italic; margin-top: 8px;")
                 detection_layout.addWidget(info_note)
 
         return detection_group

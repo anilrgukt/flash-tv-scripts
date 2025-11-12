@@ -112,7 +112,7 @@ class WiFiConnectionStep(WizardStep):
 
         # Auto-connect to hotspot button (DE-EMPHASIZED - NON-FUNCTIONAL)
         auto_connect_label = self.ui_factory.create_label("Auto-Connect to Hotspot (Currently Non-Functional)")
-        auto_connect_label.setStyleSheet("color: #888; font-style: italic; font-size: 10pt;")
+        auto_connect_label.setStyleSheet("color: #888; font-style: italic; font-size: 20pt;")
         controls_layout.addWidget(auto_connect_label)
 
         self.auto_connect_button = self.ui_factory.create_action_button(

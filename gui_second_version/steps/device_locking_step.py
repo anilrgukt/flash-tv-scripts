@@ -109,39 +109,39 @@ class DeviceLockingStep(WizardStep):
         full_id = f"{participant_id}{device_id}" if device_id else participant_id
 
         participant_label = QLabel(f"<b>Participant:</b> {full_id if full_id else '--'}")
-        participant_label.setFont(QFont("Arial", 11))
+        participant_label.setFont(QFont("Arial", 22))
         layout.addWidget(participant_label)
 
         # Time sync status
         self.time_sync_label = QLabel("<b>Time Sync:</b> --")
-        self.time_sync_label.setFont(QFont("Arial", 11))
+        self.time_sync_label.setFont(QFont("Arial", 22))
         layout.addWidget(self.time_sync_label)
 
         # Camera status
         self.camera_label = QLabel("<b>Camera:</b> --")
-        self.camera_label.setFont(QFont("Arial", 11))
+        self.camera_label.setFont(QFont("Arial", 22))
         layout.addWidget(self.camera_label)
 
         # Smart plug status
         self.smart_plug_label = QLabel("<b>Smart Plug:</b> --")
-        self.smart_plug_label.setFont(QFont("Arial", 11))
+        self.smart_plug_label.setFont(QFont("Arial", 22))
         layout.addWidget(self.smart_plug_label)
 
         # Last FLASH error from stderr
         self.stderr_log_label = QLabel("<b>Last FLASH Error:</b> --")
-        self.stderr_log_label.setFont(QFont("Arial", 11))
+        self.stderr_log_label.setFont(QFont("Arial", 22))
         self.stderr_log_label.setWordWrap(True)
         layout.addWidget(self.stderr_log_label)
 
         # Last main gaze log line
         self.gaze_log_label = QLabel("<b>Last Main Gaze Log Line:</b> --")
-        self.gaze_log_label.setFont(QFont("Arial", 11))
+        self.gaze_log_label.setFont(QFont("Arial", 22))
         self.gaze_log_label.setWordWrap(True)
         layout.addWidget(self.gaze_log_label)
 
         # RTC times
         self.rtc_times_label = QLabel("<b>RTC Times:</b> --")
-        self.rtc_times_label.setFont(QFont("Arial", 11))
+        self.rtc_times_label.setFont(QFont("Arial", 22))
         layout.addWidget(self.rtc_times_label)
 
         return box
@@ -153,19 +153,19 @@ class DeviceLockingStep(WizardStep):
         box.setLayout(layout)
 
         services_header = QLabel("<b>FLASH-TV Services:</b>")
-        services_header.setFont(QFont("Arial", 11))
+        services_header.setFont(QFont("Arial", 22))
         layout.addWidget(services_header)
 
         self.svc_flash_boot_label = QLabel("  flash-run-on-boot: --")
-        self.svc_flash_boot_label.setFont(QFont("Arial", 11))
+        self.svc_flash_boot_label.setFont(QFont("Arial", 22))
         layout.addWidget(self.svc_flash_boot_label)
 
         self.svc_flash_periodic_label = QLabel("  flash-periodic: --")
-        self.svc_flash_periodic_label.setFont(QFont("Arial", 11))
+        self.svc_flash_periodic_label.setFont(QFont("Arial", 22))
         layout.addWidget(self.svc_flash_periodic_label)
 
         self.svc_home_assistant_label = QLabel("  Home Assistant: --")
-        self.svc_home_assistant_label.setFont(QFont("Arial", 11))
+        self.svc_home_assistant_label.setFont(QFont("Arial", 22))
         layout.addWidget(self.svc_home_assistant_label)
 
         return box
@@ -175,7 +175,7 @@ class DeviceLockingStep(WizardStep):
         lock_group, lock_layout = self.ui_factory.create_group_box("Turn Off WiFi and Lock Device")
 
         lock_info = self.ui_factory.create_label("After verifying all systems are working properly above, turn off WiFi and lock the device to complete setup.")
-        lock_info.setFont(QFont("Arial", 11))
+        lock_info.setFont(QFont("Arial", 22))
         lock_layout.addWidget(lock_info)
 
         lock_layout.addSpacing(15)

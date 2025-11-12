@@ -18,6 +18,7 @@ from PyQt6.QtWidgets import (
     QListWidget,
     QProgressBar,
 )
+from PyQt6.QtGui import QFont
 
 from core.config import get_config
 
@@ -46,6 +47,13 @@ class UIFactory:
     ) -> tuple[QGroupBox, QVBoxLayout]:
         """Create a standardized group box with layout."""
         group_box = QGroupBox(title)
+
+        # Set larger font for group box title
+        font = QFont()
+        font.setPointSize(24)
+        font.setBold(True)
+        group_box.setFont(font)
+
         layout = QVBoxLayout(group_box)
 
         # Apply consistent spacing and margins
@@ -70,6 +78,12 @@ class UIFactory:
         """Create a standardized action button."""
         button = QPushButton(text)
 
+        # Set larger font for button
+        font = QFont()
+        font.setPointSize(20)
+        font.setBold(True)
+        button.setFont(font)
+
         # Set height
         button_height = height or self.config.action_button_height
         button.setFixedHeight(button_height)
@@ -90,6 +104,13 @@ class UIFactory:
     ) -> QPushButton:
         """Create a standard-sized button."""
         button = QPushButton(text)
+
+        # Set larger font for button
+        font = QFont()
+        font.setPointSize(20)
+        font.setBold(True)
+        button.setFont(font)
+
         button.setFixedHeight(self.config.standard_button_height)
 
         if callback:
@@ -123,10 +144,15 @@ class UIFactory:
         input_field = QLineEdit()
         input_field.setPlaceholderText(placeholder)
 
+        # Set larger font for input field
+        font = QFont()
+        font.setPointSize(20)
+        input_field.setFont(font)
+
         if height:
             input_field.setFixedHeight(height)
         else:
-            input_field.setMinimumHeight(25)
+            input_field.setMinimumHeight(40)
 
         # Add validation if provided
         if validator:
@@ -158,6 +184,11 @@ class UIFactory:
         text_area.setPlaceholderText(placeholder)
         text_area.setReadOnly(read_only)
 
+        # Set larger font for text area
+        font = QFont()
+        font.setPointSize(18)
+        text_area.setFont(font)
+
         if max_height:
             text_area.setMaximumHeight(max_height)
         if min_height:
@@ -172,6 +203,11 @@ class UIFactory:
         checkbox = QCheckBox(text)
         checkbox.setChecked(checked)
 
+        # Set larger font for checkbox
+        font = QFont()
+        font.setPointSize(20)
+        checkbox.setFont(font)
+
         if callback:
             checkbox.stateChanged.connect(callback)
 
@@ -184,6 +220,11 @@ class UIFactory:
         label = QLabel(text)
         label.setWordWrap(word_wrap)
 
+        # Set larger font for label
+        font = QFont()
+        font.setPointSize(20)
+        label.setFont(font)
+
         if style:
             label.setStyleSheet(style)
 
@@ -193,6 +234,12 @@ class UIFactory:
         """Create a status label with appropriate styling."""
         label = QLabel(text)
         label.setWordWrap(True)
+
+        # Set larger font for status label
+        font = QFont()
+        font.setPointSize(20)
+        font.setBold(True)
+        label.setFont(font)
 
         styles = {
             "info": "color: #1976d2; font-weight: bold; padding: 5px;",
@@ -211,6 +258,11 @@ class UIFactory:
         """Create a standardized list widget."""
         list_widget = QListWidget()
 
+        # Set larger font for list widget
+        font = QFont()
+        font.setPointSize(18)
+        list_widget.setFont(font)
+
         if max_height:
             list_widget.setMaximumHeight(max_height)
         if min_height:
@@ -226,6 +278,11 @@ class UIFactory:
         progress_bar.setMinimum(minimum)
         progress_bar.setMaximum(maximum)
         progress_bar.setValue(value)
+
+        # Set larger font for progress bar
+        font = QFont()
+        font.setPointSize(18)
+        progress_bar.setFont(font)
 
         return progress_bar
 
@@ -296,6 +353,7 @@ class UIFactory:
                     border: none;
                     border-radius: 3px;
                     font-weight: bold;
+                    font-size: 20pt;
                 }
                 QPushButton:hover {
                     background-color: #1565c0;
@@ -314,6 +372,7 @@ class UIFactory:
                     color: #333;
                     border: 1px solid #ddd;
                     border-radius: 3px;
+                    font-size: 20pt;
                 }
                 QPushButton:hover {
                     background-color: #e0e0e0;
@@ -329,6 +388,7 @@ class UIFactory:
                     border: none;
                     border-radius: 3px;
                     font-weight: bold;
+                    font-size: 20pt;
                 }
                 QPushButton:hover {
                     background-color: #1b5e20;
@@ -341,6 +401,7 @@ class UIFactory:
                     border: none;
                     border-radius: 3px;
                     font-weight: bold;
+                    font-size: 20pt;
                 }
                 QPushButton:hover {
                     background-color: #ef6c00;
@@ -353,6 +414,7 @@ class UIFactory:
                     border: none;
                     border-radius: 3px;
                     font-weight: bold;
+                    font-size: 20pt;
                 }
                 QPushButton:hover {
                     background-color: #b71c1c;

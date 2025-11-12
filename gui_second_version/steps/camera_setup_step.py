@@ -148,7 +148,7 @@ class CameraSetupStep(WizardStep):
         self.camera_status.setMinimumHeight(60)
         from PyQt6.QtGui import QFont
         font = QFont()
-        font.setPointSize(11)
+        font.setPointSize(22)
         font.setBold(True)
         self.camera_status.setFont(font)
         detection_layout.addWidget(self.camera_status)

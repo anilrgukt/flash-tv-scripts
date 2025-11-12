@@ -74,7 +74,7 @@ class GazeArrowWidget(QWidget):
         if not self.has_data:
             # Draw "No Data" text centered in circle
             painter.setPen(QColor(100, 100, 100))
-            painter.setFont(QFont("Arial", 12))
+            painter.setFont(QFont("Arial", 24))
             painter.drawText(int(circle_center_x - 50), int(circle_center_y - 10), 100, 20,
                            Qt.AlignmentFlag.AlignCenter, "No Data")
             return
@@ -132,18 +132,18 @@ class GazeArrowWidget(QWidget):
 
         # Draw pitch/yaw angles - centered
         painter.setPen(QColor(0, 0, 0))
-        painter.setFont(QFont("Arial", 9, QFont.Weight.Bold))
+        painter.setFont(QFont("Arial", 18, QFont.Weight.Bold))
         angle_text = f"P:{self.pitch_deg:+.1f}° Y:{self.yaw_deg:+.1f}°"
         painter.drawText(0, text_start_y, width, 20, Qt.AlignmentFlag.AlignHCenter, angle_text)
 
         # Draw timestamp if available - centered
         if self.timestamp:
-            painter.setFont(QFont("Arial", 8))
+            painter.setFont(QFont("Arial", 16))
             painter.drawText(0, text_start_y + 20, width, 20, Qt.AlignmentFlag.AlignHCenter, self.timestamp)
 
         # Draw status text if available - centered with word wrap
         if self.status_text:
-            painter.setFont(QFont("Arial", 8))
+            painter.setFont(QFont("Arial", 16))
             # Color code the status text
             if "LOOKING AWAY" in self.status_text or "👁️" in self.status_text:
                 painter.setPen(QColor(0, 0, 255))  # Blue
@@ -345,7 +345,7 @@ class ServiceStartupStep(WizardStep):
         stderr_column_layout.addWidget(stderr_label)
 
         stderr_note = self.ui_factory.create_label("(Actual unexpected errors will be highlighted in red)")
-        stderr_note.setStyleSheet("font-size: 9pt; color: #666;")
+        stderr_note.setStyleSheet("font-size: 18pt; color: #666;")
         stderr_column_layout.addWidget(stderr_note)
 
         self.stderr_output = QTextEdit()
