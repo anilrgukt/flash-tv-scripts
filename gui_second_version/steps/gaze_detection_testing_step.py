@@ -6,12 +6,12 @@ import os
 import shutil
 from datetime import datetime, timedelta
 
-from PyQt6.QtWidgets import QWidget, QMessageBox, QTextEdit, QProgressBar
-from PyQt6.QtCore import QTimer
-
 from core import WizardStep
-from core.exceptions import handle_step_error, FlashTVError, ErrorType
+from core.exceptions import ErrorType, FlashTVError, handle_step_error
 from models import StepStatus
+from models.state_keys import UserInputKey
+from PyQt6.QtCore import QTimer
+from PyQt6.QtWidgets import QMessageBox, QProgressBar, QTextEdit, QWidget
 from utils.ui_factory import ButtonStyle
 
 
@@ -181,7 +181,7 @@ class GazeDetectionTestingStep(WizardStep):
         """Create the continue section."""
         button_layout, self.continue_button = self.ui_factory.create_continue_button(
             callback=self._on_continue_clicked,
-            text="Gaze Detection Verified - Continue"
+            text="Gaze Detection Verified - Continue",
         )
         self.continue_button.setEnabled(False)
 
@@ -191,9 +191,9 @@ class GazeDetectionTestingStep(WizardStep):
     def _launch_gaze_test(self, checked: bool = False) -> None:
         """Launch the gaze detection test."""
         try:
-            participant_id = self.state.get_user_input("participant_id", "")
-            device_id = self.state.get_user_input("device_id", "")
-            username = self.state.get_user_input("username", "")
+            participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
+            device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
+            username = self.state.get_user_input(UserInputKey.USERNAME, "")
 
             if not participant_id or not username:
                 self.logger.error("Missing participant ID or username for gaze test")
@@ -209,9 +209,13 @@ class GazeDetectionTestingStep(WizardStep):
                 )
 
             # Combine participant_id and device_id
-            full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
+            full_participant_id = (
+                f"{participant_id}{device_id}" if device_id else participant_id
+            )
 
-            self.logger.info(f"Starting gaze detection test for participant: {full_participant_id}")
+            self.logger.info(
+                f"Starting gaze detection test for participant: {full_participant_id}"
+            )
             self.launch_button.setEnabled(False)
             self.update_status(StepStatus.AUTOMATION_RUNNING)
 
@@ -272,7 +276,9 @@ class GazeDetectionTestingStep(WizardStep):
             return
 
         elapsed = (datetime.now() - self.loading_start_time).total_seconds()
-        progress_percent = min(100, int((elapsed / self.loading_duration_seconds) * 100))
+        progress_percent = min(
+            100, int((elapsed / self.loading_duration_seconds) * 100)
+        )
 
         self.loading_progress_bar.setValue(progress_percent)
 
@@ -282,7 +288,9 @@ class GazeDetectionTestingStep(WizardStep):
         seconds = remaining_seconds % 60
 
         if progress_percent >= 100:
-            self.loading_progress_bar.setFormat("Models loaded - Window should be ready!")
+            self.loading_progress_bar.setFormat(
+                "Models loaded - Window should be ready!"
+            )
             self.loading_timer.stop()
         else:
             self.loading_progress_bar.setFormat(
@@ -322,8 +330,8 @@ class GazeDetectionTestingStep(WizardStep):
                 self._cleanup_test_files()
 
                 # Mark as complete
-                self.state.set_user_input("gaze_detection_verified", True)
-                self.state.set_user_input("gaze_test_complete", True)
+                self.state.set_user_input(UserInputKey.GAZE_DETECTION_VERIFIED, True)
+                self.state.set_user_input(UserInputKey.GAZE_TEST_COMPLETE, True)
 
                 # Persist state
                 if self.state_manager:
@@ -340,7 +348,9 @@ class GazeDetectionTestingStep(WizardStep):
                 self.logger.info("Gaze detection test completed successfully")
             else:
                 self.logger.info("User did not confirm gaze detection is working")
-                self.output_text.append("\n⚠️ Please verify gaze detection is working before continuing")
+                self.output_text.append(
+                    "\n⚠️ Please verify gaze detection is working before continuing"
+                )
 
         except Exception as e:
             self.logger.error(f"Error during gaze confirmation: {e}")
@@ -364,7 +374,9 @@ class GazeDetectionTestingStep(WizardStep):
                     cleaned_folders += 1
                     self.logger.debug(f"Removed test folder: {folder}")
 
-            self.logger.info(f"Test file cleanup completed - removed {cleaned_folders} folders")
+            self.logger.info(
+                f"Test file cleanup completed - removed {cleaned_folders} folders"
+            )
 
         except Exception as e:
             self.logger.error(f"Error during test file cleanup: {e}")
@@ -412,13 +424,13 @@ class GazeDetectionTestingStep(WizardStep):
     def _on_continue_clicked(self, checked: bool = False) -> None:
         """Handle continue button click with validation."""
         try:
-            if self.state.get_user_input("gaze_detection_verified", False):
+            if self.state.get_user_input(UserInputKey.GAZE_DETECTION_VERIFIED, False):
                 self.logger.info("Gaze detection test step completed successfully")
 
                 # Save notes if any
                 notes = self.notes_text.toPlainText().strip()
                 if notes:
-                    self.state.set_user_input("gaze_detection_notes", notes)
+                    self.state.set_user_input(UserInputKey.GAZE_DETECTION_NOTES, notes)
                     self._save_notes_to_file("Gaze Detection Testing", notes)
 
                 # Final state persistence
@@ -445,12 +457,12 @@ class GazeDetectionTestingStep(WizardStep):
         self.logger.info("Gaze detection testing step activated")
 
         # Load any saved notes
-        saved_notes = self.state.get_user_input("gaze_detection_notes", "")
+        saved_notes = self.state.get_user_input(UserInputKey.GAZE_DETECTION_NOTES, "")
         if saved_notes:
             self.notes_text.setText(saved_notes)
 
         # Check if already verified
-        if self.state.get_user_input("gaze_detection_verified", False):
+        if self.state.get_user_input(UserInputKey.GAZE_DETECTION_VERIFIED, False):
             self.continue_button.setEnabled(True)
             self.update_status(StepStatus.COMPLETED)
             self.logger.info("Gaze detection already verified, skipping")

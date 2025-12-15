@@ -8,26 +8,26 @@ from pathlib import Path
 # Add the current directory to Python path for proper imports
 sys.path.insert(0, str(Path(__file__).parent))
 
+from config.messages import MESSAGES
+from config.ui_config import UI_CONFIG
+from core import ProcessRunner, StateManager
+from models import StepStatus, WizardState
+from PyQt6.QtCore import QTimer
+from PyQt6.QtGui import QCloseEvent, QFont
 from PyQt6.QtWidgets import (
     QApplication,
-    QMainWindow,
-    QVBoxLayout,
     QHBoxLayout,
-    QWidget,
     QLabel,
+    QMainWindow,
+    QProgressBar,
     QPushButton,
     QStackedWidget,
-    QProgressBar,
     QStatusBar,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtCore import QTimer
-from PyQt6.QtGui import QFont, QCloseEvent
-
-from constants import AppInfo, UI, Process, Steps
-from models import WizardState, StepStatus
-from core import StateManager, ProcessRunner
 from steps import StepFactory
-from utils import FlashLogger, get_logger, log_step_start, log_step_complete
+from utils import FlashLogger, get_logger, log_step_complete, log_step_start
 
 
 class FlashTVSetupWizard(QMainWindow):
@@ -36,39 +36,33 @@ class FlashTVSetupWizard(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        # Initialize logging
         FlashLogger.setup_logging(debug=False)
         self.logger = get_logger("main")
         self.logger.info("FLASH-TV Setup Wizard starting")
 
-        # Initialize core components
         self.state = WizardState()
         self.state_manager = StateManager()
         self.process_runner = ProcessRunner(self.state)
 
-        # Step management
         self.step_definitions = StepFactory.create_step_definitions()
         self.steps = {}
         self.current_step_widget = None
 
-        # UI components
         self.setup_ui()
 
-        # Auto-save timer
         self.auto_save_timer = QTimer()
         self.auto_save_timer.timeout.connect(self.auto_save_state)
-        self.auto_save_timer.start(Process.AUTO_SAVE_INTERVAL_MS)
+        self.auto_save_timer.start(UI_CONFIG.AUTO_SAVE_INTERVAL_MS)
 
-        # Check for existing session
         self.check_for_existing_session()
-
-        # Initialize first step
         self.navigate_to_step(self.state.current_step)
 
     def setup_ui(self) -> None:
         """Setup the main user interface."""
-        self.setWindowTitle(AppInfo.NAME)
-        self.setMinimumSize(UI.MIN_WINDOW_WIDTH, UI.MIN_WINDOW_HEIGHT - 200)
+        self.setWindowTitle(MESSAGES.APP_NAME)
+        self.setMinimumSize(
+            UI_CONFIG.MIN_WINDOW_WIDTH, UI_CONFIG.MIN_WINDOW_HEIGHT - 200
+        )
 
         # Central widget
         central_widget = QWidget()
@@ -77,9 +71,12 @@ class FlashTVSetupWizard(QMainWindow):
         # Main layout with reduced margins
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(
-            UI.DEFAULT_MARGIN, UI.DEFAULT_MARGIN, UI.DEFAULT_MARGIN, UI.DEFAULT_MARGIN
+            UI_CONFIG.DEFAULT_MARGIN,
+            UI_CONFIG.DEFAULT_MARGIN,
+            UI_CONFIG.DEFAULT_MARGIN,
+            UI_CONFIG.DEFAULT_MARGIN,
         )
-        main_layout.setSpacing(UI.SECTION_SPACING)
+        main_layout.setSpacing(UI_CONFIG.SECTION_SPACING)
 
         # Compact header with step info and progress
         header_widget = self.create_compact_header()
@@ -99,18 +96,18 @@ class FlashTVSetupWizard(QMainWindow):
         header_widget = QWidget()
         header_layout = QVBoxLayout(header_widget)
         header_layout.setContentsMargins(
-            UI.DEFAULT_PADDING,
-            UI.DEFAULT_PADDING,
-            UI.DEFAULT_PADDING,
-            UI.DEFAULT_PADDING,
+            UI_CONFIG.DEFAULT_PADDING,
+            UI_CONFIG.DEFAULT_PADDING,
+            UI_CONFIG.DEFAULT_PADDING,
+            UI_CONFIG.DEFAULT_PADDING,
         )
-        header_layout.setSpacing(UI.CONTENT_SPACING)
+        header_layout.setSpacing(UI_CONFIG.CONTENT_SPACING)
 
         # Title row
         title_row = QHBoxLayout()
         title_label = QLabel("FLASH-TV System Setup Wizard")
         title_font = QFont()
-        title_font.setPointSize(UI.TITLE_FONT_SIZE)
+        title_font.setPointSize(UI_CONFIG.TITLE_FONT_SIZE)
         title_font.setBold(True)
         title_label.setFont(title_font)
         title_row.addWidget(title_label)
@@ -127,7 +124,7 @@ class FlashTVSetupWizard(QMainWindow):
 
         # Progress bar (compact)
         self.progress_bar = QProgressBar()
-        self.progress_bar.setMaximum(Steps.TOTAL)
+        self.progress_bar.setMaximum(MESSAGES.TOTAL_STEPS)
         self.progress_bar.setMinimumHeight(20)
         self.progress_bar.setMaximumHeight(20)
         progress_nav_layout.addWidget(self.progress_bar)
@@ -169,14 +166,16 @@ class FlashTVSetupWizard(QMainWindow):
         """Check for existing session and offer recovery."""
         if self.state_manager.detect_incomplete_session():
             if self.state_manager.create_recovery_dialog(self):
-                # Load existing state
                 loaded_state = self.state_manager.load_state()
                 if loaded_state:
-                    self.logger.info(f"Loading session with current_step: {loaded_state.current_step}")
+                    self.logger.info(
+                        f"Loading session with current_step: {loaded_state.current_step}"
+                    )
                     self.state = loaded_state
-                    # Update process runner with loaded state
                     self.process_runner.state = self.state
-                    self.logger.info(f"Session recovered - will navigate to step {self.state.current_step}")
+                    self.logger.info(
+                        f"Session recovered - will navigate to step {self.state.current_step}"
+                    )
                     if status_bar := self.statusBar():
                         status_bar.showMessage("Session recovered successfully")
                 else:
@@ -184,7 +183,6 @@ class FlashTVSetupWizard(QMainWindow):
                     if status_bar := self.statusBar():
                         status_bar.showMessage("Failed to recover session")
             else:
-                # Clear state and start fresh
                 self.logger.info("User chose to start fresh session")
                 self.state_manager.clear_state()
                 if status_bar := self.statusBar():
@@ -195,15 +193,13 @@ class FlashTVSetupWizard(QMainWindow):
     def navigate_to_step(self, step_id: int) -> None:
         """Navigate to a specific step."""
         self.logger.info(f"Navigating to step {step_id}")
-        if step_id < 1 or step_id > Steps.TOTAL:
+        if step_id < 1 or step_id > MESSAGES.TOTAL_STEPS:
             self.logger.warning(f"Invalid step ID: {step_id}")
             return
 
-        # Deactivate current step
         if self.current_step_widget:
             self.current_step_widget.deactivate_step()
 
-        # Create step if not exists
         if step_id not in self.steps:
             step_def = next(
                 (s for s in self.step_definitions if s.step_id == step_id), None
@@ -213,7 +209,6 @@ class FlashTVSetupWizard(QMainWindow):
                     step_def, self.state, self.process_runner, self.state_manager, self
                 )
 
-                # Connect signals
                 step_widget.status_changed.connect(self.on_step_status_changed)
                 step_widget.step_completed.connect(self.on_step_completed)
                 step_widget.request_next_step.connect(self.go_to_next_step)
@@ -221,23 +216,16 @@ class FlashTVSetupWizard(QMainWindow):
                 self.steps[step_id] = step_widget
                 self.step_stack.addWidget(step_widget)
 
-        # Switch to step
         if step_id in self.steps:
             self.current_step_widget = self.steps[step_id]
             self.step_stack.setCurrentWidget(self.current_step_widget)
             self.state.current_step = step_id
 
-            # Log step navigation
-            step_name = Steps.TITLES.get(step_id, f"Step {step_id}")
+            step_name = MESSAGES.STEP_TITLES.get(step_id, f"Step {step_id}")
             log_step_start(step_id, step_name)
 
-            # Activate step
             self.current_step_widget.activate_step()
-
-            # Update UI
             self.update_ui()
-
-            # Auto-save state
             self.auto_save_state()
 
     def update_ui(self) -> None:
@@ -245,24 +233,21 @@ class FlashTVSetupWizard(QMainWindow):
         current_step = self.state.current_step
         completed_count = len(self.state.completed_steps)
 
-        # Update step indicator using constants
-        step_title = Steps.TITLES.get(current_step, f"Step {current_step}")
+        step_title = MESSAGES.STEP_TITLES.get(current_step, f"Step {current_step}")
         self.step_indicator.setText(
-            f"Step {current_step} of {Steps.TOTAL}: {step_title}"
+            f"Step {current_step} of {MESSAGES.TOTAL_STEPS}: {step_title}"
         )
 
-        # Update progress bar
         self.progress_bar.setValue(completed_count)
         self.progress_bar.setFormat(
-            f"{completed_count}/{Steps.TOTAL} steps completed (%p%)"
+            f"{completed_count}/{MESSAGES.TOTAL_STEPS} steps completed (%p%)"
         )
 
-        # Update navigation buttons
         self.prev_button.setEnabled(current_step > 1)
-        self.next_button.setEnabled(current_step < Steps.TOTAL)
+        self.next_button.setEnabled(current_step < MESSAGES.TOTAL_STEPS)
 
         # Show finish button on last step
-        if current_step == Steps.TOTAL:
+        if current_step == MESSAGES.TOTAL_STEPS:
             self.next_button.setVisible(False)
             self.finish_button.setVisible(True)
         else:
@@ -283,14 +268,13 @@ class FlashTVSetupWizard(QMainWindow):
 
     def go_to_next_step(self) -> None:
         """Navigate to the next step."""
-        if self.state.current_step < Steps.TOTAL:
+        if self.state.current_step < MESSAGES.TOTAL_STEPS:
             self.navigate_to_step(self.state.current_step + 1)
 
     def on_step_status_changed(self, status: StepStatus) -> None:
         """Handle step status changes."""
         self.update_ui()
 
-        # Update status bar
         status_messages = {
             StepStatus.PENDING: "Step is pending prerequisite completion",
             StepStatus.USER_ACTION_REQUIRED: "User action required to continue",
@@ -308,8 +292,7 @@ class FlashTVSetupWizard(QMainWindow):
         self.update_ui()
         self.auto_save_state()
 
-        # Show completion message and log
-        step_name = Steps.TITLES.get(step_id, f"Step {step_id}")
+        step_name = MESSAGES.STEP_TITLES.get(step_id, f"Step {step_id}")
         log_step_complete(step_id, step_name)
         if status_bar := self.statusBar():
             status_bar.showMessage(f"'{step_name}' completed successfully!")
@@ -326,15 +309,14 @@ class FlashTVSetupWizard(QMainWindow):
         """Complete the setup process."""
         from PyQt6.QtWidgets import QMessageBox
 
-        # Check if all steps are completed
         completed_steps = len(self.state.completed_steps)
 
-        if completed_steps < Steps.TOTAL:
+        if completed_steps < MESSAGES.TOTAL_STEPS:
             msg = QMessageBox(self)
             msg.setWindowTitle("Setup Incomplete")
             msg.setIcon(QMessageBox.Icon.Warning)
             msg.setText(
-                f"Setup is not complete. {completed_steps}/{Steps.TOTAL} steps finished."
+                f"Setup is not complete. {completed_steps}/{MESSAGES.TOTAL_STEPS} steps finished."
             )
             msg.setInformativeText("Are you sure you want to finish setup now?")
             msg.setStandardButtons(
@@ -345,7 +327,6 @@ class FlashTVSetupWizard(QMainWindow):
             if msg.exec() != QMessageBox.StandardButton.Yes:
                 return
 
-        # Show completion dialog
         msg = QMessageBox(self)
         msg.setWindowTitle("Setup Complete")
         msg.setIcon(QMessageBox.Icon.Information)
@@ -356,7 +337,6 @@ class FlashTVSetupWizard(QMainWindow):
         msg.setStandardButtons(QMessageBox.StandardButton.Ok)
         msg.exec()
 
-        # Clear saved state and exit
         self.state_manager.clear_state()
         self.logger.info("Setup wizard completed successfully")
         self.close()
@@ -365,13 +345,8 @@ class FlashTVSetupWizard(QMainWindow):
         """Handle application close event."""
         self.logger.info("Shutting down FLASH-TV Setup Wizard")
 
-        # Clean up processes
         self.process_runner.cleanup_all_processes()
-
-        # Save state before closing
         self.auto_save_state()
-
-        # Clean up timers
         if self.auto_save_timer.isActive():
             self.auto_save_timer.stop()
 
@@ -386,16 +361,13 @@ def main():
         sys.argv += ["--style=Fusion"]
     app = QApplication(sys.argv)
 
-    # Set application properties
-    app.setApplicationName(AppInfo.NAME)
-    app.setApplicationVersion(AppInfo.VERSION)
-    app.setOrganizationName(AppInfo.ORGANIZATION)
+    app.setApplicationName(MESSAGES.APP_NAME)
+    app.setApplicationVersion(MESSAGES.APP_VERSION)
+    app.setOrganizationName(MESSAGES.APP_ORGANIZATION)
 
-    # Create and show main window
     wizard = FlashTVSetupWizard()
     wizard.show()
 
-    # Start event loop
     sys.exit(app.exec())
 
 

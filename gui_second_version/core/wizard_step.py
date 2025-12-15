@@ -2,16 +2,16 @@
 
 from __future__ import annotations
 
-from PyQt6.QtCore import QTimer, pyqtSignal
-from PyQt6.QtWidgets import QWidget
-
-from models import StepDefinition, StepStatus, WizardState
+from core.config import get_config
+from core.exceptions import ErrorType, FlashTVError, handle_step_error
 from core.process_runner import ProcessRunner
 from core.state_manager import StateManager
-from core.config import get_config
-from core.exceptions import handle_step_error, FlashTVError, ErrorType
-from utils.ui_factory import get_ui_factory
+from models import StepDefinition, StepStatus, WizardState
+from PyQt6.QtCore import QTimer, pyqtSignal
+from PyQt6.QtWidgets import QWidget
+from utils.adaptive_font import get_adaptive_scaler
 from utils.logger import get_logger
+from utils.ui_factory import get_ui_factory
 
 
 class WizardStep(QWidget):
@@ -32,47 +32,45 @@ class WizardStep(QWidget):
     ):
         super().__init__(parent)
 
-        # Core components
         self.step_definition = step_definition
         self.state = state
         self.process_runner = process_runner
         self.state_manager = state_manager
         self.current_status = StepStatus.PENDING
 
-        # Framework components
         self.config = get_config()
         self.ui_factory = get_ui_factory()
+        self.adaptive_scaler = get_adaptive_scaler()
         self.logger = get_logger(f"step_{step_definition.step_id}")
 
-        # Initialize UI using factory
-        self._setup_ui()
+        self._managed_timers: list[QTimer] = []
 
-        # Initialize status
+        self._setup_ui()
         self.update_status(StepStatus.PENDING)
 
-        # Setup update timer for dynamic content
         self.update_timer = QTimer()
         self.update_timer.timeout.connect(self._safe_update_ui)
         self.update_timer.start(self.config.status_update_interval_ms)
+        self._managed_timers.append(self.update_timer)
 
     def _setup_ui(self) -> None:
         """Initialize the base UI structure using UI factory."""
         self.main_layout = self.ui_factory.create_main_step_layout()
         self.setLayout(self.main_layout)
 
-        # Create header section
         self._create_header()
 
-        # Content widget (implemented by subclasses)
         self.content_widget = self.create_content_widget()
         if self.content_widget:
             self.main_layout.addWidget(self.content_widget, stretch=1)
+            self.adaptive_scaler.apply_adaptive_scaling(
+                self.content_widget, delay_ms=200
+            )
 
     def _create_header(self) -> None:
         """Create the compact header section."""
         header_layout = self.ui_factory.create_vertical_layout(spacing=3)
 
-        # Title label
         title_text = (
             f"Step {self.step_definition.step_id}: {self.step_definition.title}"
         )
@@ -81,7 +79,6 @@ class WizardStep(QWidget):
         )
         header_layout.addWidget(self.title_label)
 
-        # Status label
         self.status_label = self.ui_factory.create_status_label(
             "Loading...", status_type="info"
         )
@@ -105,18 +102,14 @@ class WizardStep(QWidget):
                 f"Step {self.step_definition.step_id} status changed to {status.value}"
             )
 
-            # Update status label using status type mapping
             status_type = self._map_status_to_type(status)
             status_text = self._get_status_text(status)
 
-            # Use UI factory to update status label
             self.status_label.setText(status_text)
             self.status_label.setStyleSheet(self._get_status_style(status))
 
-            # Emit signal
             self.status_changed.emit(status)
 
-            # Handle completion with state persistence
             if status == StepStatus.COMPLETED:
                 self._handle_step_completion()
 
@@ -166,14 +159,11 @@ class WizardStep(QWidget):
     def _handle_step_completion(self) -> None:
         """Handle step completion with state persistence."""
         try:
-            # Mark in wizard state
             self.state.mark_step_completed(self.step_definition.step_id)
 
-            # Persist state if state manager available
             if self.state_manager:
                 self.state_manager.save_state(self.state)
 
-            # Emit completion signal
             self.step_completed.emit(self.step_definition.step_id)
 
             self.logger.info(
@@ -200,7 +190,6 @@ class WizardStep(QWidget):
             self.logger.error(
                 f"Error updating UI for step {self.step_definition.step_id}: {e}"
             )
-            # Don't re-raise to avoid breaking the timer
 
     def update_ui(self) -> None:
         """Update UI elements that may change over time.
@@ -219,9 +208,10 @@ class WizardStep(QWidget):
         try:
             self.logger.info(f"Activating step {self.step_definition.step_id}")
 
-            # If step is already completed, skip prerequisite check
             if self.is_completed():
-                self.logger.info(f"Step {self.step_definition.step_id} already completed, skipping prerequisite check")
+                self.logger.info(
+                    f"Step {self.step_definition.step_id} already completed, skipping prerequisite check"
+                )
                 self.update_status(StepStatus.COMPLETED)
             elif not self.check_prerequisites():
                 self.update_status(StepStatus.PENDING)
@@ -231,6 +221,11 @@ class WizardStep(QWidget):
             else:
                 self.update_status(StepStatus.USER_ACTION_REQUIRED)
 
+            if self.content_widget:
+                self.adaptive_scaler.apply_adaptive_scaling(
+                    self.content_widget, delay_ms=300
+                )
+
         except Exception as e:
             self.logger.error(
                 f"Error activating step {self.step_definition.step_id}: {e}"
@@ -238,12 +233,42 @@ class WizardStep(QWidget):
             self.update_status(StepStatus.FAILED)
             raise
 
+    def create_timer(
+        self, interval_ms: int, callback: callable, start: bool = True
+    ) -> QTimer:
+        """
+        Create and track a timer for automatic cleanup.
+
+        Args:
+            interval_ms: Timer interval in milliseconds
+            callback: Function to call on timeout
+            start: Whether to start the timer immediately (default True)
+
+        Returns:
+            The created QTimer
+        """
+        timer = QTimer(self)
+        timer.timeout.connect(callback)
+
+        if start:
+            timer.start(interval_ms)
+
+        self._managed_timers.append(timer)
+        return timer
+
+    def stop_all_timers(self) -> None:
+        """Stop all managed timers."""
+        for timer in self._managed_timers:
+            if timer.isActive():
+                timer.stop()
+
     def deactivate_step(self) -> None:
         """Deactivate this step (called when user navigates away).
 
         Override in subclasses for step-specific deactivation logic.
+        Base implementation stops all managed timers.
         """
-        pass
+        self.stop_all_timers()
 
     def is_completed(self) -> bool:
         """Check if this step is completed."""
@@ -261,11 +286,7 @@ class WizardStep(QWidget):
         try:
             self.logger.info(f"Cleaning up step {self.step_definition.step_id}")
 
-            # Stop timer
-            if self.update_timer.isActive():
-                self.update_timer.stop()
-
-            # Clean up step-specific resources
+            self.stop_all_timers()
             self._cleanup_step_resources()
 
         except Exception as e:
@@ -295,26 +316,23 @@ class WizardStep(QWidget):
         from datetime import datetime
 
         try:
-            # Validate inputs
             if not notes or not notes.strip():
                 self.logger.debug(f"No notes to save for {step_name}")
-                return True  # Not an error, just nothing to save
+                return True
 
             notes = notes.strip()
-
-            # Sanitize notes (remove null bytes, limit length)
-            notes = notes.replace('\x00', '')  # Remove null bytes
-            max_length = 50000  # 50KB limit for notes
+            notes = notes.replace("\x00", "")
+            max_length = 50000
             if len(notes) > max_length:
-                self.logger.warning(f"Notes exceeded {max_length} characters, truncating")
+                self.logger.warning(
+                    f"Notes exceeded {max_length} characters, truncating"
+                )
                 notes = notes[:max_length] + "\n[... truncated ...]"
 
-            # Get participant information from state
             participant_id = self.state.get_user_input("participant_id", "")
             device_id = self.state.get_user_input("device_id", "")
             username = self.state.get_user_input("username", "")
 
-            # Validate required fields
             if not all([participant_id, device_id, username]):
                 self.logger.warning(
                     f"Cannot save notes for {step_name}: missing participant info "
@@ -322,19 +340,14 @@ class WizardStep(QWidget):
                 )
                 return False
 
-            # Construct safe file path
             combined_id = f"{participant_id}{device_id}"
             data_folder = os.path.join("/home", username, "data", f"{combined_id}_data")
 
-            # Ensure data folder exists
             os.makedirs(data_folder, exist_ok=True)
 
             notes_file = os.path.join(data_folder, f"{combined_id}_notes.txt")
-
-            # Generate timestamp
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            # Safely append notes to file
             with open(notes_file, "a", encoding="utf-8") as f:
                 f.write(f"\n{'=' * 60}\n")
                 f.write(f"{step_name} Notes - {timestamp}\n")

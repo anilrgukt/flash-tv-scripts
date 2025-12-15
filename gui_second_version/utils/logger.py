@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from constants import Logging
+from config.messages import MESSAGES
 
 
 class FlashLogger:
@@ -35,7 +35,7 @@ class FlashLogger:
 
         # Create formatters
         detailed_formatter = logging.Formatter(
-            Logging.FORMAT, datefmt=Logging.DATE_FORMAT
+            MESSAGES.Logging.FORMAT, datefmt=MESSAGES.Logging.DATE_FORMAT
         )
 
         simple_formatter = logging.Formatter("%(levelname)s: %(message)s")
@@ -47,14 +47,14 @@ class FlashLogger:
         root_logger.addHandler(console_handler)
 
         # Main log file handler
-        main_log_file = log_path / Logging.MAIN_LOG_FILE
+        main_log_file = log_path / MESSAGES.Logging.MAIN_LOG_FILE
         main_handler = logging.FileHandler(main_log_file, encoding="utf-8")
         main_handler.setLevel(logging.DEBUG)
         main_handler.setFormatter(detailed_formatter)
         root_logger.addHandler(main_handler)
 
         # Error log file handler
-        error_log_file = log_path / Logging.ERROR_LOG_FILE
+        error_log_file = log_path / MESSAGES.Logging.ERROR_LOG_FILE
         error_handler = logging.FileHandler(error_log_file, encoding="utf-8")
         error_handler.setLevel(logging.ERROR)
         error_handler.setFormatter(detailed_formatter)

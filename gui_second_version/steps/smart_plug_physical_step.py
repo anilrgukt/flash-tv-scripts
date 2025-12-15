@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from PyQt6.QtWidgets import QWidget
-
 from core import WizardStep
-from core.exceptions import handle_step_error, FlashTVError, ErrorType
+from core.exceptions import ErrorType, FlashTVError, handle_step_error
 from models import StepStatus
+from models.state_keys import UserInputKey
+from PyQt6.QtWidgets import QWidget
 from utils.ui_factory import ButtonStyle
 
 
@@ -37,7 +37,9 @@ class SmartPlugPhysicalStep(WizardStep):
 
     def _create_overview_section(self) -> QWidget:
         """Create the instructions overview section using UI factory."""
-        overview_group, overview_layout = self.ui_factory.create_group_box("Smart Plug Setup Overview")
+        overview_group, overview_layout = self.ui_factory.create_group_box(
+            "Smart Plug Setup Overview"
+        )
 
         overview_text = self.ui_factory.create_label(
             "This step guides you through physically setting up the smart plug "
@@ -67,24 +69,34 @@ class SmartPlugPhysicalStep(WizardStep):
         top_row = self.ui_factory.create_horizontal_layout(spacing=12)
 
         # Step 1: Identify TV Power Cord
-        step1_box, step1_layout = self.ui_factory.create_group_box("Step 1: Identify TV Power Cord")
+        step1_box, step1_layout = self.ui_factory.create_group_box(
+            "Step 1: Identify TV Power Cord"
+        )
 
         step1_text = self.ui_factory.create_label(
             "Locate the TV power cord\nTrace it from the TV to the wall outlet\nEnsure you can safely access the outlet"
         )
         step1_layout.addWidget(step1_text)
 
-        self.step1_check = self.ui_factory.create_checkbox("I have identified the TV power cord", callback=self._update_progress)
+        self.step1_check = self.ui_factory.create_checkbox(
+            "I have identified the TV power cord", callback=self._update_progress
+        )
         step1_layout.addWidget(self.step1_check)
         step1_layout.addStretch()
 
         # Step 2: Unplug TV
-        step2_box, step2_layout = self.ui_factory.create_group_box("Step 2: Unplug TV from Wall")
+        step2_box, step2_layout = self.ui_factory.create_group_box(
+            "Step 2: Unplug TV from Wall"
+        )
 
-        step2_text = self.ui_factory.create_label("Unplug the TV power cord from the wall outlet\nKeep the cord accessible for next step")
+        step2_text = self.ui_factory.create_label(
+            "Unplug the TV power cord from the wall outlet\nKeep the cord accessible for next step"
+        )
         step2_layout.addWidget(step2_text)
 
-        self.step2_check = self.ui_factory.create_checkbox("TV is unplugged from wall outlet", callback=self._update_progress)
+        self.step2_check = self.ui_factory.create_checkbox(
+            "TV is unplugged from wall outlet", callback=self._update_progress
+        )
         step2_layout.addWidget(self.step2_check)
         step2_layout.addStretch()
 
@@ -98,7 +110,9 @@ class SmartPlugPhysicalStep(WizardStep):
         bottom_row = self.ui_factory.create_horizontal_layout(spacing=12)
 
         # Step 3: Connect TV to Smart Plug
-        step3_box, step3_layout = self.ui_factory.create_group_box("Step 3: Connect TV to Smart Plug")
+        step3_box, step3_layout = self.ui_factory.create_group_box(
+            "Step 3: Connect TV to Smart Plug"
+        )
 
         step3_text = self.ui_factory.create_label(
             "Take the TV power cord (unplugged from wall)\n"
@@ -108,12 +122,16 @@ class SmartPlugPhysicalStep(WizardStep):
         )
         step3_layout.addWidget(step3_text)
 
-        self.step3_check = self.ui_factory.create_checkbox("✓ TV is connected to smart plug", callback=self._update_progress)
+        self.step3_check = self.ui_factory.create_checkbox(
+            "✓ TV is connected to smart plug", callback=self._update_progress
+        )
         step3_layout.addWidget(self.step3_check)
         step3_layout.addStretch()
 
         # Step 4: Insert Smart Plug Assembly
-        step4_box, step4_layout = self.ui_factory.create_group_box("Step 4: Insert Smart Plug Assembly")
+        step4_box, step4_layout = self.ui_factory.create_group_box(
+            "Step 4: Insert Smart Plug Assembly"
+        )
 
         step4_text = self.ui_factory.create_label(
             "Take the smart plug with TV cord attached\n"
@@ -141,7 +159,9 @@ class SmartPlugPhysicalStep(WizardStep):
         bottom_layout = self.ui_factory.create_horizontal_layout()
 
         # Progress status
-        self.progress_label = self.ui_factory.create_status_label("Complete all steps to continue", status_type="info")
+        self.progress_label = self.ui_factory.create_status_label(
+            "Complete all steps to continue", status_type="info"
+        )
         bottom_layout.addWidget(self.progress_label)
 
         bottom_layout.addStretch()
@@ -173,16 +193,22 @@ class SmartPlugPhysicalStep(WizardStep):
             total = len(checks)
 
             # Log progress changes
-            self.logger.debug(f"Smart plug setup progress: {completed}/{total} steps completed")
+            self.logger.debug(
+                f"Smart plug setup progress: {completed}/{total} steps completed"
+            )
 
             if completed == total:
-                self.progress_label.setText("✅ All steps completed! Ready to continue.")
-                self.progress_label.setStyleSheet(f"color: {self.config.success_color}; font-weight: bold; padding: 10px;")
+                self.progress_label.setText(
+                    "✅ All steps completed! Ready to continue."
+                )
+                self.progress_label.setStyleSheet(
+                    f"color: {self.config.success_color}; font-weight: bold; padding: 10px;"
+                )
                 self.continue_button.setEnabled(True)
 
                 # Save progress to state
                 self.state.set_user_input(
-                    "smart_plug_physical_progress",
+                    UserInputKey.SMART_PLUG_PHYSICAL_PROGRESS,
                     {
                         "step1": checks[0],
                         "step2": checks[1],
@@ -198,8 +224,12 @@ class SmartPlugPhysicalStep(WizardStep):
                 self.update_status(StepStatus.COMPLETED)
                 self.logger.info("Smart plug physical setup completed")
             else:
-                self.progress_label.setText(f"Progress: {completed}/{total} steps completed")
-                self.progress_label.setStyleSheet(f"color: {self.config.info_color}; font-weight: bold; padding: 10px;")
+                self.progress_label.setText(
+                    f"Progress: {completed}/{total} steps completed"
+                )
+                self.progress_label.setStyleSheet(
+                    f"color: {self.config.info_color}; font-weight: bold; padding: 10px;"
+                )
                 self.continue_button.setEnabled(False)
                 self.update_status(StepStatus.USER_ACTION_REQUIRED)
 
@@ -228,8 +258,10 @@ class SmartPlugPhysicalStep(WizardStep):
                 self.logger.info("Smart plug physical setup completed successfully")
 
                 # Save completion status
-                self.state.set_user_input("smart_plug_configured", True)
-                self.state.set_user_input("smart_plug_physical_complete", True)
+                self.state.set_user_input(UserInputKey.SMART_PLUG_CONFIGURED, True)
+                self.state.set_user_input(
+                    UserInputKey.SMART_PLUG_PHYSICAL_COMPLETE, True
+                )
 
                 # Final state persistence
                 if self.state_manager:
@@ -265,7 +297,9 @@ class SmartPlugPhysicalStep(WizardStep):
     def _restore_previous_progress(self) -> None:
         """Restore previously saved checkbox states."""
         try:
-            progress = self.state.get_user_input("smart_plug_physical_progress", {})
+            progress = self.state.get_user_input(
+                UserInputKey.SMART_PLUG_PHYSICAL_PROGRESS, {}
+            )
 
             if progress:
                 self.step1_check.setChecked(progress.get("step1", False))
@@ -289,7 +323,9 @@ class SmartPlugPhysicalStep(WizardStep):
                     "step3": self.step3_check.isChecked(),
                     "step4": self.step4_check.isChecked(),
                 }
-                self.state.set_user_input("smart_plug_physical_progress", current_progress)
+                self.state.set_user_input(
+                    UserInputKey.SMART_PLUG_PHYSICAL_PROGRESS, current_progress
+                )
                 self.state_manager.save_state(self.state)
 
             self.logger.info("Smart plug physical setup step cleanup completed")

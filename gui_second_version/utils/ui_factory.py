@@ -5,22 +5,21 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Callable
 
+from config.ui_config import UI_CONFIG
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
     QCheckBox,
     QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QProgressBar,
     QPushButton,
     QTextEdit,
     QVBoxLayout,
     QWidget,
-    QListWidget,
-    QProgressBar,
 )
-from PyQt6.QtGui import QFont
-
-from core.config import get_config
 
 
 class ButtonStyle(StrEnum):
@@ -37,6 +36,9 @@ class UIFactory:
     """Factory for creating standardized UI components."""
 
     def __init__(self):
+        # Lazy import to avoid circular dependency
+        from core.config import get_config
+
         self.config = get_config()
 
     def create_group_box(
@@ -48,15 +50,12 @@ class UIFactory:
         """Create a standardized group box with layout."""
         group_box = QGroupBox(title)
 
-        # Set larger font for group box title
         font = QFont()
-        font.setPointSize(24)
+        font.setPointSize(UI_CONFIG.HEADER_FONT_SIZE)
         font.setBold(True)
         group_box.setFont(font)
 
         layout = QVBoxLayout(group_box)
-
-        # Apply consistent spacing and margins
         layout.setSpacing(spacing or self.config.content_spacing)
 
         if margins:
@@ -78,20 +77,16 @@ class UIFactory:
         """Create a standardized action button."""
         button = QPushButton(text)
 
-        # Set larger font for button
         font = QFont()
-        font.setPointSize(20)
+        font.setPointSize(UI_CONFIG.NORMAL_FONT_SIZE)
         font.setBold(True)
         button.setFont(font)
 
-        # Set height
         button_height = height or self.config.action_button_height
         button.setFixedHeight(button_height)
 
-        # Apply style
         button.setStyleSheet(self._get_button_style(style))
 
-        # Connect callback
         if callback:
             button.clicked.connect(callback)
 
@@ -105,9 +100,9 @@ class UIFactory:
         """Create a standard-sized button."""
         button = QPushButton(text)
 
-        # Set larger font for button
+        # Set font for button
         font = QFont()
-        font.setPointSize(20)
+        font.setPointSize(UI_CONFIG.NORMAL_FONT_SIZE)
         font.setBold(True)
         button.setFont(font)
 
@@ -144,9 +139,9 @@ class UIFactory:
         input_field = QLineEdit()
         input_field.setPlaceholderText(placeholder)
 
-        # Set larger font for input field
+        # Set font for input field
         font = QFont()
-        font.setPointSize(20)
+        font.setPointSize(UI_CONFIG.NORMAL_FONT_SIZE)
         input_field.setFont(font)
 
         if height:
@@ -184,9 +179,9 @@ class UIFactory:
         text_area.setPlaceholderText(placeholder)
         text_area.setReadOnly(read_only)
 
-        # Set larger font for text area
+        # Set font for text area
         font = QFont()
-        font.setPointSize(18)
+        font.setPointSize(UI_CONFIG.SMALL_FONT_SIZE)
         text_area.setFont(font)
 
         if max_height:
@@ -203,9 +198,9 @@ class UIFactory:
         checkbox = QCheckBox(text)
         checkbox.setChecked(checked)
 
-        # Set larger font for checkbox
+        # Set font for checkbox
         font = QFont()
-        font.setPointSize(20)
+        font.setPointSize(UI_CONFIG.NORMAL_FONT_SIZE)
         checkbox.setFont(font)
 
         if callback:
@@ -220,9 +215,9 @@ class UIFactory:
         label = QLabel(text)
         label.setWordWrap(word_wrap)
 
-        # Set larger font for label
+        # Set font for label
         font = QFont()
-        font.setPointSize(20)
+        font.setPointSize(UI_CONFIG.NORMAL_FONT_SIZE)
         label.setFont(font)
 
         if style:
@@ -235,9 +230,9 @@ class UIFactory:
         label = QLabel(text)
         label.setWordWrap(True)
 
-        # Set larger font for status label
+        # Set font for status label
         font = QFont()
-        font.setPointSize(20)
+        font.setPointSize(UI_CONFIG.STATUS_FONT_SIZE)
         font.setBold(True)
         label.setFont(font)
 
@@ -258,9 +253,9 @@ class UIFactory:
         """Create a standardized list widget."""
         list_widget = QListWidget()
 
-        # Set larger font for list widget
+        # Set font for list widget
         font = QFont()
-        font.setPointSize(18)
+        font.setPointSize(UI_CONFIG.SMALL_FONT_SIZE)
         list_widget.setFont(font)
 
         if max_height:
@@ -279,9 +274,9 @@ class UIFactory:
         progress_bar.setMaximum(maximum)
         progress_bar.setValue(value)
 
-        # Set larger font for progress bar
+        # Set font for progress bar
         font = QFont()
-        font.setPointSize(18)
+        font.setPointSize(UI_CONFIG.SMALL_FONT_SIZE)
         progress_bar.setFont(font)
 
         return progress_bar
@@ -345,80 +340,82 @@ class UIFactory:
 
     def _get_button_style(self, style: ButtonStyle) -> str:
         """Get CSS style for button type."""
+        font_size = f"{UI_CONFIG.NORMAL_FONT_SIZE}pt"
+
         styles = {
-            ButtonStyle.PRIMARY: """
-                QPushButton {
+            ButtonStyle.PRIMARY: f"""
+                QPushButton {{
                     background-color: #1976d2;
                     color: white;
                     border: none;
                     border-radius: 3px;
                     font-weight: bold;
-                    font-size: 20pt;
-                }
-                QPushButton:hover {
+                    font-size: {font_size};
+                }}
+                QPushButton:hover {{
                     background-color: #1565c0;
-                }
-                QPushButton:pressed {
+                }}
+                QPushButton:pressed {{
                     background-color: #0d47a1;
-                }
-                QPushButton:disabled {
+                }}
+                QPushButton:disabled {{
                     background-color: #ccc;
                     color: #666;
-                }
+                }}
             """,
-            ButtonStyle.SECONDARY: """
-                QPushButton {
+            ButtonStyle.SECONDARY: f"""
+                QPushButton {{
                     background-color: #f5f5f5;
                     color: #333;
                     border: 1px solid #ddd;
                     border-radius: 3px;
-                    font-size: 20pt;
-                }
-                QPushButton:hover {
+                    font-size: {font_size};
+                }}
+                QPushButton:hover {{
                     background-color: #e0e0e0;
-                }
-                QPushButton:pressed {
+                }}
+                QPushButton:pressed {{
                     background-color: #d5d5d5;
-                }
+                }}
             """,
-            ButtonStyle.SUCCESS: """
-                QPushButton {
+            ButtonStyle.SUCCESS: f"""
+                QPushButton {{
                     background-color: #2e7d32;
                     color: white;
                     border: none;
                     border-radius: 3px;
                     font-weight: bold;
-                    font-size: 20pt;
-                }
-                QPushButton:hover {
+                    font-size: {font_size};
+                }}
+                QPushButton:hover {{
                     background-color: #1b5e20;
-                }
+                }}
             """,
-            ButtonStyle.WARNING: """
-                QPushButton {
+            ButtonStyle.WARNING: f"""
+                QPushButton {{
                     background-color: #f57c00;
                     color: white;
                     border: none;
                     border-radius: 3px;
                     font-weight: bold;
-                    font-size: 20pt;
-                }
-                QPushButton:hover {
+                    font-size: {font_size};
+                }}
+                QPushButton:hover {{
                     background-color: #ef6c00;
-                }
+                }}
             """,
-            ButtonStyle.DANGER: """
-                QPushButton {
+            ButtonStyle.DANGER: f"""
+                QPushButton {{
                     background-color: #c62828;
                     color: white;
                     border: none;
                     border-radius: 3px;
                     font-weight: bold;
-                    font-size: 20pt;
-                }
-                QPushButton:hover {
+                    font-size: {font_size};
+                }}
+                QPushButton:hover {{
                     background-color: #b71c1c;
-                }
+                }}
             """,
         }
 

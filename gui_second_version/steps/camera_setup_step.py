@@ -6,16 +6,29 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import TYPE_CHECKING
 
-from PyQt6.QtWidgets import QWidget, QListWidget, QListWidgetItem, QMessageBox, QTextEdit, QLabel, QGroupBox
+if TYPE_CHECKING:
+    import subprocess
+
+from config.messages import MESSAGES
+from config.ui_config import UI_CONFIG
+from core import WizardStep
+from core.exceptions import ErrorType, FlashTVError, handle_step_error
+from models import StepStatus
+from models.state_keys import UserInputKey
 from PyQt6.QtCore import QTimer, pyqtSignal
 from PyQt6.QtGui import QPixmap
-
-from core import WizardStep
-from core.exceptions import handle_step_error, FlashTVError, ErrorType
-from models import StepStatus
-from constants import UI, Messages
+from PyQt6.QtWidgets import (
+    QGroupBox,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QTextEdit,
+    QWidget,
+)
+from utils.instruction_modal import show_instruction_modal
 from utils.ui_factory import ButtonStyle
 
 
@@ -32,11 +45,11 @@ class CameraSetupStep(WizardStep):
         self.cameras_detected = False
 
         # POV workflow state
-        self.cheese_process: Optional[subprocess.Popen] = None
-        self.image_viewer_process: Optional[subprocess.Popen] = None
+        self.cheese_process: subprocess.Popen[bytes] | None = None
+        self.image_viewer_process: subprocess.Popen[bytes] | None = None
         self.monitor_timer = QTimer()
         self.monitor_timer.timeout.connect(self._monitor_cheese_process)
-        self.temp_image_path: Optional[str] = None
+        self.temp_image_path: str | None = None
         self.pov_workflow_step = "initial"  # initial -> cheese_running -> image_found -> fullscreen -> confirmed -> cleanup
 
     def create_content_widget(self) -> QWidget:
@@ -87,7 +100,9 @@ class CameraSetupStep(WizardStep):
 
     def _create_overview_section(self) -> QWidget:
         """Create the overview section explaining the complete workflow."""
-        overview_group, overview_layout = self.ui_factory.create_group_box("Camera Setup Overview")
+        overview_group, overview_layout = self.ui_factory.create_group_box(
+            "Camera Setup Overview"
+        )
 
         overview_text = self.ui_factory.create_label(
             "This step will help you position the camera, verify it's working, "
@@ -102,24 +117,28 @@ class CameraSetupStep(WizardStep):
 
     def _create_positioning_section(self) -> QWidget:
         """Create the camera positioning guidelines section with integrated preview."""
-        positioning_group, positioning_layout = self.ui_factory.create_group_box("Step 2: Position the Camera")
-
-        positioning_text = (
-            "Position your camera to view the TV-watching seating area:\n"
-            "PLACEMENT: Please prioritize, in order, placing on top of the TV if the TV is not too high, placing near the TV on a surface, and mounting on the wall.\n"
-            "HEIGHT: Please try to avoid placing the camera too high as higher heights are not necessarily validated.\n"
-            "ANGLE: Please try to avoid extreme horizontal side angles (>15 degrees from the camera facing straight ahead) as these are not necessarily validated.\n"
-            "FIELD OF VIEW: The camera should be placed to maximize coverage of the areas the child watches TV in, the entire areas if possible.\n"
-            "LIGHTING: Try to minimize backlighting/glare from windows behind subjects but do not try to change participant preferences unless they offer.\n"
-            "CONNECTION: Make sure the cable cannot be easily interfered with.\n"
+        positioning_group, positioning_layout = self.ui_factory.create_group_box(
+            "Step 2: Position the Camera"
         )
 
-        positioning_label = self.ui_factory.create_label(positioning_text)
-        positioning_label.setWordWrap(True)
-        positioning_layout.addWidget(positioning_label)
+        # Simplified overview with button to view detailed instructions
+        positioning_text = self.ui_factory.create_label(
+            "Position the camera to view the TV-watching seating area. "
+            "Place it on top of the TV (if not too high), near the TV on a surface, or mounted on the wall."
+        )
+        positioning_layout.addWidget(positioning_text)
+
+        # Button to show detailed positioning instructions
+        view_instructions_button = self.ui_factory.create_action_button(
+            "📋 View Detailed Positioning Guidelines",
+            callback=self._show_positioning_instructions,
+            style=ButtonStyle.SECONDARY,
+            height=35,
+        )
+        positioning_layout.addWidget(view_instructions_button)
 
         # Add live preview button directly in positioning section
-        positioning_layout.addSpacing(15)
+        positioning_layout.addSpacing(10)
 
         self.launch_preview_button = self.ui_factory.create_action_button(
             "📹 Launch Live Preview",
@@ -131,7 +150,9 @@ class CameraSetupStep(WizardStep):
         positioning_layout.addWidget(self.launch_preview_button)
 
         # Preview status
-        self.preview_status = self.ui_factory.create_status_label("Use live preview to help position camera", status_type="info")
+        self.preview_status = self.ui_factory.create_status_label(
+            "Use live preview to help position camera", status_type="info"
+        )
         positioning_layout.addWidget(self.preview_status)
 
         positioning_layout.addStretch()
@@ -140,13 +161,18 @@ class CameraSetupStep(WizardStep):
 
     def _create_detection_section(self) -> QWidget:
         """Create the combined camera detection and test section."""
-        detection_group, detection_layout = self.ui_factory.create_group_box("Step 1: Detect and Test Camera")
+        detection_group, detection_layout = self.ui_factory.create_group_box(
+            "Step 1: Detect and Test Camera"
+        )
 
         # Status label showing test results
-        self.camera_status = self.ui_factory.create_label("Testing camera automatically...")
+        self.camera_status = self.ui_factory.create_label(
+            "Testing camera automatically..."
+        )
         self.camera_status.setWordWrap(True)
         self.camera_status.setMinimumHeight(60)
         from PyQt6.QtGui import QFont
+
         font = QFont()
         font.setPointSize(22)
         font.setBold(True)
@@ -181,7 +207,9 @@ class CameraSetupStep(WizardStep):
 
     def _create_pov_section(self) -> QWidget:
         """Create the POV picture capture section."""
-        pov_group, pov_layout = self.ui_factory.create_group_box("Step 3: Capture POV Baseline Picture")
+        pov_group, pov_layout = self.ui_factory.create_group_box(
+            "Step 3: Capture POV Baseline Picture"
+        )
 
         # POV instructions with proper word wrapping
         pov_instructions_text = (
@@ -218,7 +246,9 @@ class CameraSetupStep(WizardStep):
         pov_layout.addWidget(self.ipad_confirm_button)
 
         # POV status
-        self.pov_status = self.ui_factory.create_status_label("Complete camera setup before capturing POV picture", status_type="info")
+        self.pov_status = self.ui_factory.create_status_label(
+            "Complete camera setup before capturing POV picture", status_type="info"
+        )
         pov_layout.addWidget(self.pov_status)
 
         pov_layout.addStretch()
@@ -229,7 +259,9 @@ class CameraSetupStep(WizardStep):
         """Create notes section for camera setup observations."""
         notes_group, notes_layout = self.ui_factory.create_group_box("Setup Notes")
 
-        notes_label = self.ui_factory.create_label("Document observations (camera position, angle, field of view, lighting, issues):")
+        notes_label = self.ui_factory.create_label(
+            "Document observations (camera position, angle, field of view, lighting, issues):"
+        )
         notes_layout.addWidget(notes_label)
 
         self.notes_text = QTextEdit()
@@ -249,6 +281,23 @@ class CameraSetupStep(WizardStep):
         self.continue_button.setEnabled(False)
 
         return button_layout
+
+    def _show_positioning_instructions(self, checked: bool = False) -> None:
+        """Show detailed camera positioning instructions in a modal."""
+        instructions = [
+            "<b>PLACEMENT:</b> Prioritize in this order: (1) on top of the TV if not too high, (2) near the TV on a surface, (3) mounted on the wall",
+            "<b>HEIGHT:</b> Avoid placing the camera too high as higher heights are not necessarily validated",
+            "<b>ANGLE:</b> Avoid extreme horizontal side angles (>15 degrees from camera facing straight ahead) as these are not necessarily validated",
+            "<b>FIELD OF VIEW:</b> Maximize coverage of the areas where the child watches TV - cover the entire viewing area if possible",
+            "<b>LIGHTING:</b> Minimize backlighting/glare from windows behind subjects, but do not change participant preferences unless they offer",
+            "<b>CONNECTION:</b> Ensure the cable cannot be easily interfered with or accidentally unplugged",
+        ]
+
+        show_instruction_modal(
+            "Camera Positioning Guidelines",
+            instructions,
+            parent=self,
+        )
 
     @handle_step_error
     def _run_camera_detection_and_test(self, checked: bool = False) -> None:
@@ -279,7 +328,9 @@ class CameraSetupStep(WizardStep):
             # Import the improved camera detection utility
             import sys
 
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", "python_scripts"))
+            sys.path.insert(
+                0, os.path.join(os.path.dirname(__file__), "..", "..", "python_scripts")
+            )
 
             try:
                 from utils.camera_detection_utils import get_unique_cameras
@@ -302,7 +353,9 @@ class CameraSetupStep(WizardStep):
                         f"Detected unique camera: {camera['name']} at {camera['path']} (capabilities: {camera.get('capabilities', 'unknown')})"
                     )
 
-                self.logger.info(f"Found {len(video_devices)} unique cameras (duplicates filtered)")
+                self.logger.info(
+                    f"Found {len(video_devices)} unique cameras (duplicates filtered)"
+                )
 
             except ImportError as e:
                 self.logger.warning(f"Could not import improved camera detection: {e}")
@@ -335,14 +388,20 @@ class CameraSetupStep(WizardStep):
                 # Auto-select the first camera
                 self.camera_list.setCurrentRow(0)
                 first_camera = video_devices[0]
-                self.state.set_user_input("selected_camera", first_camera["path"])
-                self.state.set_user_input("selected_camera_name", first_camera["name"])
+                self.state.set_user_input(
+                    UserInputKey.SELECTED_CAMERA, first_camera["path"]
+                )
+                self.state.set_user_input(
+                    UserInputKey.SELECTED_CAMERA_NAME, first_camera["name"]
+                )
 
                 # Persist state
                 if self.state_manager:
                     self.state_manager.save_state(self.state)
 
-                self.logger.info(f"Auto-selected first camera: {first_camera['name']} ({first_camera['path']})")
+                self.logger.info(
+                    f"Auto-selected first camera: {first_camera['name']} ({first_camera['path']})"
+                )
             else:
                 self.update_status(StepStatus.FAILED)
                 self.camera_status.setText("Camera not detected")
@@ -373,8 +432,10 @@ class CameraSetupStep(WizardStep):
                 camera_path = camera_data["path"]
                 camera_name = camera_data["name"]
 
-                self.state.set_user_input("selected_camera", camera_path)
-                self.state.set_user_input("selected_camera_name", camera_name)
+                self.state.set_user_input(UserInputKey.SELECTED_CAMERA, camera_path)
+                self.state.set_user_input(
+                    UserInputKey.SELECTED_CAMERA_NAME, camera_name
+                )
 
                 # Persist state
                 if self.state_manager:
@@ -396,8 +457,10 @@ class CameraSetupStep(WizardStep):
     def _test_camera(self, checked: bool = False) -> None:
         """Test the selected camera with comprehensive error handling."""
         try:
-            camera_path = self.state.get_user_input("selected_camera")
-            camera_name = self.state.get_user_input("selected_camera_name", "")
+            camera_path = self.state.get_user_input(UserInputKey.SELECTED_CAMERA)
+            camera_name = self.state.get_user_input(
+                UserInputKey.SELECTED_CAMERA_NAME, ""
+            )
             if not camera_path:
                 self.logger.warning("No camera selected for testing")
                 self.camera_status.setText("Camera not detected")
@@ -431,7 +494,7 @@ class CameraSetupStep(WizardStep):
 
                 if test_result and test_result.returncode == 0:
                     # Save successful test status
-                    self.state.set_user_input("camera_tested", True)
+                    self.state.set_user_input(UserInputKey.CAMERA_TESTED, True)
 
                     # Persist state
                     if self.state_manager:
@@ -469,7 +532,7 @@ class CameraSetupStep(WizardStep):
     def _launch_live_preview(self, checked: bool = False) -> None:
         """Launch live camera preview using cheese or other camera app."""
         try:
-            camera_path = self.state.get_user_input("selected_camera")
+            camera_path = self.state.get_user_input(UserInputKey.SELECTED_CAMERA)
             if not camera_path:
                 self.logger.warning("No camera selected for preview")
                 return
@@ -487,8 +550,14 @@ class CameraSetupStep(WizardStep):
 
             # Launch cheese for live preview
             try:
-                subprocess.Popen(["cheese", "--device", camera_path], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                self.preview_status.setText("✅ Live preview launched - adjust camera positioning as needed")
+                subprocess.Popen(
+                    ["cheese", "--device", camera_path],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                self.preview_status.setText(
+                    "✅ Live preview launched - adjust camera positioning as needed"
+                )
                 self.logger.info("Camera preview launched successfully")
 
             except Exception as e:
@@ -556,13 +625,17 @@ class CameraSetupStep(WizardStep):
 
             # Launch cheese
             try:
-                camera_path = self.state.get_user_input("selected_camera")
+                camera_path = self.state.get_user_input(UserInputKey.SELECTED_CAMERA)
                 self.cheese_process = subprocess.Popen(
-                    ["cheese", "--device", camera_path] if camera_path else ["cheese"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    ["cheese", "--device", camera_path] if camera_path else ["cheese"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
                 )
 
                 self.pov_workflow_step = "cheese_running"
-                self.pov_status.setText("📸 Camera app launched - capture empty seating area, then close app")
+                self.pov_status.setText(
+                    "📸 Camera app launched - capture empty seating area, then close app"
+                )
 
                 # Disable the capture button while cheese is running
                 self.capture_pov_button.setEnabled(False)
@@ -605,7 +678,9 @@ class CameraSetupStep(WizardStep):
             self.pov_workflow_step = "image_search"
 
             self.logger.info("Cheese process closed, searching for POV image")
-            self.pov_status.setText("🔍 Camera closed - searching for captured image...")
+            self.pov_status.setText(
+                "🔍 Camera closed - searching for captured image..."
+            )
 
             # Give cheese a moment to finish saving the file
             QTimer.singleShot(2000, self._find_and_display_pov_image)
@@ -618,7 +693,9 @@ class CameraSetupStep(WizardStep):
 
             # Find new images (not in existing list)
             new_images = []
-            existing_paths = {img.resolve() for img in getattr(self, "existing_images", [])}
+            existing_paths = {
+                img.resolve() for img in getattr(self, "existing_images", [])
+            }
 
             for img in current_images:
                 if img.resolve() not in existing_paths:
@@ -650,11 +727,13 @@ class CameraSetupStep(WizardStep):
         """Save POV image to participant's data folder."""
         try:
             # Get participant info
-            participant_id = self.state.get_user_input("participant_id", "")
-            device_id = self.state.get_user_input("device_id", "")
-            username = self.state.get_user_input("username", "")
+            participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
+            device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
+            username = self.state.get_user_input(UserInputKey.USERNAME, "")
 
-            full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
+            full_participant_id = (
+                f"{participant_id}{device_id}" if device_id else participant_id
+            )
 
             # Create data directory
             data_path = f"/home/{username}/data/{full_participant_id}_data"
@@ -670,7 +749,7 @@ class CameraSetupStep(WizardStep):
             shutil.copy2(image_path, destination_path)
 
             self.logger.info(f"Saved POV image to: {destination_path}")
-            self.state.set_user_input("pov_image_path", destination_path)
+            self.state.set_user_input(UserInputKey.POV_IMAGE_PATH, destination_path)
 
             if self.state_manager:
                 self.state_manager.save_state(self.state)
@@ -694,12 +773,18 @@ class CameraSetupStep(WizardStep):
             for viewer_cmd in viewers:
                 try:
                     # Check if viewer is available
-                    which_result = subprocess.run(["which", viewer_cmd[0]], capture_output=True, timeout=5)
+                    which_result = subprocess.run(
+                        ["which", viewer_cmd[0]], capture_output=True, timeout=5
+                    )
                     if which_result.returncode != 0:
                         continue
 
                     # Launch viewer
-                    self.image_viewer_process = subprocess.Popen(viewer_cmd + [str(image_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    self.image_viewer_process = subprocess.Popen(
+                        viewer_cmd + [str(image_path)],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
 
                     viewer_launched = True
                     self.logger.info(f"Launched image viewer: {viewer_cmd[0]}")
@@ -712,7 +797,11 @@ class CameraSetupStep(WizardStep):
             if not viewer_launched:
                 # Fallback: try to open with default application
                 try:
-                    self.image_viewer_process = subprocess.Popen(["xdg-open", str(image_path)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    self.image_viewer_process = subprocess.Popen(
+                        ["xdg-open", str(image_path)],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL,
+                    )
                     viewer_launched = True
                     self.logger.info("Opened POV image with default application")
                 except Exception as e:
@@ -720,7 +809,9 @@ class CameraSetupStep(WizardStep):
 
             if viewer_launched:
                 self.pov_workflow_step = "fullscreen"
-                self.pov_status.setText("✅ POV image displayed - use iPad to photograph the screen")
+                self.pov_status.setText(
+                    "✅ POV image displayed - use iPad to photograph the screen"
+                )
 
                 # Enable confirmation button
                 self.ipad_confirm_button.setVisible(True)
@@ -728,7 +819,9 @@ class CameraSetupStep(WizardStep):
 
             else:
                 raise FlashTVError(
-                    "No suitable image viewer found", ErrorType.SYSTEM_ERROR, recovery_action="Install an image viewer: sudo apt-get install eog"
+                    "No suitable image viewer found",
+                    ErrorType.SYSTEM_ERROR,
+                    recovery_action="Install an image viewer: sudo apt-get install eog",
                 )
 
         except Exception as e:
@@ -763,12 +856,14 @@ class CameraSetupStep(WizardStep):
             if self.temp_image_path and os.path.exists(self.temp_image_path):
                 try:
                     os.remove(self.temp_image_path)
-                    self.logger.info(f"Deleted temporary POV image: {self.temp_image_path}")
+                    self.logger.info(
+                        f"Deleted temporary POV image: {self.temp_image_path}"
+                    )
                 except Exception as e:
                     self.logger.warning(f"Could not delete temp file: {e}")
 
             # Mark POV as completed
-            self.state.set_user_input("pov_picture_complete", True)
+            self.state.set_user_input(UserInputKey.POV_PICTURE_COMPLETE, True)
 
             if self.state_manager:
                 self.state_manager.save_state(self.state)
@@ -812,7 +907,11 @@ class CameraSetupStep(WizardStep):
         """Handle errors during POV image display."""
         self.pov_status.setText("❌ Error displaying POV image")
 
-        QMessageBox.warning(self, "Display Error", f"Could not display the POV picture: {error}\n\nPlease try again.")
+        QMessageBox.warning(
+            self,
+            "Display Error",
+            f"Could not display the POV picture: {error}\n\nPlease try again.",
+        )
 
         self._reset_pov_workflow()
 
@@ -844,7 +943,9 @@ class CameraSetupStep(WizardStep):
     def _check_cheese_available(self) -> bool:
         """Check if cheese camera app is available."""
         try:
-            result = subprocess.run(["which", "cheese"], capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                ["which", "cheese"], capture_output=True, text=True, timeout=5
+            )
             return result.returncode == 0
         except Exception:
             return False
@@ -855,7 +956,9 @@ class CameraSetupStep(WizardStep):
             self.logger.info("Checking for existing cheese instances")
 
             # Use pkill to close any existing cheese processes
-            result = subprocess.run(["pkill", "-9", "cheese"], capture_output=True, text=True, timeout=5)
+            result = subprocess.run(
+                ["pkill", "-9", "cheese"], capture_output=True, text=True, timeout=5
+            )
 
             if result.returncode == 0:
                 self.logger.info("Closed existing cheese instances")
@@ -885,7 +988,7 @@ class CameraSetupStep(WizardStep):
 
         return sorted(images, key=lambda p: p.stat().st_mtime)
 
-    def _fallback_camera_detection(self) -> List[Dict[str, str]]:
+    def _fallback_camera_detection(self) -> list[dict[str, str | bool]]:
         """Fallback camera detection method when improved detection fails."""
         video_devices = []
 
@@ -924,10 +1027,18 @@ class CameraSetupStep(WizardStep):
                         device_num = device_path.replace("/dev/video", "")
 
                         video_devices.append(
-                            {"path": device_path, "name": camera_name, "number": device_num, "capabilities": "unknown", "is_capture_device": True}
+                            {
+                                "path": device_path,
+                                "name": camera_name,
+                                "number": device_num,
+                                "capabilities": "unknown",
+                                "is_capture_device": True,
+                            }
                         )
 
-                        self.logger.debug(f"Fallback detected: {camera_name} at {device_path}")
+                        self.logger.debug(
+                            f"Fallback detected: {camera_name} at {device_path}"
+                        )
 
             else:
                 # Final fallback: just scan /dev/video* devices
@@ -939,7 +1050,7 @@ class CameraSetupStep(WizardStep):
 
         return video_devices
 
-    def _basic_device_scan(self, video_devices: List[Dict[str, str]]) -> None:
+    def _basic_device_scan(self, video_devices: list[dict[str, str | bool]]) -> None:
         """Most basic device scanning as final fallback."""
         video_dir = Path("/dev")
 
@@ -951,9 +1062,17 @@ class CameraSetupStep(WizardStep):
                     if int(device_num) % 2 == 0:
                         device_name = f"Camera {device_num}"
                         video_devices.append(
-                            {"path": str(device), "name": device_name, "number": device_num, "capabilities": "unknown", "is_capture_device": True}
+                            {
+                                "path": str(device),
+                                "name": device_name,
+                                "number": device_num,
+                                "capabilities": "unknown",
+                                "is_capture_device": True,
+                            }
                         )
-                        self.logger.debug(f"Basic scan found: {device_name} at {device}")
+                        self.logger.debug(
+                            f"Basic scan found: {device_name} at {device}"
+                        )
                 except ValueError:
                     # Skip devices with non-numeric suffixes
                     pass
@@ -962,26 +1081,40 @@ class CameraSetupStep(WizardStep):
     def _on_continue_clicked(self, checked: bool = False) -> None:
         """Handle continue button click with validation."""
         try:
-            camera_tested = self.state.get_user_input("camera_tested", False)
-            pov_complete = self.state.get_user_input("pov_picture_complete", False)
+            camera_tested = self.state.get_user_input(UserInputKey.CAMERA_TESTED, False)
+            pov_complete = self.state.get_user_input(
+                UserInputKey.POV_PICTURE_COMPLETE, False
+            )
 
             if not camera_tested:
-                QMessageBox.warning(self, "Camera Not Tested", "Please test the camera before continuing.")
+                QMessageBox.warning(
+                    self,
+                    "Camera Not Tested",
+                    "Please test the camera before continuing.",
+                )
                 return
 
             if not pov_complete:
-                QMessageBox.warning(self, "POV Picture Not Captured", "Please capture the POV baseline picture before continuing.")
+                QMessageBox.warning(
+                    self,
+                    "POV Picture Not Captured",
+                    "Please capture the POV baseline picture before continuing.",
+                )
                 return
 
-            camera_path = self.state.get_user_input("selected_camera", "")
-            camera_name = self.state.get_user_input("selected_camera_name", "")
+            camera_path = self.state.get_user_input(UserInputKey.SELECTED_CAMERA, "")
+            camera_name = self.state.get_user_input(
+                UserInputKey.SELECTED_CAMERA_NAME, ""
+            )
 
-            self.logger.info(f"Camera setup completed with: {camera_name} ({camera_path})")
+            self.logger.info(
+                f"Camera setup completed with: {camera_name} ({camera_path})"
+            )
 
             # Save notes if any
             notes = self.notes_text.toPlainText().strip()
             if notes:
-                self.state.set_user_input("camera_setup_notes", notes)
+                self.state.set_user_input(UserInputKey.CAMERA_SETUP_NOTES, notes)
                 self._save_notes_to_file("Camera Setup", notes)
 
             # Final state persistence
@@ -1006,16 +1139,20 @@ class CameraSetupStep(WizardStep):
         self.logger.info("Camera setup step activated")
 
         # Load any saved notes
-        saved_notes = self.state.get_user_input("camera_setup_notes", "")
+        saved_notes = self.state.get_user_input(UserInputKey.CAMERA_SETUP_NOTES, "")
         if saved_notes:
             self.notes_text.setText(saved_notes)
 
         # Check if already completed
-        camera_tested = self.state.get_user_input("camera_tested", False)
-        pov_complete = self.state.get_user_input("pov_picture_complete", False)
+        camera_tested = self.state.get_user_input(UserInputKey.CAMERA_TESTED, False)
+        pov_complete = self.state.get_user_input(
+            UserInputKey.POV_PICTURE_COMPLETE, False
+        )
 
         if camera_tested and pov_complete:
-            selected_camera_name = self.state.get_user_input("selected_camera_name", "")
+            selected_camera_name = self.state.get_user_input(
+                UserInputKey.SELECTED_CAMERA_NAME, ""
+            )
             self.camera_status.setText(f"Camera detected and test passed")
             self.pov_status.setText("POV picture already captured")
             self.continue_button.setEnabled(True)
@@ -1034,9 +1171,11 @@ class CameraSetupStep(WizardStep):
         super().update_ui()
 
         # Update continue button state based on completion
-        has_camera = bool(self.state.get_user_input("selected_camera"))
-        camera_tested = self.state.get_user_input("camera_tested", False)
-        pov_complete = self.state.get_user_input("pov_picture_complete", False)
+        has_camera = bool(self.state.get_user_input(UserInputKey.SELECTED_CAMERA))
+        camera_tested = self.state.get_user_input(UserInputKey.CAMERA_TESTED, False)
+        pov_complete = self.state.get_user_input(
+            UserInputKey.POV_PICTURE_COMPLETE, False
+        )
         self.continue_button.setEnabled(has_camera and camera_tested and pov_complete)
 
     def deactivate_step(self) -> None:
@@ -1080,12 +1219,18 @@ class CameraSetupStep(WizardStep):
                     self.image_viewer_process = None
 
             # Delete temp file if it still exists
-            if hasattr(self, "temp_image_path") and self.temp_image_path and os.path.exists(self.temp_image_path):
+            if (
+                hasattr(self, "temp_image_path")
+                and self.temp_image_path
+                and os.path.exists(self.temp_image_path)
+            ):
                 try:
                     os.remove(self.temp_image_path)
                     self.logger.info("Cleaned up temporary POV file")
                 except Exception as e:
-                    self.logger.warning(f"Could not delete temp file during cleanup: {e}")
+                    self.logger.warning(
+                        f"Could not delete temp file during cleanup: {e}"
+                    )
 
             # Final state save before cleanup
             if self.state_manager:

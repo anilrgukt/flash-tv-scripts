@@ -8,12 +8,12 @@ import time
 from datetime import datetime
 from typing import Callable
 
+from config.messages import MESSAGES
+from config.ui_config import UI_CONFIG
+from models import ProcessInfo, ProcessStatus, WizardState
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QInputDialog, QLineEdit
-
-from constants import Process, Messages
-from models import ProcessInfo, ProcessStatus, WizardState
-from utils import get_logger, log_process_start, log_process_complete, log_error
+from utils.logger import get_logger, log_error, log_process_complete, log_process_start
 
 
 class ProcessRunner:
@@ -23,13 +23,13 @@ class ProcessRunner:
         self.state = state
         self.sudo_password: str | None = None
         self.sudo_password_time: float | None = None
-        self.sudo_timeout = Process.SUDO_TIMEOUT_SECONDS
+        self.sudo_timeout = UI_CONFIG.SUDO_TIMEOUT_SECONDS
         self.logger = get_logger("process_runner")
 
         # Setup monitoring timer
         self.monitor_timer = QTimer()
         self.monitor_timer.timeout.connect(self._monitor_processes)
-        self.monitor_timer.start(Process.MONITOR_INTERVAL_MS)
+        self.monitor_timer.start(UI_CONFIG.MONITOR_INTERVAL_MS)
 
     def run_script(
         self,
@@ -60,17 +60,19 @@ class ProcessRunner:
                 text=True,
             )
 
+            # Track process
+            if process_name is None:
+                process_name = f"process_{process.pid}"
+
             # Create process info
             process_info = ProcessInfo(
+                name=process_name,
                 process=process,
+                command=command,
                 description=description,
                 start_time=datetime.now(),
                 cleanup_handler=cleanup_handler,
             )
-
-            # Track process
-            if process_name is None:
-                process_name = f"process_{process.pid}"
 
             self.state.add_process(process_name, process_info)
             self.logger.info(f"Started process '{process_name}' (PID: {process.pid})")
@@ -107,19 +109,22 @@ class ProcessRunner:
             )
 
             # Send password
-            process.stdin.write(f"{password}\n")
-            process.stdin.flush()
-
-            # Create process info
-            process_info = ProcessInfo(
-                process=process,
-                description=f"[SUDO] {description}",
-                start_time=datetime.now(),
-            )
+            if process.stdin:
+                process.stdin.write(f"{password}\n")
+                process.stdin.flush()
 
             # Track process
             if process_name is None:
                 process_name = f"sudo_process_{process.pid}"
+
+            # Create process info
+            process_info = ProcessInfo(
+                name=process_name,
+                process=process,
+                command=sudo_command,
+                description=f"[SUDO] {description}",
+                start_time=datetime.now(),
+            )
 
             self.state.add_process(process_name, process_info)
 
@@ -152,12 +157,12 @@ class ProcessRunner:
 
         if not ok or not password:
             self.logger.info("Sudo password input cancelled by user")
-            return None, Messages.PASSWORD_CANCELLED
+            return None, MESSAGES.Errors.PASSWORD_CANCELLED
 
         # Verify password
         if not self._verify_sudo_password(password):
             self.logger.warning("Invalid sudo password provided")
-            return None, Messages.INVALID_PASSWORD
+            return None, MESSAGES.Errors.INVALID_PASSWORD
 
         # Cache password
         self.sudo_password = password
@@ -177,8 +182,9 @@ class ProcessRunner:
                 text=True,
             )
 
-            process.stdin.write(f"{password}\n")
-            process.stdin.flush()
+            if process.stdin:
+                process.stdin.write(f"{password}\n")
+                process.stdin.flush()
             process.wait(timeout=10)
 
             return process.returncode == 0

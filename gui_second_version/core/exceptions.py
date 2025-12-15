@@ -103,13 +103,14 @@ class PermissionError(FlashTVError):
 def handle_step_error(func):
     """Decorator for consistent error handling in step methods."""
     from functools import wraps
-    from PyQt6.QtWidgets import QMessageBox
-    from utils import get_logger
-
-    logger = get_logger("error_handler")
 
     @wraps(func)
     def wrapper(self, *args, **kwargs):
+        # Import inside wrapper to avoid circular imports
+        from PyQt6.QtWidgets import QMessageBox
+        from utils import get_logger
+
+        logger = get_logger("error_handler")
         try:
             return func(self, *args, **kwargs)
         except FlashTVError as e:
@@ -121,15 +122,16 @@ def handle_step_error(func):
                 },
             )
 
-            # Show user-friendly error dialog
             if hasattr(self, "parent"):
+                parent_widget = self.parent() if callable(self.parent) else self
+                from PyQt6.QtWidgets import QWidget
+
                 QMessageBox.critical(
-                    self.parent() if callable(self.parent) else self,
+                    parent_widget if isinstance(parent_widget, QWidget) else None,
                     f"{e.error_type.value.replace('_', ' ').title()}",
                     e.get_user_message(),
                 )
 
-            # Update step status if applicable
             if hasattr(self, "update_status"):
                 from models import StepStatus
 
@@ -139,8 +141,11 @@ def handle_step_error(func):
             logger.exception(f"Unexpected error in {func.__name__}")
 
             if hasattr(self, "parent"):
+                parent_widget = self.parent() if callable(self.parent) else self
+                from PyQt6.QtWidgets import QWidget
+
                 QMessageBox.critical(
-                    self.parent() if callable(self.parent) else self,
+                    parent_widget if isinstance(parent_widget, QWidget) else None,
                     "Unexpected Error",
                     f"An unexpected error occurred: {str(e)}\n\n"
                     "Please try again or contact support.",

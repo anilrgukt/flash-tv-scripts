@@ -88,12 +88,10 @@ class AppConfig:
             with open(config_path, "r") as f:
                 data = json.load(f)
 
-            # Convert string paths to Path objects
             for key, value in data.items():
                 if key.endswith("_dir") or key.endswith("_file"):
                     data[key] = Path(value)
 
-            # Convert environment string to enum
             if "environment" in data:
                 data["environment"] = Environment(data["environment"])
 
@@ -120,7 +118,6 @@ class AppConfig:
         """Load configuration from environment variables."""
         config_data = {}
 
-        # Map environment variables to config fields
         env_mappings = {
             "FLASH_ENV": ("environment", lambda x: Environment(x)),
             "FLASH_DEBUG": ("debug", lambda x: x.lower() == "true"),
@@ -148,10 +145,8 @@ class AppConfig:
 
     def save_to_file(self, config_path: Path) -> None:
         """Save configuration to JSON file."""
-        # Create directory if it doesn't exist
         config_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Convert to serializable format
         data = {}
         for key, value in self.__dict__.items():
             if isinstance(value, Path):
@@ -211,24 +206,19 @@ class ConfigManager:
         return self._config
 
     def _load_config(self) -> AppConfig:
-        """Load configuration from various sources."""
-        # Try to load from file first
+        """Load configuration from various sources with fallback chain: file -> env -> defaults."""
         config_file = Path("config.json")
         if config_file.exists():
             try:
                 return AppConfig.from_file(config_file)
             except ConfigurationError:
-                # Fall back to environment variables
                 pass
 
-        # Try environment variables
         try:
             return AppConfig.from_env()
         except ConfigurationError:
-            # Fall back to defaults
             pass
 
-        # Use defaults
         return AppConfig()
 
     def reload_config(self) -> None:

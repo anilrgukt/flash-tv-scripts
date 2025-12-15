@@ -4,13 +4,22 @@ from __future__ import annotations
 
 import os
 import subprocess
-from PyQt6.QtWidgets import QWidget, QMessageBox, QInputDialog, QLineEdit, QTextEdit, QComboBox
-from PyQt6.QtCore import Qt
 
+from config.messages import MESSAGES
+from config.ui_config import UI_CONFIG
 from core import WizardStep
-from core.exceptions import handle_step_error, FlashTVError, ErrorType
+from core.exceptions import ErrorType, FlashTVError, handle_step_error
 from models import StepStatus
-from constants import UI, Messages
+from models.state_keys import UserInputKey
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import (
+    QComboBox,
+    QInputDialog,
+    QLineEdit,
+    QMessageBox,
+    QTextEdit,
+    QWidget,
+)
 from utils.ui_factory import ButtonStyle
 
 
@@ -49,16 +58,22 @@ class WiFiConnectionStep(WizardStep):
 
     def _create_status_section(self) -> QWidget:
         """Create the WiFi status section."""
-        status_group, status_layout = self.ui_factory.create_group_box("WiFi Connection Setup")
+        status_group, status_layout = self.ui_factory.create_group_box(
+            "WiFi Connection Setup"
+        )
 
-        self.wifi_status_label = self.ui_factory.create_status_label("Use Manual Network Settings to configure WiFi", status_type="info")
+        self.wifi_status_label = self.ui_factory.create_status_label(
+            "Use Manual Network Settings to configure WiFi", status_type="info"
+        )
         status_layout.addWidget(self.wifi_status_label)
 
         return status_group
 
     def _create_instructions_section(self) -> QWidget:
         """Create the instructions section."""
-        instructions_group, instructions_layout = self.ui_factory.create_group_box("WiFi Setup Instructions")
+        instructions_group, instructions_layout = self.ui_factory.create_group_box(
+            "WiFi Setup Instructions"
+        )
 
         instructions_text = (
             "To connect to WiFi:\n\n"
@@ -79,7 +94,9 @@ class WiFiConnectionStep(WizardStep):
 
     def _create_controls_section(self) -> QWidget:
         """Create the control buttons section."""
-        controls_group, controls_layout = self.ui_factory.create_group_box("Connection Controls")
+        controls_group, controls_layout = self.ui_factory.create_group_box(
+            "Connection Controls"
+        )
 
         # Manual network settings button (PRIMARY)
         self.network_settings_button = self.ui_factory.create_action_button(
@@ -111,8 +128,12 @@ class WiFiConnectionStep(WizardStep):
         controls_layout.addSpacing(10)
 
         # Auto-connect to hotspot button (DE-EMPHASIZED - NON-FUNCTIONAL)
-        auto_connect_label = self.ui_factory.create_label("Auto-Connect to Hotspot (Currently Non-Functional)")
-        auto_connect_label.setStyleSheet("color: #888; font-style: italic; font-size: 20pt;")
+        auto_connect_label = self.ui_factory.create_label(
+            "Auto-Connect to Hotspot (Currently Non-Functional)"
+        )
+        auto_connect_label.setStyleSheet(
+            "color: #888; font-style: italic; font-size: 20pt;"
+        )
         controls_layout.addWidget(auto_connect_label)
 
         self.auto_connect_button = self.ui_factory.create_action_button(
@@ -128,7 +149,9 @@ class WiFiConnectionStep(WizardStep):
 
     def _create_continue_section(self):
         """Create the continue button section."""
-        button_layout, self.continue_button = self.ui_factory.create_continue_button(callback=self._on_continue_clicked, text="Continue to Next Step")
+        button_layout, self.continue_button = self.ui_factory.create_continue_button(
+            callback=self._on_continue_clicked, text="Continue to Next Step"
+        )
         return button_layout
 
     def _scan_networks(self, checked: bool = False) -> list[str]:
@@ -143,19 +166,19 @@ class WiFiConnectionStep(WizardStep):
                 ["nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "device", "wifi", "list"],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
             )
 
             available_networks = []
             if result.returncode == 0:
-                lines = result.stdout.strip().split('\n')
+                lines = result.stdout.strip().split("\n")
                 self.network_display.clear()
                 self.network_display.append("📡 Available WiFi Networks:\n")
 
                 seen_ssids = set()
                 for line in lines:
                     if line:
-                        parts = line.split(':')
+                        parts = line.split(":")
                         if len(parts) >= 3:
                             ssid = parts[0].strip()
                             signal = parts[1].strip()
@@ -167,7 +190,7 @@ class WiFiConnectionStep(WizardStep):
 
                                 # Format with signal strength indicator
                                 signal_int = int(signal) if signal.isdigit() else 0
-                                signal_bars = "▂▄▆█"[:max(1, signal_int // 25)]
+                                signal_bars = "▂▄▆█"[: max(1, signal_int // 25)]
                                 security_icon = "🔒" if security else "🔓"
 
                                 self.network_display.append(
@@ -175,7 +198,9 @@ class WiFiConnectionStep(WizardStep):
                                 )
 
                 self.logger.info(f"Found {len(available_networks)} networks")
-                self.wifi_status_label.setText(f"✅ Found {len(available_networks)} networks")
+                self.wifi_status_label.setText(
+                    f"✅ Found {len(available_networks)} networks"
+                )
 
                 # Store for later use
                 self.available_networks = available_networks
@@ -183,7 +208,9 @@ class WiFiConnectionStep(WizardStep):
                 return available_networks
             else:
                 self.logger.error(f"Network scan failed: {result.stderr}")
-                self.network_display.setText(f"Failed to scan networks: {result.stderr}")
+                self.network_display.setText(
+                    f"Failed to scan networks: {result.stderr}"
+                )
                 self.wifi_status_label.setText("❌ Network scan failed")
                 return []
 
@@ -219,9 +246,13 @@ class WiFiConnectionStep(WizardStep):
             for cmd in commands_to_try:
                 try:
                     # Use subprocess.Popen directly to run in background
-                    subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    subprocess.Popen(
+                        cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                    )
                     success = True
-                    self.logger.info(f"Successfully opened network settings using: {' '.join(cmd)}")
+                    self.logger.info(
+                        f"Successfully opened network settings using: {' '.join(cmd)}"
+                    )
                     break
                 except (FileNotFoundError, OSError) as e:
                     self.logger.debug(f"Command {' '.join(cmd)} not found: {e}")
@@ -269,9 +300,14 @@ class WiFiConnectionStep(WizardStep):
                     content = f.read()
                     for i in range(1, 4):
                         # Check if BOTH SSID and PSK exist
-                        if f"HOTSPOT{i}_SSID" in content and f"HOTSPOT{i}_PSK" in content:
+                        if (
+                            f"HOTSPOT{i}_SSID" in content
+                            and f"HOTSPOT{i}_PSK" in content
+                        ):
                             existing_hotspots.add(i)
-                            self.logger.info(f"Found complete credentials for HOTSPOT{i}")
+                            self.logger.info(
+                                f"Found complete credentials for HOTSPOT{i}"
+                            )
 
             # Prompt for missing credentials
             hotspot_configs = []
@@ -289,7 +325,10 @@ class WiFiConnectionStep(WizardStep):
                         self.logger.debug(f"User chose to configure HOTSPOT{i}")
 
                         # Scan networks if not already done
-                        if not hasattr(self, 'available_networks') or not self.available_networks:
+                        if (
+                            not hasattr(self, "available_networks")
+                            or not self.available_networks
+                        ):
                             self.logger.info("Scanning networks for SSID selection")
                             available_networks = self._scan_networks()
                         else:
@@ -304,47 +343,60 @@ class WiFiConnectionStep(WizardStep):
                                 f"If your network is not listed, click Cancel to type it manually.",
                                 available_networks,
                                 0,
-                                False  # Not editable
+                                False,  # Not editable
                             )
 
                             # If user cancelled, offer to type manually
                             if not ok:
                                 ssid, ok = QInputDialog.getText(
-                                    self, f"HOTSPOT{i} SSID (Manual)",
+                                    self,
+                                    f"HOTSPOT{i} SSID (Manual)",
                                     f"Enter the network name (SSID) for HOTSPOT{i} manually:",
-                                    QLineEdit.EchoMode.Normal
+                                    QLineEdit.EchoMode.Normal,
                                 )
                         else:
                             # No networks found, use text input
                             ssid, ok = QInputDialog.getText(
-                                self, f"HOTSPOT{i} SSID",
+                                self,
+                                f"HOTSPOT{i} SSID",
                                 f"Enter the network name (SSID) for HOTSPOT{i}:",
-                                QLineEdit.EchoMode.Normal
+                                QLineEdit.EchoMode.Normal,
                             )
 
                         if not ok or not ssid:
-                            self.logger.info(f"User cancelled SSID input for HOTSPOT{i}")
+                            self.logger.info(
+                                f"User cancelled SSID input for HOTSPOT{i}"
+                            )
                             continue
 
                         # Prompt for password
                         password, ok = QInputDialog.getText(
-                            self, f"HOTSPOT{i} Password",
+                            self,
+                            f"HOTSPOT{i} Password",
                             f"Enter the password for HOTSPOT{i} ({ssid}):",
-                            QLineEdit.EchoMode.Normal
+                            QLineEdit.EchoMode.Normal,
                         )
 
                         if ok and password:
                             hotspot_configs.append(f"export HOTSPOT{i}_SSID='{ssid}'")
-                            hotspot_configs.append(f"export HOTSPOT{i}_PSK='{password}'")
-                            self.logger.info(f"User provided SSID and password for HOTSPOT{i}")
+                            hotspot_configs.append(
+                                f"export HOTSPOT{i}_PSK='{password}'"
+                            )
+                            self.logger.info(
+                                f"User provided SSID and password for HOTSPOT{i}"
+                            )
                         else:
-                            self.logger.info(f"User cancelled password input for HOTSPOT{i}")
+                            self.logger.info(
+                                f"User cancelled password input for HOTSPOT{i}"
+                            )
                     else:
                         self.logger.debug(f"User skipped configuration for HOTSPOT{i}")
 
             # Write credentials to .bashrc if any were provided
             if hotspot_configs:
-                self.logger.info(f"Writing {len(hotspot_configs)} hotspot credential(s) to .bashrc")
+                self.logger.info(
+                    f"Writing {len(hotspot_configs)} hotspot credential(s) to .bashrc"
+                )
                 with open(bashrc_path, "a") as f:
                     f.write("\n# FLASH-TV Hotspot Credentials\n")
                     for config in hotspot_configs:
@@ -359,7 +411,11 @@ class WiFiConnectionStep(WizardStep):
                 )
 
             script_path = os.path.join(
-                os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "python_scripts", "setup_wifi_connection.py"
+                os.path.dirname(
+                    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                ),
+                "python_scripts",
+                "setup_wifi_connection.py",
             )
 
             self.logger.info(f"WiFi setup script path: {script_path}")
@@ -382,7 +438,7 @@ class WiFiConnectionStep(WizardStep):
                 stderr=subprocess.STDOUT,  # Merge stderr into stdout
                 text=True,
                 bufsize=1,  # Line buffered
-                universal_newlines=True
+                universal_newlines=True,
             )
 
             # Stream output line by line
@@ -397,16 +453,25 @@ class WiFiConnectionStep(WizardStep):
                     # Update status label based on script output
                     if "Setting up Hotspot" in line:
                         hotspot_num = line.split("Hotspot")[1].split(":")[0].strip()
-                        self.wifi_status_label.setText(f"⚙️ Configuring Hotspot {hotspot_num}...")
+                        self.wifi_status_label.setText(
+                            f"⚙️ Configuring Hotspot {hotspot_num}..."
+                        )
                     elif "Connection attempt cycle" in line:
                         cycle_info = line.split("cycle")[1].strip()
-                        self.wifi_status_label.setText(f"🔄 Attempting connection {cycle_info}")
+                        self.wifi_status_label.setText(
+                            f"🔄 Attempting connection {cycle_info}"
+                        )
                     elif "Trying Hotspot" in line:
                         hotspot_num = line.split("Hotspot")[1].split(".")[0].strip()
-                        self.wifi_status_label.setText(f"📡 Trying to connect to Hotspot {hotspot_num}...")
+                        self.wifi_status_label.setText(
+                            f"📡 Trying to connect to Hotspot {hotspot_num}..."
+                        )
                     elif "Successfully connected" in line:
                         self.wifi_status_label.setText(f"✅ Successfully connected!")
-                    elif "not available" in line.lower() or "not configured" in line.lower():
+                    elif (
+                        "not available" in line.lower()
+                        or "not configured" in line.lower()
+                    ):
                         self.wifi_status_label.setText(f"⏭️ Checking next hotspot...")
 
             # Wait for completion with timeout
@@ -417,19 +482,33 @@ class WiFiConnectionStep(WizardStep):
                 self.logger.error("WiFi script timeout - process killed")
                 raise
 
-            self.logger.info(f"=== WiFi Script Completed with return code: {returncode} ===")
+            self.logger.info(
+                f"=== WiFi Script Completed with return code: {returncode} ==="
+            )
 
             if returncode == 0:
                 self.wifi_status_label.setText("✅ Successfully connected to hotspot!")
-                self.logger.info("WiFi connection successful - script exited with code 0")
-                self.state.set_user_input("wifi_ssid", "HOTSPOT_CONNECTED")
+                self.logger.info(
+                    "WiFi connection successful - script exited with code 0"
+                )
+                self.state.set_user_input(UserInputKey.WIFI_SSID, "HOTSPOT_CONNECTED")
                 self.continue_button.setEnabled(True)
                 self.update_status(StepStatus.COMPLETED)
 
-                QMessageBox.information(self, "Connection Successful", "Successfully connected to hotspot!\n\nClick 'Continue' to proceed.")
+                QMessageBox.information(
+                    self,
+                    "Connection Successful",
+                    "Successfully connected to hotspot!\n\nClick 'Continue' to proceed.",
+                )
             else:
-                error_msg = "\n".join(output_lines[-10:]) if output_lines else "Unknown error - no output"
-                self.logger.error(f"WiFi connection failed with return code {returncode}")
+                error_msg = (
+                    "\n".join(output_lines[-10:])
+                    if output_lines
+                    else "Unknown error - no output"
+                )
+                self.logger.error(
+                    f"WiFi connection failed with return code {returncode}"
+                )
                 self.logger.error(f"Last 10 lines of output: {error_msg}")
                 self.wifi_status_label.setText("❌ Failed to connect to hotspot")
 
@@ -455,7 +534,11 @@ class WiFiConnectionStep(WizardStep):
         except Exception as e:
             self.logger.error(f"Error during auto-connect: {e}")
             self.wifi_status_label.setText("❌ Auto-connect failed")
-            QMessageBox.warning(self, "Auto-Connect Error", f"Failed to auto-connect to hotspot: {e}\n\nPlease try manual network settings instead.")
+            QMessageBox.warning(
+                self,
+                "Auto-Connect Error",
+                f"Failed to auto-connect to hotspot: {e}\n\nPlease try manual network settings instead.",
+            )
 
     @handle_step_error
     def _skip_wifi_setup(self, checked: bool = False) -> None:
@@ -472,7 +555,7 @@ class WiFiConnectionStep(WizardStep):
                 self.logger.info("User chose to skip WiFi setup")
 
                 self.wifi_status_label.setText("WiFi setup skipped")
-                self.state.set_user_input("wifi_ssid", "SKIPPED")
+                self.state.set_user_input(UserInputKey.WIFI_SSID, "SKIPPED")
 
                 # Persist state
                 if self.state_manager:
@@ -496,7 +579,7 @@ class WiFiConnectionStep(WizardStep):
         """Handle continue button click with validation."""
         try:
             # User clicked continue - they know if WiFi is connected or not
-            wifi_ssid = self.state.get_user_input("wifi_ssid", "")
+            wifi_ssid = self.state.get_user_input(UserInputKey.WIFI_SSID, "")
 
             # Just continue - user has already opened network settings if needed
             self.logger.info(f"WiFi step completed")

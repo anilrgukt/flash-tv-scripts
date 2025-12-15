@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import subprocess
 import threading
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Callable
-from collections import deque
 
 from models.enums import ProcessStatus
 
@@ -17,17 +17,25 @@ class ProcessInfo:
     """Information about a tracked subprocess."""
 
     name: str
-    process: subprocess.Popen
+    process: subprocess.Popen[str]
     command: list[str]
     description: str
     start_time: datetime
     expected_duration: int | None = None
     cleanup_handler: Callable[[], None] | None = None
     max_output_lines: int = 1000
-    stdout_lines: deque = field(default_factory=lambda: deque(maxlen=100))
-    stderr_lines: deque = field(default_factory=lambda: deque(maxlen=100))
-    _stdout_thread: threading.Thread | None = field(default=None, init=False, repr=False)
-    _stderr_thread: threading.Thread | None = field(default=None, init=False, repr=False)
+    stdout_lines: deque[str] = field(default_factory=lambda: deque(maxlen=100))
+    stderr_lines: deque[str] = field(default_factory=lambda: deque(maxlen=100))
+    _stdout_thread: threading.Thread | None = field(
+        default=None, init=False, repr=False
+    )
+    _stderr_thread: threading.Thread | None = field(
+        default=None, init=False, repr=False
+    )
+    _cleanup_done: bool = field(default=False, init=False, repr=False)
+    _threads_stopped: threading.Event = field(
+        default_factory=threading.Event, init=False, repr=False
+    )
 
     def get_status(self) -> ProcessStatus:
         """Get the current status of the process."""
@@ -80,25 +88,64 @@ class ProcessInfo:
         except Exception:
             return False
 
-    def cleanup(self) -> None:
-        """Run the cleanup handler and close process resources."""
-        try:
-            # Run custom cleanup handler first
-            if self.cleanup_handler:
-                self.cleanup_handler()
-        except Exception as e:
-            print(f"Error in cleanup handler for {self.name}: {e}")
+    def cleanup(self, timeout: float = 5.0) -> None:
+        """
+        Clean up process and threads properly.
+
+        Args:
+            timeout: Maximum time to wait for threads to finish (seconds)
+        """
+        if self._cleanup_done:
+            return
 
         try:
-            # Close process pipes
-            if self.process.stdin and not self.process.stdin.closed:
-                self.process.stdin.close()
-            if self.process.stdout and not self.process.stdout.closed:
-                self.process.stdout.close()
-            if self.process.stderr and not self.process.stderr.closed:
-                self.process.stderr.close()
-        except Exception as e:
-            print(f"Error closing pipes for {self.name}: {e}")
+            # Terminate process if still running
+            if self.process and self.process.poll() is None:
+                self.terminate()
+                try:
+                    self.process.wait(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    self.process.kill()
+                    try:
+                        self.process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        pass
+
+            # Close pipes to signal threads to stop
+            try:
+                if self.process.stdin and not self.process.stdin.closed:
+                    self.process.stdin.close()
+                if self.process.stdout and not self.process.stdout.closed:
+                    self.process.stdout.close()
+                if self.process.stderr and not self.process.stderr.closed:
+                    self.process.stderr.close()
+            except Exception as e:
+                print(f"Error closing pipes for {self.name}: {e}")
+
+            # Join output capture threads with timeout
+            if self._stdout_thread and self._stdout_thread.is_alive():
+                self._stdout_thread.join(timeout=timeout)
+                if self._stdout_thread.is_alive():
+                    print(
+                        f"Warning: stdout thread for {self.name} did not finish in time"
+                    )
+
+            if self._stderr_thread and self._stderr_thread.is_alive():
+                self._stderr_thread.join(timeout=timeout)
+                if self._stderr_thread.is_alive():
+                    print(
+                        f"Warning: stderr thread for {self.name} did not finish in time"
+                    )
+
+            # Run custom cleanup handler
+            if self.cleanup_handler:
+                try:
+                    self.cleanup_handler()
+                except Exception as e:
+                    print(f"Error in cleanup handler for {self.name}: {e}")
+
+        finally:
+            self._cleanup_done = True
 
     def get_output_summary(self) -> dict[str, str]:
         """Get a summary of process output (non-blocking)."""
@@ -112,37 +159,57 @@ class ProcessInfo:
         }
 
         return summary
-    
-    def start_output_capture(self):
+
+    def start_output_capture(self) -> None:
         """Start threads to capture stdout and stderr."""
+
         def read_stdout():
             try:
                 if self.process.stdout:
-                    for line in iter(self.process.stdout.readline, ''):
-                        if line:
-                            self.stdout_lines.append(line.strip())
-                            print(f"[{self.name}] STDOUT: {line.strip()}")
+                    for line in iter(self.process.stdout.readline, ""):
+                        if not line:  # Empty string means pipe closed
+                            break
+                        self.stdout_lines.append(line.strip())
+                        print(f"[{self.name}] STDOUT: {line.strip()}")
+            except ValueError:
+                # Pipe closed
+                pass
             except Exception as e:
                 print(f"Error reading stdout for {self.name}: {e}")
-        
+
         def read_stderr():
             try:
                 if self.process.stderr:
-                    for line in iter(self.process.stderr.readline, ''):
-                        if line:
-                            self.stderr_lines.append(line.strip())
-                            print(f"[{self.name}] STDERR: {line.strip()}")
+                    for line in iter(self.process.stderr.readline, ""):
+                        if not line:  # Empty string means pipe closed
+                            break
+                        self.stderr_lines.append(line.strip())
+                        print(f"[{self.name}] STDERR: {line.strip()}")
+            except ValueError:
+                # Pipe closed
+                pass
             except Exception as e:
                 print(f"Error reading stderr for {self.name}: {e}")
-        
+
         if self.process.stdout:
-            self._stdout_thread = threading.Thread(target=read_stdout, daemon=True)
+            # NOT daemon - will be joined properly in cleanup()
+            self._stdout_thread = threading.Thread(
+                target=read_stdout, daemon=False, name=f"{self.name}-stdout"
+            )
             self._stdout_thread.start()
-        
+
         if self.process.stderr:
-            self._stderr_thread = threading.Thread(target=read_stderr, daemon=True)
+            # NOT daemon - will be joined properly in cleanup()
+            self._stderr_thread = threading.Thread(
+                target=read_stderr, daemon=False, name=f"{self.name}-stderr"
+            )
             self._stderr_thread.start()
-    
+
     def get_output(self) -> tuple[list[str], list[str]]:
         """Get captured stdout and stderr lines."""
         return list(self.stdout_lines), list(self.stderr_lines)
+
+    def __del__(self):
+        """Ensure cleanup on deletion."""
+        if not self._cleanup_done:
+            self.cleanup(timeout=1.0)

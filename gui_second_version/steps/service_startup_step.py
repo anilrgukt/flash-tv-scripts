@@ -2,21 +2,36 @@
 
 from __future__ import annotations
 
+import math
 import os
 import re
-import time
 import subprocess
-import math
+import time
 from datetime import datetime, timedelta
-from typing import List, Dict, Set, Optional, Tuple
-
-from PyQt6.QtWidgets import QWidget, QMessageBox, QListWidget, QListWidgetItem, QTextEdit, QLabel, QVBoxLayout
-from PyQt6.QtCore import QTimer, Qt, QPointF
-from PyQt6.QtGui import QPainter, QPen, QColor, QPolygonF, QPainterPath, QFont
 
 from core import WizardStep
-from core.exceptions import handle_step_error, FlashTVError, ErrorType
+from core.exceptions import ErrorType, FlashTVError, handle_step_error
 from models import StepStatus
+from models.state_keys import UserInputKey
+from PyQt6.QtCore import QPointF, Qt, QTimer
+from PyQt6.QtGui import (
+    QColor,
+    QFont,
+    QPainter,
+    QPainterPath,
+    QPaintEvent,
+    QPen,
+    QPolygonF,
+)
+from PyQt6.QtWidgets import (
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 from utils.ui_factory import ButtonStyle
 
 
@@ -34,7 +49,14 @@ class GazeArrowWidget(QWidget):
         self.setMinimumSize(200, 280)
         self.setMaximumSize(250, 320)
 
-    def set_gaze(self, pitch_deg: float, yaw_deg: float, watching_tv: bool, timestamp: str = "", status: str = ""):
+    def set_gaze(
+        self,
+        pitch_deg: float,
+        yaw_deg: float,
+        watching_tv: bool,
+        timestamp: str = "",
+        status: str = "",
+    ):
         """Update the gaze arrow display."""
         self.pitch_deg = pitch_deg
         self.yaw_deg = yaw_deg
@@ -51,7 +73,7 @@ class GazeArrowWidget(QWidget):
         self.status_text = ""
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent | None) -> None:
         """Draw the gaze arrow."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -68,15 +90,25 @@ class GazeArrowWidget(QWidget):
         # Draw background circle
         painter.setPen(QPen(QColor(200, 200, 200), 2))
         painter.setBrush(QColor(240, 240, 240))
-        painter.drawEllipse(int(circle_center_x - circle_radius), int(circle_center_y - circle_radius),
-                          int(circle_radius * 2), int(circle_radius * 2))
+        painter.drawEllipse(
+            int(circle_center_x - circle_radius),
+            int(circle_center_y - circle_radius),
+            int(circle_radius * 2),
+            int(circle_radius * 2),
+        )
 
         if not self.has_data:
             # Draw "No Data" text centered in circle
             painter.setPen(QColor(100, 100, 100))
             painter.setFont(QFont("Arial", 24))
-            painter.drawText(int(circle_center_x - 50), int(circle_center_y - 10), 100, 20,
-                           Qt.AlignmentFlag.AlignCenter, "No Data")
+            painter.drawText(
+                int(circle_center_x - 50),
+                int(circle_center_y - 10),
+                100,
+                20,
+                Qt.AlignmentFlag.AlignCenter,
+                "No Data",
+            )
             return
 
         # Draw center point (face position)
@@ -112,17 +144,23 @@ class GazeArrowWidget(QWidget):
 
         # Draw arrow line
         painter.setPen(QPen(arrow_color, 3))
-        painter.drawLine(int(circle_center_x), int(circle_center_y), int(end_x), int(end_y))
+        painter.drawLine(
+            int(circle_center_x), int(circle_center_y), int(end_x), int(end_y)
+        )
 
         # Draw arrowhead
         arrow_size = 15
         angle = math.atan2(y, x)
 
         p1 = QPointF(end_x, end_y)
-        p2 = QPointF(end_x - arrow_size * math.cos(angle - math.pi / 6),
-                     end_y - arrow_size * math.sin(angle - math.pi / 6))
-        p3 = QPointF(end_x - arrow_size * math.cos(angle + math.pi / 6),
-                     end_y - arrow_size * math.sin(angle + math.pi / 6))
+        p2 = QPointF(
+            end_x - arrow_size * math.cos(angle - math.pi / 6),
+            end_y - arrow_size * math.sin(angle - math.pi / 6),
+        )
+        p3 = QPointF(
+            end_x - arrow_size * math.cos(angle + math.pi / 6),
+            end_y - arrow_size * math.sin(angle + math.pi / 6),
+        )
 
         painter.setBrush(arrow_color)
         painter.drawPolygon(QPolygonF([p1, p2, p3]))
@@ -134,12 +172,21 @@ class GazeArrowWidget(QWidget):
         painter.setPen(QColor(0, 0, 0))
         painter.setFont(QFont("Arial", 18, QFont.Weight.Bold))
         angle_text = f"P:{self.pitch_deg:+.1f}° Y:{self.yaw_deg:+.1f}°"
-        painter.drawText(0, text_start_y, width, 20, Qt.AlignmentFlag.AlignHCenter, angle_text)
+        painter.drawText(
+            0, text_start_y, width, 20, Qt.AlignmentFlag.AlignHCenter, angle_text
+        )
 
         # Draw timestamp if available - centered
         if self.timestamp:
             painter.setFont(QFont("Arial", 16))
-            painter.drawText(0, text_start_y + 20, width, 20, Qt.AlignmentFlag.AlignHCenter, self.timestamp)
+            painter.drawText(
+                0,
+                text_start_y + 20,
+                width,
+                20,
+                Qt.AlignmentFlag.AlignHCenter,
+                self.timestamp,
+            )
 
         # Draw status text if available - centered with word wrap
         if self.status_text:
@@ -151,9 +198,16 @@ class GazeArrowWidget(QWidget):
                 painter.setPen(QColor(0, 128, 0))  # Green
 
             # Draw with word wrap, centered
-            painter.drawText(5, text_start_y + 40, width - 10, 60,
-                           Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop | Qt.TextFlag.TextWordWrap,
-                           self.status_text)
+            painter.drawText(
+                5,
+                text_start_y + 40,
+                width - 10,
+                60,
+                Qt.AlignmentFlag.AlignHCenter
+                | Qt.AlignmentFlag.AlignTop
+                | Qt.TextFlag.TextWordWrap,
+                self.status_text,
+            )
 
 
 class ServiceStartupStep(WizardStep):
@@ -174,12 +228,16 @@ class ServiceStartupStep(WizardStep):
 
             # Construct path relative to this script's location
             script_dir = os.path.dirname(os.path.abspath(__file__))
-            repo_root = os.path.dirname(os.path.dirname(script_dir))  # Go up two levels from gui_second_version/steps/
-            limits_path = os.path.join(repo_root, "python_scripts", "4331_v3r50reg_reg_testlims_35_53_7_9.npy")
+            repo_root = os.path.dirname(
+                os.path.dirname(script_dir)
+            )  # Go up two levels from gui_second_version/steps/
+            limits_path = os.path.join(
+                repo_root, "python_scripts", "4331_v3r50reg_reg_testlims_35_53_7_9.npy"
+            )
 
             # Fallback for production environment if file not found
             if not os.path.exists(limits_path):
-                username = os.getenv('USER', 'flashsys007')
+                username = os.getenv("USER", "flashsys007")
                 limits_path = f"/home/{username}/flash-tv-scripts/python_scripts/4331_v3r50reg_reg_testlims_35_53_7_9.npy"
 
             loc_lims = np.load(limits_path).reshape(-1, 4)  # Shape: (120, 4)
@@ -189,7 +247,7 @@ class ServiceStartupStep(WizardStep):
             drl = (loc_lims[:, 1] - loc_lims[:, 0]) / 2.0
             dtb = (loc_lims[:, 3] - loc_lims[:, 2]) / 2.0
 
-            slr = 1.1    # center position
+            slr = 1.1  # center position
             stb = 1.1
             rls_sc = 0.3  # big TV
             tbs_sc = 0.2  # big TV
@@ -203,7 +261,9 @@ class ServiceStartupStep(WizardStep):
             loc_lims[:, 3] = stb * loc_lims[:, 3] + tbs  # theta_max
 
             self.loc_lims = loc_lims
-            self.logger.info(f"Loaded location limits with center-big-med setting: shape {self.loc_lims.shape}")
+            self.logger.info(
+                f"Loaded location limits with center-big-med setting: shape {self.loc_lims.shape}"
+            )
         except Exception as e:
             self.logger.warning(f"Could not load location limits file: {e}")
             self.loc_lims = None
@@ -227,7 +287,7 @@ class ServiceStartupStep(WizardStep):
             "test_vid_frames_batch_v7_2fps_frminp_newfv_rotate.py",
             "insightface/deploy/face_model.py",
             "insightface/utils/face_align.py",
-            "RTNETLINK answers: File exists"
+            "RTNETLINK answers: File exists",
         }
 
         # Normal messages to ignore
@@ -237,6 +297,9 @@ class ServiceStartupStep(WizardStep):
             "Running performance tests",
             "Resource temporarily unavailable",
         }
+
+        # Gaze status labels dictionary (will be populated in create_content_widget)
+        self.gaze_status_labels: dict[str, QLabel] = {}
 
         # Log monitoring timer
         self.log_monitor_timer = QTimer()
@@ -280,7 +343,9 @@ class ServiceStartupStep(WizardStep):
 
     def _create_service_section(self) -> QWidget:
         """Create the service control section."""
-        service_group, service_layout = self.ui_factory.create_group_box("Service Control")
+        service_group, service_layout = self.ui_factory.create_group_box(
+            "Service Control"
+        )
 
         # Service status
         self.service_status_label = self.ui_factory.create_status_label(
@@ -344,7 +409,9 @@ class ServiceStartupStep(WizardStep):
         stderr_label.setStyleSheet("font-weight: bold;")
         stderr_column_layout.addWidget(stderr_label)
 
-        stderr_note = self.ui_factory.create_label("(Actual unexpected errors will be highlighted in red)")
+        stderr_note = self.ui_factory.create_label(
+            "(Actual unexpected errors will be highlighted in red)"
+        )
         stderr_note.setStyleSheet("font-size: 18pt; color: #666;")
         stderr_column_layout.addWidget(stderr_note)
 
@@ -363,8 +430,19 @@ class ServiceStartupStep(WizardStep):
         main_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_column_layout.addWidget(main_label)
 
+        # Status label for main log
+        main_status_label = self.ui_factory.create_label("Waiting for data...")
+        main_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        main_status_label.setStyleSheet(
+            "font-family: monospace; padding: 5px; margin: 2px;"
+        )
+        main_column_layout.addWidget(main_status_label)
+        self.gaze_status_labels["main"] = main_status_label
+
         self.gaze_main_arrow = GazeArrowWidget()
-        main_column_layout.addWidget(self.gaze_main_arrow, alignment=Qt.AlignmentFlag.AlignCenter)
+        main_column_layout.addWidget(
+            self.gaze_main_arrow, alignment=Qt.AlignmentFlag.AlignCenter
+        )
 
         self.gaze_main_output = QTextEdit()
         self.gaze_main_output.setReadOnly(True)
@@ -381,8 +459,19 @@ class ServiceStartupStep(WizardStep):
         rot_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         rot_column_layout.addWidget(rot_label)
 
+        # Status label for rot log
+        rot_status_label = self.ui_factory.create_label("Waiting for data...")
+        rot_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        rot_status_label.setStyleSheet(
+            "font-family: monospace; padding: 5px; margin: 2px;"
+        )
+        rot_column_layout.addWidget(rot_status_label)
+        self.gaze_status_labels["rot"] = rot_status_label
+
         self.gaze_rot_arrow = GazeArrowWidget()
-        rot_column_layout.addWidget(self.gaze_rot_arrow, alignment=Qt.AlignmentFlag.AlignCenter)
+        rot_column_layout.addWidget(
+            self.gaze_rot_arrow, alignment=Qt.AlignmentFlag.AlignCenter
+        )
 
         self.gaze_rot_output = QTextEdit()
         self.gaze_rot_output.setReadOnly(True)
@@ -399,8 +488,19 @@ class ServiceStartupStep(WizardStep):
         reg_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         reg_column_layout.addWidget(reg_label)
 
+        # Status label for reg log
+        reg_status_label = self.ui_factory.create_label("Waiting for data...")
+        reg_status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        reg_status_label.setStyleSheet(
+            "font-family: monospace; padding: 5px; margin: 2px;"
+        )
+        reg_column_layout.addWidget(reg_status_label)
+        self.gaze_status_labels["reg"] = reg_status_label
+
         self.gaze_reg_arrow = GazeArrowWidget()
-        reg_column_layout.addWidget(self.gaze_reg_arrow, alignment=Qt.AlignmentFlag.AlignCenter)
+        reg_column_layout.addWidget(
+            self.gaze_reg_arrow, alignment=Qt.AlignmentFlag.AlignCenter
+        )
 
         self.gaze_reg_output = QTextEdit()
         self.gaze_reg_output.setReadOnly(True)
@@ -449,29 +549,29 @@ class ServiceStartupStep(WizardStep):
         """Start FLASH-TV services using the actual service scripts."""
         try:
             # Get all required values from state
-            username = self.state.get_user_input("username", "")
-            participant_id = self.state.get_user_input("participant_id", "")
-            device_id = self.state.get_user_input("device_id", "")
+            username = self.state.get_user_input(UserInputKey.USERNAME, "")
+            participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
+            device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
 
             if not username:
                 raise FlashTVError(
                     "Missing username",
                     ErrorType.VALIDATION_ERROR,
-                    recovery_action="Complete participant setup first"
+                    recovery_action="Complete participant setup first",
                 )
 
             if not participant_id:
                 raise FlashTVError(
                     "Missing participant ID",
                     ErrorType.VALIDATION_ERROR,
-                    recovery_action="Complete participant setup first"
+                    recovery_action="Complete participant setup first",
                 )
 
             if not device_id:
                 raise FlashTVError(
                     "Missing device ID",
                     ErrorType.VALIDATION_ERROR,
-                    recovery_action="Complete participant setup first"
+                    recovery_action="Complete participant setup first",
                 )
 
             self.logger.info("Starting FLASH-TV systemd services")
@@ -481,7 +581,7 @@ class ServiceStartupStep(WizardStep):
                 raise FlashTVError(
                     "Sudo password required for service operations",
                     ErrorType.VALIDATION_ERROR,
-                    recovery_action="Ensure sudo password is entered in participant setup"
+                    recovery_action="Ensure sudo password is entered in participant setup",
                 )
 
             self.start_services_button.setEnabled(False)
@@ -489,7 +589,9 @@ class ServiceStartupStep(WizardStep):
             self.update_status(StepStatus.AUTOMATION_RUNNING)
 
             # Use the actual start_services.sh script
-            script_path = f"/home/{username}/flash-tv-scripts/services/start_services.sh"
+            script_path = (
+                f"/home/{username}/flash-tv-scripts/services/start_services.sh"
+            )
 
             # First configure the service files with participant details
             self._configure_service_files(username, participant_id, device_id)
@@ -504,7 +606,7 @@ class ServiceStartupStep(WizardStep):
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "enable", "flash-periodic-restart.service"],
                 "Enable flash-periodic-restart service",
-                timeout_ms=15000
+                timeout_ms=15000,
             )
             if not (result and result.returncode == 0):
                 all_success = False
@@ -515,7 +617,7 @@ class ServiceStartupStep(WizardStep):
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "enable", "flash-run-on-boot.service"],
                 "Enable flash-run-on-boot service",
-                timeout_ms=15000
+                timeout_ms=15000,
             )
             if not (result and result.returncode == 0):
                 all_success = False
@@ -526,7 +628,7 @@ class ServiceStartupStep(WizardStep):
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "start", "flash-periodic-restart.service"],
                 "Start flash-periodic-restart service",
-                timeout_ms=15000
+                timeout_ms=15000,
             )
             if not (result and result.returncode == 0):
                 all_success = False
@@ -537,7 +639,7 @@ class ServiceStartupStep(WizardStep):
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "start", "flash-run-on-boot.service"],
                 "Start flash-run-on-boot service",
-                timeout_ms=15000
+                timeout_ms=15000,
             )
             if not (result and result.returncode == 0):
                 all_success = False
@@ -548,7 +650,7 @@ class ServiceStartupStep(WizardStep):
             result = self.process_runner.run_command(
                 ["docker", "compose", "up", "-d"],
                 working_dir=f"/home/{username}/homeassistant-compose",
-                timeout_ms=30000
+                timeout_ms=30000,
             )
             if not (result and result.returncode == 0):
                 all_success = False
@@ -557,9 +659,15 @@ class ServiceStartupStep(WizardStep):
             # Check service status
             # Removed old log_output widget
             result, error = self.process_runner.run_sudo_command(
-                ["systemctl", "status", "--no-pager", "flash-periodic-restart.service", "flash-run-on-boot.service"],
+                [
+                    "systemctl",
+                    "status",
+                    "--no-pager",
+                    "flash-periodic-restart.service",
+                    "flash-run-on-boot.service",
+                ],
                 "Check service status",
-                timeout_ms=10000
+                timeout_ms=10000,
             )
             if result and result.stdout:
                 pass  # Status checked, log output removed
@@ -589,7 +697,7 @@ class ServiceStartupStep(WizardStep):
                 raise FlashTVError(
                     f"Failed to start FLASH-TV services: {error_msg}",
                     ErrorType.PROCESS_ERROR,
-                    recovery_action="Check service script permissions and systemd status"
+                    recovery_action="Check service script permissions and systemd status",
                 )
 
         except Exception as e:
@@ -603,7 +711,7 @@ class ServiceStartupStep(WizardStep):
     def _stop_services(self, checked: bool = False) -> None:
         """Stop FLASH-TV services using the actual service scripts."""
         try:
-            username = self.state.get_user_input("username", "")
+            username = self.state.get_user_input(UserInputKey.USERNAME, "")
             self.logger.info("Stopping FLASH-TV systemd services")
 
             # Set sudo password from state for service operations
@@ -620,35 +728,35 @@ class ServiceStartupStep(WizardStep):
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "stop", "flash-periodic-restart.service"],
                 "Stop flash-periodic-restart service",
-                timeout_ms=15000
+                timeout_ms=15000,
             )
 
             # Stop flash-run-on-boot.service
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "stop", "flash-run-on-boot.service"],
                 "Stop flash-run-on-boot service",
-                timeout_ms=15000
+                timeout_ms=15000,
             )
 
             # Disable flash-periodic-restart.service
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "disable", "flash-periodic-restart.service"],
                 "Disable flash-periodic-restart service",
-                timeout_ms=15000
+                timeout_ms=15000,
             )
 
             # Disable flash-run-on-boot.service
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "disable", "flash-run-on-boot.service"],
                 "Disable flash-run-on-boot service",
-                timeout_ms=15000
+                timeout_ms=15000,
             )
 
             # Stop Home Assistant Docker container
             result = self.process_runner.run_command(
                 ["docker", "compose", "down"],
                 working_dir=f"/home/{username}/homeassistant-compose",
-                timeout_ms=30000
+                timeout_ms=30000,
             )
 
             self.service_running = False
@@ -663,14 +771,14 @@ class ServiceStartupStep(WizardStep):
             raise FlashTVError(
                 f"Failed to stop services: {e}",
                 ErrorType.PROCESS_ERROR,
-                recovery_action="Try manual systemctl commands"
+                recovery_action="Try manual systemctl commands",
             )
 
     @handle_step_error
     def _restart_services(self, checked: bool = False) -> None:
         """Restart FLASH-TV services using the restart script."""
         try:
-            username = self.state.get_user_input("username", "")
+            username = self.state.get_user_input(UserInputKey.USERNAME, "")
             self.logger.info("Restarting FLASH-TV services")
 
             # Set sudo password from state for service operations
@@ -679,18 +787,20 @@ class ServiceStartupStep(WizardStep):
                 return
 
             # Run the restart services script with username as argument
-            script_path = f"/home/{username}/flash-tv-scripts/services/restart_services.sh"
+            script_path = (
+                f"/home/{username}/flash-tv-scripts/services/restart_services.sh"
+            )
             result, error = self.process_runner.run_sudo_command(
                 ["bash", script_path, username],
                 "Restart FLASH-TV services",
-                timeout_ms=30000
+                timeout_ms=30000,
             )
 
             if error:
                 raise FlashTVError(
                     f"Failed to restart services: {error}",
                     ErrorType.PROCESS_ERROR,
-                    recovery_action="Check service script and try manual restart"
+                    recovery_action="Check service script and try manual restart",
                 )
 
             # Services are now restarted - update UI
@@ -741,14 +851,16 @@ class ServiceStartupStep(WizardStep):
             if not self.log_monitoring_active:
                 return
 
-            participant_id = self.state.get_user_input("participant_id", "")
-            device_id = self.state.get_user_input("device_id", "")
-            username = self.state.get_user_input("username", "")
+            participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
+            device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
+            username = self.state.get_user_input(UserInputKey.USERNAME, "")
 
             if not participant_id or not username:
                 return
 
-            full_participant_id = f"{participant_id}{device_id}" if device_id else participant_id
+            full_participant_id = (
+                f"{participant_id}{device_id}" if device_id else participant_id
+            )
             data_path = f"/home/{username}/data/{full_participant_id}_data"
 
             if not os.path.exists(data_path):
@@ -758,7 +870,9 @@ class ServiceStartupStep(WizardStep):
             current_time = datetime.now()
 
             # Check stderr log file and display full content with red highlighting
-            stderr_log_file = os.path.join(data_path, f"{full_participant_id}_flash_logstderr.log")
+            stderr_log_file = os.path.join(
+                data_path, f"{full_participant_id}_flash_logstderr.log"
+            )
             if os.path.exists(stderr_log_file):
                 self._display_stderr_log(stderr_log_file)
 
@@ -774,7 +888,7 @@ class ServiceStartupStep(WizardStep):
     def _display_stderr_log(self, log_path: str) -> None:
         """Display the full stderr log with errors highlighted in red."""
         try:
-            with open(log_path, 'r', errors='ignore') as f:
+            with open(log_path, "r", errors="ignore") as f:
                 content = f.read()
 
             # Clear current content
@@ -792,17 +906,27 @@ class ServiceStartupStep(WizardStep):
 
                 if is_known_safe:
                     # Normal lines in default color
-                    self.stderr_output.setTextColor(self.stderr_output.palette().color(self.stderr_output.foregroundRole()))
+                    self.stderr_output.setTextColor(
+                        self.stderr_output.palette().color(
+                            self.stderr_output.foregroundRole()
+                        )
+                    )
                     self.stderr_output.append(line)
                 else:
                     # Everything else is an error - highlight in red
-                    self.stderr_output.setTextColor(self.stderr_output.palette().color(self.stderr_output.foregroundRole()))
-                    self.stderr_output.append(f'<span style="color: red;">{line}</span>')
+                    self.stderr_output.setTextColor(
+                        self.stderr_output.palette().color(
+                            self.stderr_output.foregroundRole()
+                        )
+                    )
+                    self.stderr_output.append(
+                        f'<span style="color: red;">{line}</span>'
+                    )
 
             # Auto-scroll to bottom
-            self.stderr_output.verticalScrollBar().setValue(
-                self.stderr_output.verticalScrollBar().maximum()
-            )
+            scrollbar = self.stderr_output.verticalScrollBar()
+            if scrollbar:
+                scrollbar.setValue(scrollbar.maximum())
 
         except Exception as e:
             self.logger.error(f"Error displaying stderr log {log_path}: {e}")
@@ -813,7 +937,9 @@ class ServiceStartupStep(WizardStep):
             import glob
 
             # Find the most recent gaze log files
-            base_pattern = os.path.join(data_path, f"{full_participant_id}_flash_log_*.txt")
+            base_pattern = os.path.join(
+                data_path, f"{full_participant_id}_flash_log_*.txt"
+            )
             all_gaze_files = glob.glob(base_pattern)
 
             # Group files by timestamp
@@ -823,7 +949,12 @@ class ServiceStartupStep(WizardStep):
                 if "_flash_log_" in filename:
                     parts = filename.split("_flash_log_")
                     if len(parts) == 2:
-                        timestamp_part = parts[1].replace(".txt", "").replace("_rot", "").replace("_reg", "")
+                        timestamp_part = (
+                            parts[1]
+                            .replace(".txt", "")
+                            .replace("_rot", "")
+                            .replace("_reg", "")
+                        )
                         base_name = f"{full_participant_id}_flash_log_{timestamp_part}"
 
                         if base_name not in file_groups:
@@ -851,24 +982,44 @@ class ServiceStartupStep(WizardStep):
             if most_recent_group:
                 # Update main model column
                 if "main" in most_recent_group:
-                    recent_lines = self._get_recent_data_lines(most_recent_group["main"])
+                    recent_lines = self._get_recent_data_lines(
+                        most_recent_group["main"]
+                    )
                     last_line = recent_lines[-1] if recent_lines else ""
                     formatted, gaze_data = self._format_gaze_data(last_line, "main")
-                    self._update_gaze_column_display(self.gaze_main_output, self.gaze_main_arrow, formatted, recent_lines, gaze_data)
+                    self._update_gaze_column_display(
+                        self.gaze_main_output,
+                        self.gaze_main_arrow,
+                        formatted,
+                        recent_lines,
+                        gaze_data,
+                    )
 
                 # Update rotation model column
                 if "rot" in most_recent_group:
                     recent_lines = self._get_recent_data_lines(most_recent_group["rot"])
                     last_line = recent_lines[-1] if recent_lines else ""
                     formatted, gaze_data = self._format_gaze_data(last_line, "rot")
-                    self._update_gaze_column_display(self.gaze_rot_output, self.gaze_rot_arrow, formatted, recent_lines, gaze_data)
+                    self._update_gaze_column_display(
+                        self.gaze_rot_output,
+                        self.gaze_rot_arrow,
+                        formatted,
+                        recent_lines,
+                        gaze_data,
+                    )
 
                 # Update secondary model column
                 if "reg" in most_recent_group:
                     recent_lines = self._get_recent_data_lines(most_recent_group["reg"])
                     last_line = recent_lines[-1] if recent_lines else ""
                     formatted, gaze_data = self._format_gaze_data(last_line, "reg")
-                    self._update_gaze_column_display(self.gaze_reg_output, self.gaze_reg_arrow, formatted, recent_lines, gaze_data)
+                    self._update_gaze_column_display(
+                        self.gaze_reg_output,
+                        self.gaze_reg_arrow,
+                        formatted,
+                        recent_lines,
+                        gaze_data,
+                    )
             else:
                 # No files found
                 self.gaze_main_output.setPlainText("Waiting for data...")
@@ -878,8 +1029,14 @@ class ServiceStartupStep(WizardStep):
         except Exception as e:
             self.logger.error(f"Error updating gaze columns: {e}")
 
-    def _update_gaze_column_display(self, text_widget: QTextEdit, arrow_widget: GazeArrowWidget,
-                                    formatted_text: str, raw_lines: List[str], gaze_data: Optional[Tuple[float, float, bool]]) -> None:
+    def _update_gaze_column_display(
+        self,
+        text_widget: QTextEdit,
+        arrow_widget: GazeArrowWidget,
+        formatted_text: str,
+        raw_lines: list[str],
+        gaze_data: tuple[float, float, bool] | None,
+    ) -> None:
         """Update a gaze column widget with arrow display and recent log lines."""
         # Clear and show recent lines (like stderr log)
         text_widget.clear()
@@ -888,16 +1045,16 @@ class ServiceStartupStep(WizardStep):
             text_widget.append(line)
 
         # Auto-scroll to bottom
-        text_widget.verticalScrollBar().setValue(
-            text_widget.verticalScrollBar().maximum()
-        )
+        scrollbar = text_widget.verticalScrollBar()
+        if scrollbar:
+            scrollbar.setValue(scrollbar.maximum())
 
         # Extract timestamp and status from formatted text for arrow widget caption
         timestamp = ""
         status = ""
         if formatted_text:
-            lines = formatted_text.split('\n')
-            if len(lines) >= 1 and lines[0].startswith('['):
+            lines = formatted_text.split("\n")
+            if len(lines) >= 1 and lines[0].startswith("["):
                 # Extract timestamp like "[18:24:01.063]"
                 timestamp = lines[0]
             if len(lines) >= 2:
@@ -913,17 +1070,20 @@ class ServiceStartupStep(WizardStep):
         else:
             arrow_widget.set_gaze(0, 0, False, timestamp, status)
 
-    def _scan_log_file(self, log_path: str) -> List[str]:
+    def _scan_log_file(self, log_path: str) -> list[str]:
         """Scan a log file for error patterns."""
         errors = []
         try:
-            with open(log_path, 'r') as f:
+            with open(log_path, "r") as f:
                 lines = f.readlines()
 
             for line in lines:
                 line = line.strip()
                 # Look for common error patterns
-                if any(pattern in line.lower() for pattern in ['error', 'exception', 'failed', 'critical']):
+                if any(
+                    pattern in line.lower()
+                    for pattern in ["error", "exception", "failed", "critical"]
+                ):
                     errors.append(line)
 
         except Exception as e:
@@ -931,12 +1091,12 @@ class ServiceStartupStep(WizardStep):
 
         return errors
 
-    def _scan_log_file_complete(self, log_path: str) -> List[str]:
+    def _scan_log_file_complete(self, log_path: str) -> list[str]:
         """Scan entire stderr log file for error patterns."""
         errors = []
 
         try:
-            with open(log_path, 'r', errors='ignore') as f:
+            with open(log_path, "r", errors="ignore") as f:
                 content = f.read()
 
             # Parse the entire file looking for error patterns
@@ -947,36 +1107,39 @@ class ServiceStartupStep(WizardStep):
 
                 # Look for actual FLASH-TV errors and Python exceptions
                 # Be more selective since stderr will have lots of warnings
-                if any(pattern in line for pattern in [
-                    'Traceback (most recent call last)',  # Python traceback start
-                    'Exception:',  # Python exceptions
-                    'Error:',  # General errors
-                    'CRITICAL:',  # Critical log messages
-                    'ERROR:',  # Error log messages
-                    'Failed to detect',  # FLASH-TV specific failures
-                    'Failed to load',
-                    'Failed to initialize',
-                    'Could not find',
-                    'Could not open',
-                    'Unable to access',
-                    'No such file or directory',
-                    'Permission denied',
-                    'Connection refused',
-                    'Camera not found',
-                    'Device not found',
-                    'Segmentation fault',
-                    'Assertion failed',
-                    'CUDA out of memory',
-                    'RuntimeError',
-                    'ValueError',
-                    'KeyError',
-                    'IndexError',
-                    'AttributeError',
-                    'OSError',
-                    'IOError',
-                    'ImportError',
-                    'ModuleNotFoundError'
-                ]):
+                if any(
+                    pattern in line
+                    for pattern in [
+                        "Traceback (most recent call last)",  # Python traceback start
+                        "Exception:",  # Python exceptions
+                        "Error:",  # General errors
+                        "CRITICAL:",  # Critical log messages
+                        "ERROR:",  # Error log messages
+                        "Failed to detect",  # FLASH-TV specific failures
+                        "Failed to load",
+                        "Failed to initialize",
+                        "Could not find",
+                        "Could not open",
+                        "Unable to access",
+                        "No such file or directory",
+                        "Permission denied",
+                        "Connection refused",
+                        "Camera not found",
+                        "Device not found",
+                        "Segmentation fault",
+                        "Assertion failed",
+                        "CUDA out of memory",
+                        "RuntimeError",
+                        "ValueError",
+                        "KeyError",
+                        "IndexError",
+                        "AttributeError",
+                        "OSError",
+                        "IOError",
+                        "ImportError",
+                        "ModuleNotFoundError",
+                    ]
+                ):
                     # Store the error line
                     errors.append(line)
 
@@ -985,7 +1148,9 @@ class ServiceStartupStep(WizardStep):
 
         return errors
 
-    def _check_gaze_output_files(self, data_path: str, full_participant_id: str) -> None:
+    def _check_gaze_output_files(
+        self, data_path: str, full_participant_id: str
+    ) -> None:
         """Check gaze output files and display the last line of each."""
         try:
             import glob
@@ -996,7 +1161,9 @@ class ServiceStartupStep(WizardStep):
             cutoff_time = current_time - timedelta(hours=24)
 
             # Pattern for gaze log files: {participant_id}_flash_log_YYYY-MM-DD_HH-MM-SS*.txt
-            base_pattern = os.path.join(data_path, f"{full_participant_id}_flash_log_*.txt")
+            base_pattern = os.path.join(
+                data_path, f"{full_participant_id}_flash_log_*.txt"
+            )
             all_gaze_files = glob.glob(base_pattern)
 
             # Group files by timestamp
@@ -1009,7 +1176,12 @@ class ServiceStartupStep(WizardStep):
                     # Extract the base filename without suffix
                     parts = filename.split("_flash_log_")
                     if len(parts) == 2:
-                        timestamp_part = parts[1].replace(".txt", "").replace("_rot", "").replace("_reg", "")
+                        timestamp_part = (
+                            parts[1]
+                            .replace(".txt", "")
+                            .replace("_rot", "")
+                            .replace("_reg", "")
+                        )
                         base_name = f"{full_participant_id}_flash_log_{timestamp_part}"
 
                         if base_name not in file_groups:
@@ -1046,21 +1218,36 @@ class ServiceStartupStep(WizardStep):
 
                         # Update the appropriate label
                         if file_type in self.gaze_status_labels:
-                            label_prefix = {"main": "Main Model:", "rot": "Rot Model:", "reg": "Reg Model:"}[file_type]
-                            self.gaze_status_labels[file_type].setText(f"{label_prefix} {formatted_data}")
+                            label_prefix = {
+                                "main": "Main Model:",
+                                "rot": "Rot Model:",
+                                "reg": "Reg Model:",
+                            }[file_type]
+                            self.gaze_status_labels[file_type].setText(
+                                f"{label_prefix} {formatted_data}"
+                            )
 
                             # Color code based on gaze status
-                            if "TC gaze detected" in formatted_data or "Gaze-det" in formatted_data:
+                            if (
+                                "TC gaze detected" in formatted_data
+                                or "Gaze-det" in formatted_data
+                            ):
                                 # Target child detected with gaze - green
                                 self.gaze_status_labels[file_type].setStyleSheet(
                                     "font-family: monospace; padding: 5px; background-color: #90EE90; margin: 2px;"
                                 )
-                            elif "TC present but no gaze" in formatted_data or "Gaze-no-det" in formatted_data:
+                            elif (
+                                "TC present but no gaze" in formatted_data
+                                or "Gaze-no-det" in formatted_data
+                            ):
                                 # Target child present but no gaze detected - yellow
                                 self.gaze_status_labels[file_type].setStyleSheet(
                                     "font-family: monospace; padding: 5px; background-color: #FFFFE0; margin: 2px;"
                                 )
-                            elif "No faces detected" in formatted_data or "No-face-detected" in formatted_data:
+                            elif (
+                                "No faces detected" in formatted_data
+                                or "No-face-detected" in formatted_data
+                            ):
                                 # No faces detected - light red/pink
                                 self.gaze_status_labels[file_type].setStyleSheet(
                                     "font-family: monospace; padding: 5px; background-color: #FFB6C1; margin: 2px;"
@@ -1074,8 +1261,14 @@ class ServiceStartupStep(WizardStep):
                 # No recent files found
                 for file_type in ["main", "rot", "reg"]:
                     if file_type in self.gaze_status_labels:
-                        label_prefix = {"main": "Main Model:", "rot": "Rot Model:", "reg": "Reg Model:"}[file_type]
-                        self.gaze_status_labels[file_type].setText(f"{label_prefix} Waiting for data...")
+                        label_prefix = {
+                            "main": "Main Model:",
+                            "rot": "Rot Model:",
+                            "reg": "Reg Model:",
+                        }[file_type]
+                        self.gaze_status_labels[file_type].setText(
+                            f"{label_prefix} Waiting for data..."
+                        )
                         self.gaze_status_labels[file_type].setStyleSheet(
                             "font-family: monospace; padding: 5px; background-color: #f0f0f0; margin: 2px;"
                         )
@@ -1086,7 +1279,7 @@ class ServiceStartupStep(WizardStep):
     def _get_last_data_line(self, filepath: str) -> str:
         """Get the last non-empty line from a gaze log file."""
         try:
-            with open(filepath, 'r') as f:
+            with open(filepath, "r") as f:
                 lines = f.readlines()
                 # Find the last non-empty line
                 for line in reversed(lines):
@@ -1097,10 +1290,10 @@ class ServiceStartupStep(WizardStep):
             self.logger.debug(f"Could not read last line from {filepath}: {e}")
         return ""
 
-    def _get_recent_data_lines(self, filepath: str) -> List[str]:
+    def _get_recent_data_lines(self, filepath: str) -> list[str]:
         """Get all non-empty lines from a gaze log file."""
         try:
-            with open(filepath, 'r') as f:
+            with open(filepath, "r") as f:
                 lines = f.readlines()
                 # Get all non-empty, non-comment lines
                 data_lines = []
@@ -1113,7 +1306,9 @@ class ServiceStartupStep(WizardStep):
             self.logger.debug(f"Could not read lines from {filepath}: {e}")
         return []
 
-    def _get_grid_position(self, bbox_top: float, bbox_left: float, bbox_bottom: float, bbox_right: float) -> int:
+    def _get_grid_position(
+        self, bbox_top: float, bbox_left: float, bbox_bottom: float, bbox_right: float
+    ) -> int:
         """Calculate grid cell index from bounding box position.
 
         Grid is 12 rows × 10 columns = 120 cells on a 342×608 frame.
@@ -1137,7 +1332,9 @@ class ServiceStartupStep(WizardStep):
         grid_index = grid_y * 10 + grid_x
         return grid_index
 
-    def _evaluate_watching_tv(self, pitch_rad: float, yaw_rad: float, grid_index: int) -> bool:
+    def _evaluate_watching_tv(
+        self, pitch_rad: float, yaw_rad: float, grid_index: int
+    ) -> bool:
         """Evaluate if gaze angles indicate watching TV using position-specific thresholds.
 
         Args:
@@ -1170,7 +1367,9 @@ class ServiceStartupStep(WizardStep):
 
         return phi_ok and theta_ok
 
-    def _format_gaze_data(self, line: str, file_type: str) -> Tuple[str, Optional[Tuple[float, float, bool]]]:
+    def _format_gaze_data(
+        self, line: str, file_type: str
+    ) -> tuple[str, tuple[float, float, bool] | None]:
         """Format gaze data line for display with TV watching interpretation.
 
         Returns:
@@ -1206,10 +1405,14 @@ class ServiceStartupStep(WizardStep):
                 # Format based on detection status
                 if label == "Gaze-det":
                     # Target child detected with gaze - interpret the angles
-                    if pitch_str != "None" and yaw_str != "None" and bbox_top_str != "None":
+                    if (
+                        pitch_str != "None"
+                        and yaw_str != "None"
+                        and bbox_top_str != "None"
+                    ):
                         try:
                             pitch = float(pitch_str)  # radians
-                            yaw = float(yaw_str)     # radians
+                            yaw = float(yaw_str)  # radians
 
                             # Parse bounding box
                             bbox_top = float(bbox_top_str)
@@ -1218,31 +1421,50 @@ class ServiceStartupStep(WizardStep):
                             bbox_right = float(bbox_right_str)
 
                             # Calculate grid position
-                            grid_index = self._get_grid_position(bbox_top, bbox_left, bbox_bottom, bbox_right)
+                            grid_index = self._get_grid_position(
+                                bbox_top, bbox_left, bbox_bottom, bbox_right
+                            )
 
                             # Evaluate if watching TV using hardcoded "center-big-med" thresholds
-                            watching_tv = self._evaluate_watching_tv(pitch, yaw, grid_index)
+                            watching_tv = self._evaluate_watching_tv(
+                                pitch, yaw, grid_index
+                            )
 
                             # Convert radians to degrees for display
                             pitch_deg = pitch * 57.2958
                             yaw_deg = yaw * 57.2958
 
                             # Format output with TV watching status
-                            time_only = timestamp.split()[1][:12]  # Show time with milliseconds
-                            status = "🟢 WATCHING TV" if watching_tv else "🔵 LOOKING AWAY"
+                            time_only = timestamp.split()[1][
+                                :12
+                            ]  # Show time with milliseconds
+                            status = (
+                                "🟢 WATCHING TV" if watching_tv else "🔵 LOOKING AWAY"
+                            )
 
-                            formatted = (f"[{time_only}]\n"
-                                       f"{status}\n"
-                                       f"P:{pitch_deg:+.1f}° Y:{yaw_deg:+.1f}°")
+                            formatted = (
+                                f"[{time_only}]\n"
+                                f"{status}\n"
+                                f"P:{pitch_deg:+.1f}° Y:{yaw_deg:+.1f}°"
+                            )
 
                             return formatted, (pitch_deg, yaw_deg, watching_tv)
                         except ValueError:
-                            return f"[{timestamp.split()[1][:12]}] TC gaze detected\n(parse error)", None
+                            return (
+                                f"[{timestamp.split()[1][:12]}] TC gaze detected\n(parse error)",
+                                None,
+                            )
                     else:
-                        return f"[{timestamp.split()[1][:12]}] TC detected\n(no gaze data)", None
+                        return (
+                            f"[{timestamp.split()[1][:12]}] TC detected\n(no gaze data)",
+                            None,
+                        )
                 elif label == "Gaze-no-det":
                     time_only = timestamp.split()[1][:12]
-                    return f"[{time_only}]\n🟡 TC PRESENT\nNo gaze detected\n({num_faces} faces)", None
+                    return (
+                        f"[{time_only}]\n🟡 TC PRESENT\nNo gaze detected\n({num_faces} faces)",
+                        None,
+                    )
                 elif label == "No-face-detected":
                     time_only = timestamp.split()[1][:12]
                     return f"[{time_only}]\n🔴 NO FACES\nNo detection", None
@@ -1289,8 +1511,8 @@ class ServiceStartupStep(WizardStep):
                 self.logger.info("User confirmed services are running properly")
 
                 # Mark as complete but keep services running
-                self.state.set_user_input("services_verified", True)
-                self.state.set_user_input("services_running", True)
+                self.state.set_user_input(UserInputKey.SERVICES_VERIFIED, True)
+                self.state.set_user_input(UserInputKey.SERVICES_RUNNING, True)
 
                 if self.state_manager:
                     self.state_manager.save_state(self.state)
@@ -1303,7 +1525,7 @@ class ServiceStartupStep(WizardStep):
                     "Services Verified",
                     "FLASH-TV services verified and running!\n"
                     "Data collection will continue in the background.\n\n"
-                    "Note: Services will continue running after this wizard completes."
+                    "Note: Services will continue running after this wizard completes.",
                 )
 
         except Exception as e:
@@ -1326,7 +1548,7 @@ class ServiceStartupStep(WizardStep):
                 "Check file permissions\n"
                 "Review error messages above\n"
                 "Try restarting services\n\n"
-                "Fix issues and restart services before continuing."
+                "Fix issues and restart services before continuing.",
             )
 
             self.update_status(StepStatus.FAILED)
@@ -1339,7 +1561,7 @@ class ServiceStartupStep(WizardStep):
     def _on_continue_clicked(self, checked: bool = False) -> None:
         """Handle continue button click."""
         try:
-            if self.state.get_user_input("services_verified", False):
+            if self.state.get_user_input(UserInputKey.SERVICES_VERIFIED, False):
                 self.logger.info("Service verification step completed successfully")
 
                 if self.state_manager:
@@ -1360,7 +1582,7 @@ class ServiceStartupStep(WizardStep):
         self.logger.info("Service management step activated")
 
         # Check if services already verified
-        if self.state.get_user_input("services_verified", False):
+        if self.state.get_user_input(UserInputKey.SERVICES_VERIFIED, False):
             self.service_status_label.setText("✅ Services already verified")
             self.continue_button.setEnabled(True)
             self.update_status(StepStatus.COMPLETED)
@@ -1385,34 +1607,37 @@ class ServiceStartupStep(WizardStep):
         except Exception as e:
             self.logger.error(f"Error during step deactivation: {e}")
 
-    def _configure_service_files(self, username: str, participant_id: str, device_id: str) -> None:
+    def _configure_service_files(
+        self, username: str, participant_id: str, device_id: str
+    ) -> None:
         """Configure service files by replacing placeholder values with participant details."""
         try:
-            self.logger.info(f"Configuring service files for participant {participant_id} on device {device_id}")
+            self.logger.info(
+                f"Configuring service files for participant {participant_id} on device {device_id}"
+            )
 
             # Define the service files that need configuration
             service_files = [
                 f"/home/{username}/flash-tv-scripts/services/flash-run-on-boot.service",
                 f"/home/{username}/flash-tv-scripts/services/flash-periodic-restart.service",
                 f"/home/{username}/flash-tv-scripts/services/flash_run_on_boot.sh",
-                f"/home/{username}/flash-tv-scripts/services/flash_periodic_restart.sh"
+                f"/home/{username}/flash-tv-scripts/services/flash_periodic_restart.sh",
             ]
 
             # Define the replacements - IMPORTANT: Use combined participant_id + device_id
             combined_participant_id = f"{participant_id}{device_id}"
-            replacements = {
-                "flashsysXXX": username,
-                "123XXX": combined_participant_id
-            }
+            replacements = {"flashsysXXX": username, "123XXX": combined_participant_id}
 
-            self.logger.info(f"Using combined participant ID: {combined_participant_id}")
+            self.logger.info(
+                f"Using combined participant ID: {combined_participant_id}"
+            )
 
             for service_file in service_files:
                 if os.path.exists(service_file):
                     self.logger.info(f"Configuring {service_file}")
 
                     # Read the current content
-                    with open(service_file, 'r') as f:
+                    with open(service_file, "r") as f:
                         content = f.read()
 
                     # Apply replacements
@@ -1420,7 +1645,7 @@ class ServiceStartupStep(WizardStep):
                         content = content.replace(placeholder, value)
 
                     # Write back the configured content
-                    with open(service_file, 'w') as f:
+                    with open(service_file, "w") as f:
                         f.write(content)
 
                     self.logger.info(f"Successfully configured {service_file}")
@@ -1433,7 +1658,7 @@ class ServiceStartupStep(WizardStep):
             self.logger.info("Copying service files to system directory")
             service_files_to_copy = [
                 f"/home/{username}/flash-tv-scripts/services/flash-run-on-boot.service",
-                f"/home/{username}/flash-tv-scripts/services/flash-periodic-restart.service"
+                f"/home/{username}/flash-tv-scripts/services/flash-periodic-restart.service",
             ]
 
             for service_file in service_files_to_copy:
@@ -1441,7 +1666,7 @@ class ServiceStartupStep(WizardStep):
                 result, error = self.process_runner.run_sudo_command(
                     ["cp", service_file, f"/etc/systemd/system/{service_name}"],
                     f"Copy {service_name} to system directory",
-                    timeout_ms=10000
+                    timeout_ms=10000,
                 )
 
                 if error:
@@ -1449,17 +1674,19 @@ class ServiceStartupStep(WizardStep):
                     raise FlashTVError(
                         f"Failed to copy {service_name} to system directory: {error}",
                         ErrorType.PROCESS_ERROR,
-                        recovery_action="Check sudo permissions"
+                        recovery_action="Check sudo permissions",
                     )
                 else:
-                    self.logger.info(f"Successfully copied {service_name} to /etc/systemd/system/")
+                    self.logger.info(
+                        f"Successfully copied {service_name} to /etc/systemd/system/"
+                    )
 
             # Reload systemctl daemon
             self.logger.info("Reloading systemctl daemon")
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "daemon-reload"],
                 "Reload systemctl daemon",
-                timeout_ms=10000
+                timeout_ms=10000,
             )
 
             if error:
@@ -1467,7 +1694,7 @@ class ServiceStartupStep(WizardStep):
                 raise FlashTVError(
                     f"Failed to reload systemctl daemon: {error}",
                     ErrorType.PROCESS_ERROR,
-                    recovery_action="Check systemctl permissions"
+                    recovery_action="Check systemctl permissions",
                 )
             else:
                 self.logger.info("Successfully reloaded systemctl daemon")
@@ -1477,7 +1704,7 @@ class ServiceStartupStep(WizardStep):
             raise FlashTVError(
                 f"Failed to configure service files: {e}",
                 ErrorType.CONFIGURATION_ERROR,
-                recovery_action="Check service file paths and permissions"
+                recovery_action="Check service file paths and permissions",
             )
 
     def _cleanup_step_resources(self) -> None:

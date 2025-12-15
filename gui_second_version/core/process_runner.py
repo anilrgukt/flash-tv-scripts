@@ -11,13 +11,13 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Callable, Iterator
 
+from models import ProcessInfo, WizardState
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QInputDialog, QLineEdit
+from utils.logger import get_logger, log_error, log_process_complete, log_process_start
 
 from .config import get_config
-from .exceptions import ProcessError, PermissionError, handle_step_error
-from models import ProcessInfo, WizardState
-from utils import get_logger, log_process_start, log_process_complete, log_error
+from .exceptions import PermissionError, ProcessError, handle_step_error
 
 
 class ProcessRunner:
@@ -29,16 +29,13 @@ class ProcessRunner:
         self.logger = get_logger("process_runner")
         self.is_windows = platform.system() == "Windows"
 
-        # Thread-safe password management
         self._password_lock = threading.RLock()
         self._sudo_password: str | None = None
         self._sudo_password_time: float | None = None
 
-        # Process tracking
         self._processes_lock = threading.RLock()
         self._active_processes: dict[str, ProcessInfo] = {}
 
-        # Setup monitoring timer
         self.monitor_timer = QTimer()
         self.monitor_timer.timeout.connect(self._monitor_processes)
         self.monitor_timer.start(self.config.process_monitor_interval_ms)
@@ -46,18 +43,17 @@ class ProcessRunner:
     @contextmanager
     def _managed_process(
         self, command: list[str], **kwargs
-    ) -> Iterator[subprocess.Popen]:
+    ) -> Iterator[subprocess.Popen[str]]:
         """Context manager for subprocess with automatic cleanup."""
         process = None
         try:
-            # Create process with proper pipe handling
-            process = subprocess.Popen(
+            process = subprocess.Popen[str](
                 command,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                bufsize=1,  # Line buffered
+                bufsize=1,
                 **kwargs,
             )
             yield process
@@ -71,10 +67,9 @@ class ProcessRunner:
             if process:
                 self._cleanup_process(process)
 
-    def _cleanup_process(self, process: subprocess.Popen) -> None:
+    def _cleanup_process(self, process: subprocess.Popen[str]) -> None:
         """Safely cleanup a process and its resources."""
         try:
-            # Close pipes
             if process.stdin and not process.stdin.closed:
                 process.stdin.close()
             if process.stdout and not process.stdout.closed:
@@ -82,7 +77,6 @@ class ProcessRunner:
             if process.stderr and not process.stderr.closed:
                 process.stderr.close()
 
-            # Terminate if still running
             if process.poll() is None:
                 process.terminate()
                 try:
@@ -108,28 +102,24 @@ class ProcessRunner:
         """Run a script and track the process with proper resource management."""
         process_name = process_name or f"process_{int(time.time())}"
 
-        # Log process start
         log_process_start(process_name, command, description)
 
-        # Prepare environment
         process_env = os.environ.copy()
         if env:
             process_env.update(env)
 
         try:
-            # Start process WITHOUT the context manager so it doesn't get terminated
-            process = subprocess.Popen(
+            process = subprocess.Popen[str](
                 command,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                bufsize=1,  # Line buffered
+                bufsize=1,
                 cwd=working_dir,
                 env=process_env,
             )
-            
-            # Create ProcessInfo with proper tracking
+
             process_info = ProcessInfo(
                 name=process_name,
                 process=process,
@@ -138,11 +128,9 @@ class ProcessRunner:
                 start_time=datetime.now(),
                 cleanup_handler=cleanup_handler,
             )
-            
-            # Start capturing output
+
             process_info.start_output_capture()
 
-            # Thread-safe process tracking
             with self._processes_lock:
                 self._active_processes[process_name] = process_info
                 self.state.add_process(process_name, process_info)
@@ -151,7 +139,7 @@ class ProcessRunner:
             return process_info
 
         except Exception as e:
-            log_error(f"Failed to start process {process_name}", str(e))
+            log_error(f"Failed to start process {process_name}", e)
             raise ProcessError(
                 f"Failed to start process: {e}",
                 command=command,
@@ -167,29 +155,24 @@ class ProcessRunner:
         process_name: str | None = None,
     ) -> ProcessInfo | None:
         """Run a command with sudo privileges."""
-        # Get or prompt for sudo password
-        if not self._get_sudo_password():
+        if not self._get_sudo_password(description):
             raise PermissionError(
                 "Sudo password required but not provided",
                 recovery_action="Enter the sudo password when prompted",
             )
 
-        # Prepend sudo to command
         sudo_command = ["sudo", "-S"] + command
 
         try:
             with self._managed_process(sudo_command, cwd=working_dir) as process:
-                # Send password to sudo
                 with self._password_lock:
                     if process.stdin and self._sudo_password:
                         try:
                             process.stdin.write(f"{self._sudo_password}\n")
                             process.stdin.flush()
                         except BrokenPipeError:
-                            # Process may have already finished
                             pass
 
-                # Create ProcessInfo
                 process_name = process_name or f"sudo_process_{int(time.time())}"
                 process_info = ProcessInfo(
                     name=process_name,
@@ -199,7 +182,6 @@ class ProcessRunner:
                     start_time=datetime.now(),
                 )
 
-                # Thread-safe tracking
                 with self._processes_lock:
                     self._active_processes[process_name] = process_info
                     self.state.add_process(process_name, process_info)
@@ -216,7 +198,6 @@ class ProcessRunner:
     def _get_sudo_password(self) -> bool:
         """Get sudo password with thread safety and caching."""
         with self._password_lock:
-            # Check if we have a valid cached password
             if (
                 self._sudo_password
                 and self._sudo_password_time
@@ -225,12 +206,10 @@ class ProcessRunner:
             ):
                 return True
 
-            # Verify current password if we have one
             if self._sudo_password and self._verify_sudo_password():
                 self._sudo_password_time = time.time()
                 return True
 
-            # Prompt for new password
             return self._prompt_sudo_password()
 
     def _verify_sudo_password(self) -> bool:
@@ -241,7 +220,6 @@ class ProcessRunner:
                     process.stdin.write(f"{self._sudo_password}\n")
                     process.stdin.flush()
 
-                # Wait for completion with timeout
                 try:
                     process.wait(timeout=10)
                     return process.returncode == 0
@@ -263,7 +241,6 @@ class ProcessRunner:
         if not ok or not password:
             return False
 
-        # Test the password
         with self._password_lock:
             self._sudo_password = password
             if self._verify_sudo_password():
@@ -300,24 +277,19 @@ class ProcessRunner:
     def _handle_process_completion(self, name: str, process_info: ProcessInfo) -> None:
         """Handle completion of a process."""
         try:
-            # Log completion
             status = process_info.get_status()
             runtime = process_info.get_runtime()
 
             log_process_complete(
                 name,
-                process_info.process.returncode if process_info.process.returncode is not None else -1,
+                process_info.process.returncode
+                if process_info.process.returncode is not None
+                else -1,
                 runtime,
             )
 
-            # Run cleanup handler if provided
-            if process_info.cleanup_handler:
-                try:
-                    process_info.cleanup_handler()
-                except Exception as e:
-                    self.logger.error(f"Error in cleanup handler for {name}: {e}")
+            process_info.cleanup()
 
-            # Remove from tracking
             with self._processes_lock:
                 self._active_processes.pop(name, None)
 
@@ -352,22 +324,15 @@ class ProcessRunner:
 
         for name, process_info in processes_to_cleanup:
             try:
-                if process_info.is_running():
-                    self.logger.info(f"Terminating process {name} during cleanup")
-                    process_info.terminate()
-
-                # Run cleanup handler
-                if process_info.cleanup_handler:
-                    process_info.cleanup_handler()
+                self.logger.info(f"Cleaning up process {name}")
+                process_info.cleanup()
 
             except Exception as e:
                 self.logger.error(f"Error cleaning up process {name}: {e}")
 
-        # Clear tracking
         with self._processes_lock:
             self._active_processes.clear()
 
-        # Stop monitoring timer
         if self.monitor_timer.isActive():
             self.monitor_timer.stop()
 
@@ -397,7 +362,7 @@ class ProcessRunner:
         timeout_ms: int = 30000,
         working_dir: str | None = None,
         env: dict[str, str] | None = None,
-    ) -> subprocess.CompletedProcess | None:
+    ) -> subprocess.CompletedProcess[str] | None:
         """Run a command synchronously and return the result.
 
         This method runs a command and waits for completion, returning
@@ -414,16 +379,16 @@ class ProcessRunner:
         """
         self.logger.info(f"Running command: {' '.join(command)}")
 
-        # Prepare environment
         process_env = os.environ.copy()
         if env:
             process_env.update(env)
 
         timeout_seconds = timeout_ms / 1000.0
-        
-        # Check for Linux-specific commands on Windows
+
         if self.is_windows and self._is_linux_command(command[0]):
-            self.logger.warning(f"Linux command '{command[0]}' not available on Windows - returning mock result")
+            self.logger.warning(
+                f"Linux command '{command[0]}' not available on Windows - returning mock result"
+            )
             return self._create_mock_result(command)
 
         try:
@@ -434,7 +399,7 @@ class ProcessRunner:
                 timeout=timeout_seconds,
                 cwd=working_dir,
                 env=process_env,
-                check=False,  # Don't raise on non-zero exit codes
+                check=False,
             )
 
             self.logger.debug(
@@ -468,87 +433,95 @@ class ProcessRunner:
                 command=command,
                 recovery_action="Check system resources and try again",
             )
-    
+
     def _is_linux_command(self, command: str) -> bool:
         """Check if a command is Linux-specific."""
         linux_commands = {
-            'nmcli', 'timedatectl', 'systemctl', 'v4l2-ctl', 
-            'bash', 'sudo', 'service', 'udevadm', 'loginctl', 'gnome-screensaver-command'
+            "nmcli",
+            "timedatectl",
+            "systemctl",
+            "v4l2-ctl",
+            "bash",
+            "sudo",
+            "service",
+            "udevadm",
+            "loginctl",
+            "gnome-screensaver-command",
         }
         return command in linux_commands
-    
-    def _create_mock_result(self, command: list[str]) -> subprocess.CompletedProcess:
-        """Create a mock result for Linux commands on Windows."""
+
+    def _create_mock_result(
+        self, command: list[str]
+    ) -> subprocess.CompletedProcess[str]:
+        """Create mock responses for Linux-specific commands when running on Windows."""
         cmd = command[0]
-        
-        # Create appropriate mock responses based on command
-        if cmd == 'nmcli':
-            if '-f' in command and 'ACTIVE,SSID' in command:
-                stdout = "yes:MockWiFi"  # Active WiFi connection
-            elif 'rescan' in command:
-                stdout = ""  # Scan completed
-            elif '-f' in command and 'SSID,SIGNAL' in command:
-                stdout = "MockWiFi:85:WPA2\nTestNetwork:70:WPA2"  # Available networks
+
+        if cmd == "nmcli":
+            if "-f" in command and "ACTIVE,SSID" in command:
+                stdout = "yes:MockWiFi"
+            elif "rescan" in command:
+                stdout = ""
+            elif "-f" in command and "SSID,SIGNAL" in command:
+                stdout = "MockWiFi:85:WPA2\nTestNetwork:70:WPA2"
             else:
                 stdout = ""
-        elif cmd == 'timedatectl':
-            if 'status' in command:
+        elif cmd == "timedatectl":
+            if "status" in command:
                 stdout = "NTP service: active\nSystem clock synchronized: yes"
             else:
                 stdout = ""
-        elif cmd == 'systemctl':
-            stdout = "active" if 'is-active' in command else "enabled"
-        elif cmd == 'v4l2-ctl':
+        elif cmd == "systemctl":
+            stdout = "active" if "is-active" in command else "enabled"
+        elif cmd == "v4l2-ctl":
             stdout = "Driver name: mock\nCapabilities: 0x04200001"
-        elif cmd == 'loginctl' or cmd == 'gnome-screensaver-command':
-            stdout = ""  # Screen lock commands don't produce output
+        elif cmd == "loginctl" or cmd == "gnome-screensaver-command":
+            stdout = ""
         else:
             stdout = f"Mock output for {cmd}"
-        
-        return subprocess.CompletedProcess(
-            args=command,
-            returncode=0,
-            stdout=stdout,
-            stderr=""
+
+        return subprocess.CompletedProcess[str](
+            args=command, returncode=0, stdout=stdout, stderr=""
         )
-    
+
     def run_sudo_command(
         self,
         command: list[str],
         description: str,
         working_dir: str | None = None,
         timeout_ms: int = 30000,
-    ) -> tuple[subprocess.CompletedProcess | None, str | None]:
+    ) -> tuple[subprocess.CompletedProcess[str] | None, str | None]:
         """Run a command with sudo privileges.
-        
+
         Returns:
             Tuple of (result, error_message). If successful, error_message is None.
         """
         try:
             # On Windows, just run the command without sudo for testing
             if self.is_windows:
-                self.logger.info(f"Running sudo command on Windows (mock): {' '.join(command)}")
+                self.logger.info(
+                    f"Running sudo command on Windows (mock): {' '.join(command)}"
+                )
                 result = self.run_command(command, timeout_ms, working_dir)
                 return result, None
-            
+
             # Get sudo password from cache (should be set by set_sudo_password_from_state)
             with self._password_lock:
                 password = self._sudo_password
             if password is None:
                 return None, "Sudo password required but not provided"
-            
+
             # Prepare sudo command
             sudo_command = ["sudo", "-S"] + command
-            
+
             # Prepare environment
             process_env = os.environ.copy()
             if working_dir is None:
                 working_dir = os.getcwd()
-            
+
             timeout_seconds = timeout_ms / 1000.0
-            
+
             try:
-                process = subprocess.Popen(
+                process = subprocess.Popen[str](
                     sudo_command,
                     stdin=subprocess.PIPE,
                     stdout=subprocess.PIPE,
@@ -557,54 +530,56 @@ class ProcessRunner:
                     cwd=working_dir,
                     env=process_env,
                 )
-                
+
                 # Send password
                 stdout, stderr = process.communicate(
                     input=f"{password}\n", timeout=timeout_seconds
                 )
-                
+
                 # Create result object
-                result = subprocess.CompletedProcess(
+                result = subprocess.CompletedProcess[str](
                     args=sudo_command,
                     returncode=process.returncode,
                     stdout=stdout,
-                    stderr=stderr
+                    stderr=stderr,
                 )
-                
+
                 if result.returncode == 0:
-                    self.logger.info(f"Sudo command completed successfully: {description}")
+                    self.logger.info(
+                        f"Sudo command completed successfully: {description}"
+                    )
                     return result, None
                 else:
                     error_msg = f"Sudo command failed: {stderr.strip()}"
                     self.logger.error(error_msg)
                     return result, error_msg
-                    
+
             except subprocess.TimeoutExpired:
                 error_msg = f"Sudo command timed out: {description}"
                 self.logger.error(error_msg)
                 return None, error_msg
-                
+
         except Exception as e:
             error_msg = f"Error running sudo command: {e}"
             self.logger.error(error_msg)
             return None, error_msg
-    
+
     def _get_sudo_password(self, description: str) -> str | None:
         """Get sudo password from user."""
         with self._password_lock:
             if self._sudo_password is not None:
                 return self._sudo_password
-                
+
             # Prompt for password
-            from PyQt6.QtWidgets import QInputDialog, QMessageBox, QLineEdit
-            
+            from PyQt6.QtWidgets import QInputDialog, QLineEdit, QMessageBox
+
             password, ok = QInputDialog.getText(
                 None,
                 "Sudo Password Required",
                 f"Enter sudo password for: {description}",
-                QLineEdit.EchoMode.Password
+                QLineEdit.EchoMode.Password,
             )
-            
+
             if ok and password:
                 self._sudo_password = password
                 return password

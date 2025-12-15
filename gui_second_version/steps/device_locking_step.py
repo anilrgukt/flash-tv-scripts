@@ -7,7 +7,14 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+from core import WizardStep
+from core.exceptions import handle_step_error
+from models import StepStatus
+from models.state_keys import UserInputKey
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QFont
 from PyQt6.QtWidgets import (
+    QGridLayout,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -16,14 +23,7 @@ from PyQt6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
     QWidget,
-    QGridLayout,
 )
-from PyQt6.QtCore import QTimer, Qt
-from PyQt6.QtGui import QFont
-
-from core import WizardStep
-from core.exceptions import handle_step_error
-from models import StepStatus
 from utils.ui_factory import ButtonStyle
 
 
@@ -67,7 +67,9 @@ class DeviceLockingStep(WizardStep):
 
     def _create_overview_section(self) -> QWidget:
         """Create the overview section."""
-        overview_group, overview_layout = self.ui_factory.create_group_box("System Status Dashboard & Device Locking")
+        overview_group, overview_layout = self.ui_factory.create_group_box(
+            "System Status Dashboard & Device Locking"
+        )
 
         overview_text = self.ui_factory.create_label(
             "Monitor all system components in real-time before locking the device. "
@@ -80,7 +82,9 @@ class DeviceLockingStep(WizardStep):
 
     def _create_dashboard_section(self) -> QWidget:
         """Create the comprehensive monitoring dashboard."""
-        dashboard_group, dashboard_layout = self.ui_factory.create_group_box("System Status (Updates every 5 seconds)")
+        dashboard_group, dashboard_layout = self.ui_factory.create_group_box(
+            "System Status (Updates every 5 seconds)"
+        )
 
         # Simple vertical layout with clear sections
         content_layout = self.ui_factory.create_vertical_layout(spacing=15)
@@ -104,44 +108,41 @@ class DeviceLockingStep(WizardStep):
         box.setLayout(layout)
 
         # Participant info
-        participant_id = self.state.get_user_input("participant_id", "")
-        device_id = self.state.get_user_input("device_id", "")
+        participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
+        device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
         full_id = f"{participant_id}{device_id}" if device_id else participant_id
 
-        participant_label = QLabel(f"<b>Participant:</b> {full_id if full_id else '--'}")
-        participant_label.setFont(QFont("Arial", 22))
+        participant_label = self.ui_factory.create_label(
+            f"<b>Participant:</b> {full_id if full_id else '--'}"
+        )
         layout.addWidget(participant_label)
 
         # Time sync status
-        self.time_sync_label = QLabel("<b>Time Sync:</b> --")
-        self.time_sync_label.setFont(QFont("Arial", 22))
+        self.time_sync_label = self.ui_factory.create_label("<b>Time Sync:</b> --")
         layout.addWidget(self.time_sync_label)
 
         # Camera status
-        self.camera_label = QLabel("<b>Camera:</b> --")
-        self.camera_label.setFont(QFont("Arial", 22))
+        self.camera_label = self.ui_factory.create_label("<b>Camera:</b> --")
         layout.addWidget(self.camera_label)
 
         # Smart plug status
-        self.smart_plug_label = QLabel("<b>Smart Plug:</b> --")
-        self.smart_plug_label.setFont(QFont("Arial", 22))
+        self.smart_plug_label = self.ui_factory.create_label("<b>Smart Plug:</b> --")
         layout.addWidget(self.smart_plug_label)
 
         # Last FLASH error from stderr
-        self.stderr_log_label = QLabel("<b>Last FLASH Error:</b> --")
-        self.stderr_log_label.setFont(QFont("Arial", 22))
-        self.stderr_log_label.setWordWrap(True)
+        self.stderr_log_label = self.ui_factory.create_label(
+            "<b>Last FLASH Error:</b> --", word_wrap=True
+        )
         layout.addWidget(self.stderr_log_label)
 
         # Last main gaze log line
-        self.gaze_log_label = QLabel("<b>Last Main Gaze Log Line:</b> --")
-        self.gaze_log_label.setFont(QFont("Arial", 22))
-        self.gaze_log_label.setWordWrap(True)
+        self.gaze_log_label = self.ui_factory.create_label(
+            "<b>Last Main Gaze Log Line:</b> --", word_wrap=True
+        )
         layout.addWidget(self.gaze_log_label)
 
         # RTC times
-        self.rtc_times_label = QLabel("<b>RTC Times:</b> --")
-        self.rtc_times_label.setFont(QFont("Arial", 22))
+        self.rtc_times_label = self.ui_factory.create_label("<b>RTC Times:</b> --")
         layout.addWidget(self.rtc_times_label)
 
         return box
@@ -152,30 +153,35 @@ class DeviceLockingStep(WizardStep):
         layout = self.ui_factory.create_vertical_layout(spacing=8)
         box.setLayout(layout)
 
-        services_header = QLabel("<b>FLASH-TV Services:</b>")
-        services_header.setFont(QFont("Arial", 22))
+        services_header = self.ui_factory.create_label("<b>FLASH-TV Services:</b>")
         layout.addWidget(services_header)
 
-        self.svc_flash_boot_label = QLabel("  flash-run-on-boot: --")
-        self.svc_flash_boot_label.setFont(QFont("Arial", 22))
+        self.svc_flash_boot_label = self.ui_factory.create_label(
+            "  flash-run-on-boot: --"
+        )
         layout.addWidget(self.svc_flash_boot_label)
 
-        self.svc_flash_periodic_label = QLabel("  flash-periodic: --")
-        self.svc_flash_periodic_label.setFont(QFont("Arial", 22))
+        self.svc_flash_periodic_label = self.ui_factory.create_label(
+            "  flash-periodic: --"
+        )
         layout.addWidget(self.svc_flash_periodic_label)
 
-        self.svc_home_assistant_label = QLabel("  Home Assistant: --")
-        self.svc_home_assistant_label.setFont(QFont("Arial", 22))
+        self.svc_home_assistant_label = self.ui_factory.create_label(
+            "  Home Assistant: --"
+        )
         layout.addWidget(self.svc_home_assistant_label)
 
         return box
 
     def _create_lock_section(self) -> QWidget:
         """Create device lock controls."""
-        lock_group, lock_layout = self.ui_factory.create_group_box("Turn Off WiFi and Lock Device")
+        lock_group, lock_layout = self.ui_factory.create_group_box(
+            "Turn Off WiFi and Lock Device"
+        )
 
-        lock_info = self.ui_factory.create_label("After verifying all systems are working properly above, turn off WiFi and lock the device to complete setup.")
-        lock_info.setFont(QFont("Arial", 22))
+        lock_info = self.ui_factory.create_label(
+            "After verifying all systems are working properly above, turn off WiFi and lock the device to complete setup."
+        )
         lock_layout.addWidget(lock_info)
 
         lock_layout.addSpacing(15)
@@ -193,14 +199,20 @@ class DeviceLockingStep(WizardStep):
 
     def _create_notes_section(self) -> QWidget:
         """Create final instructions section."""
-        notes_group, notes_layout = self.ui_factory.create_group_box("Final Instructions for Participant")
+        notes_group, notes_layout = self.ui_factory.create_group_box(
+            "Final Instructions for Participant"
+        )
 
-        instructions_label = self.ui_factory.create_label("Additional Notes for Participant:")
+        instructions_label = self.ui_factory.create_label(
+            "Additional Notes for Participant:"
+        )
         notes_layout.addWidget(instructions_label)
 
         self.instructions_text = QTextEdit()
         self.instructions_text.setMaximumHeight(80)
-        self.instructions_text.setPlaceholderText("Add any specific notes for this participant...")
+        self.instructions_text.setPlaceholderText(
+            "Add any specific notes for this participant..."
+        )
         notes_layout.addWidget(self.instructions_text)
 
         return notes_group
@@ -218,25 +230,33 @@ class DeviceLockingStep(WizardStep):
         """Update all dashboard components with live data."""
         try:
             # Update time sync
-            time_synced = self.state.get_user_input("time_synced", False)
-            self.time_sync_label.setText(f"<b>Time Sync:</b> {'✅ Verified' if time_synced else '⚠️ Not verified'}")
+            time_synced = self.state.get_user_input(UserInputKey.TIME_SYNCED, False)
+            self.time_sync_label.setText(
+                f"<b>Time Sync:</b> {'✅ Verified' if time_synced else '⚠️ Not verified'}"
+            )
 
             # Update camera
-            camera_tested = self.state.get_user_input("camera_tested", False)
-            camera_path = self.state.get_user_input("selected_camera", "")
+            camera_tested = self.state.get_user_input(UserInputKey.CAMERA_TESTED, False)
+            camera_path = self.state.get_user_input(UserInputKey.SELECTED_CAMERA, "")
             if camera_tested:
                 self.camera_label.setText(f"<b>Camera:</b> ✅ Tested ({camera_path})")
             else:
                 self.camera_label.setText(f"<b>Camera:</b> ❌ Not tested")
 
             # Update smart plug with last power reading
-            smart_plug_verified = self.state.get_user_input("smart_plug_verified", False)
+            smart_plug_verified = self.state.get_user_input(
+                UserInputKey.SMART_PLUG_VERIFIED, False
+            )
             last_power = self._get_last_power_reading()
 
             if smart_plug_verified:
-                self.smart_plug_label.setText(f"<b>Smart Plug:</b> ✅ Verified | Last Reading: {last_power}")
+                self.smart_plug_label.setText(
+                    f"<b>Smart Plug:</b> ✅ Verified | Last Reading: {last_power}"
+                )
             else:
-                self.smart_plug_label.setText(f"<b>Smart Plug:</b> ❌ Not verified | Last Reading: {last_power}")
+                self.smart_plug_label.setText(
+                    f"<b>Smart Plug:</b> ❌ Not verified | Last Reading: {last_power}"
+                )
 
             # Update last FLASH error from stderr
             last_error = self._get_last_flash_error()
@@ -244,7 +264,9 @@ class DeviceLockingStep(WizardStep):
 
             # Update last main gaze log line
             last_gaze_line = self._get_last_gaze_log_line()
-            self.gaze_log_label.setText(f"<b>Last Main Gaze Log Line:</b> {last_gaze_line}")
+            self.gaze_log_label.setText(
+                f"<b>Last Main Gaze Log Line:</b> {last_gaze_line}"
+            )
 
             # Update RTC times
             rtc_times = self._get_rtc_times()
@@ -260,28 +282,52 @@ class DeviceLockingStep(WizardStep):
         """Update services status."""
         # Check flash-run-on-boot
         try:
-            result = subprocess.run(["systemctl", "is-active", "flash-run-on-boot.service"], capture_output=True, text=True, timeout=2)
+            result = subprocess.run(
+                ["systemctl", "is-active", "flash-run-on-boot.service"],
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
             if result.stdout.strip() == "active":
                 self.svc_flash_boot_label.setText("  flash-run-on-boot: ✅ Running")
             else:
-                self.svc_flash_boot_label.setText(f"  flash-run-on-boot: ❌ {result.stdout.strip()}")
+                self.svc_flash_boot_label.setText(
+                    f"  flash-run-on-boot: ❌ {result.stdout.strip()}"
+                )
         except Exception:
             self.svc_flash_boot_label.setText("  flash-run-on-boot: ⚠️ Unknown")
 
         # Check flash-periodic-restart
         try:
-            result = subprocess.run(["systemctl", "is-active", "flash-periodic-restart.service"], capture_output=True, text=True, timeout=2)
+            result = subprocess.run(
+                ["systemctl", "is-active", "flash-periodic-restart.service"],
+                capture_output=True,
+                text=True,
+                timeout=2,
+            )
             if result.stdout.strip() == "active":
                 self.svc_flash_periodic_label.setText("  flash-periodic: ✅ Running")
             else:
-                self.svc_flash_periodic_label.setText(f"  flash-periodic: ❌ {result.stdout.strip()}")
+                self.svc_flash_periodic_label.setText(
+                    f"  flash-periodic: ❌ {result.stdout.strip()}"
+                )
         except Exception:
             self.svc_flash_periodic_label.setText("  flash-periodic: ⚠️ Unknown")
 
         # Check Home Assistant
         try:
             result = subprocess.run(
-                ["docker", "ps", "--filter", "name=homeassistant", "--format", "{{.Status}}"], capture_output=True, text=True, timeout=2
+                [
+                    "docker",
+                    "ps",
+                    "--filter",
+                    "name=homeassistant",
+                    "--format",
+                    "{{.Status}}",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=2,
             )
             if "Up" in result.stdout:
                 self.svc_home_assistant_label.setText("  Home Assistant: ✅ Running")
@@ -293,9 +339,9 @@ class DeviceLockingStep(WizardStep):
     def _get_last_power_reading(self) -> str:
         """Get the last TV power reading from CSV."""
         try:
-            participant_id = self.state.get_user_input("participant_id", "")
-            device_id = self.state.get_user_input("device_id", "")
-            username = self.state.get_user_input("username", "")
+            participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
+            device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
+            username = self.state.get_user_input(UserInputKey.USERNAME, "")
 
             if not all([participant_id, device_id, username]):
                 return "No data"
@@ -321,15 +367,17 @@ class DeviceLockingStep(WizardStep):
     def _get_last_flash_error(self) -> str:
         """Get the last FLASH error from stderr log."""
         try:
-            participant_id = self.state.get_user_input("participant_id", "")
-            device_id = self.state.get_user_input("device_id", "")
-            username = self.state.get_user_input("username", "")
+            participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
+            device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
+            username = self.state.get_user_input(UserInputKey.USERNAME, "")
 
             if not all([participant_id, device_id, username]):
                 return "No errors yet"
 
             full_id = f"{participant_id}{device_id}"
-            stderr_log = f"/home/{username}/data/{full_id}_data/{full_id}_flash_logstderr.log"
+            stderr_log = (
+                f"/home/{username}/data/{full_id}_data/{full_id}_flash_logstderr.log"
+            )
 
             if os.path.exists(stderr_log):
                 with open(stderr_log, "r", errors="ignore") as f:
@@ -342,13 +390,28 @@ class DeviceLockingStep(WizardStep):
                             if line:
                                 # Check if it's an error line
                                 lower_line = line.lower()
-                                if any(keyword in lower_line for keyword in ["error", "failed", "exception", "traceback", "warning"]):
+                                if any(
+                                    keyword in lower_line
+                                    for keyword in [
+                                        "error",
+                                        "failed",
+                                        "exception",
+                                        "traceback",
+                                        "warning",
+                                    ]
+                                ):
                                     # Truncate if too long
-                                    return line[:100] + "..." if len(line) > 100 else line
+                                    return (
+                                        line[:100] + "..." if len(line) > 100 else line
+                                    )
                         # If no error keywords found, return the last line anyway
                         last_line = lines[-1].strip()
                         if last_line:
-                            return last_line[:100] + "..." if len(last_line) > 100 else last_line
+                            return (
+                                last_line[:100] + "..."
+                                if len(last_line) > 100
+                                else last_line
+                            )
             return "No errors yet"
         except Exception as e:
             self.logger.debug(f"Error reading stderr log: {e}")
@@ -357,9 +420,9 @@ class DeviceLockingStep(WizardStep):
     def _get_last_gaze_log_line(self) -> str:
         """Get the last line from the main gaze log file."""
         try:
-            participant_id = self.state.get_user_input("participant_id", "")
-            device_id = self.state.get_user_input("device_id", "")
-            username = self.state.get_user_input("username", "")
+            participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
+            device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
+            username = self.state.get_user_input(UserInputKey.USERNAME, "")
 
             if not all([participant_id, device_id, username]):
                 return "No log yet"
@@ -370,11 +433,16 @@ class DeviceLockingStep(WizardStep):
             # Find the most recent main gaze log file
             # Pattern: {full_id}_flash_log_YYYY-MM-DD_HH-MM-SS.txt (not _rot or _reg)
             import glob
+
             log_pattern = os.path.join(data_path, f"{full_id}_flash_log_*.txt")
             log_files = glob.glob(log_pattern)
 
             # Filter out _rot.txt and _reg.txt files
-            main_logs = [f for f in log_files if not (f.endswith("_rot.txt") or f.endswith("_reg.txt"))]
+            main_logs = [
+                f
+                for f in log_files
+                if not (f.endswith("_rot.txt") or f.endswith("_reg.txt"))
+            ]
 
             if main_logs:
                 # Get the most recent log file
@@ -398,9 +466,9 @@ class DeviceLockingStep(WizardStep):
     def _get_rtc_times(self) -> str:
         """Get RTC times from both RTCs and system time using the existing Python script."""
         try:
-            participant_id = self.state.get_user_input("participant_id", "")
-            device_id = self.state.get_user_input("device_id", "")
-            username = self.state.get_user_input("username", "")
+            participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
+            device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
+            username = self.state.get_user_input(UserInputKey.USERNAME, "")
 
             if not all([participant_id, device_id, username]):
                 return "No data"
@@ -409,7 +477,9 @@ class DeviceLockingStep(WizardStep):
 
             # Path to the RTC check script
             script_path = f"/home/{username}/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py"
-            start_datetime_file = f"/home/{username}/data/{full_id}_data/{full_id}_start_datetime.txt"
+            start_datetime_file = (
+                f"/home/{username}/data/{full_id}_data/{full_id}_start_datetime.txt"
+            )
             python_path = f"/home/{username}/py38/bin/python"
 
             # Run the RTC check script
@@ -417,13 +487,13 @@ class DeviceLockingStep(WizardStep):
                 [python_path, script_path, "check", start_datetime_file],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
             )
 
             if result.returncode == 0:
                 output = result.stdout.strip()
                 # Parse the output to extract key times
-                lines = output.split('\n')
+                lines = output.split("\n")
 
                 system_time = "N/A"
                 rtc0_time = "N/A"
@@ -441,24 +511,32 @@ class DeviceLockingStep(WizardStep):
                             time_str = parts[1].strip()
                             # Try to extract date and time using regex
                             # Pattern: skip weekday, extract date and time
-                            match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}', time_str)
+                            match = re.search(
+                                r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}", time_str
+                            )
                             if match:
                                 system_time = match.group(0)
                             else:
                                 # Fallback: split and take date + time parts
                                 time_parts = time_str.split()
                                 if len(time_parts) >= 3:
-                                    system_time = ' '.join(time_parts[1:3])
+                                    system_time = " ".join(time_parts[1:3])
                     elif "Time from internal RTC rtc0" in line:
                         # Format: "Time from internal RTC rtc0 (PSEQ_RTC, being used) is: 2025-01-15 14:30:45.123456..."
                         parts = line.split("is:", 1)
                         if len(parts) > 1:
                             rtc0_time = parts[1].strip()
                             # Extract just the datetime if present
-                            match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}', rtc0_time)
+                            match = re.search(
+                                r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}", rtc0_time
+                            )
                             if match:
                                 rtc0_time = match.group(0)
-                            elif not rtc0_time or "None" in rtc0_time or "Unable" in rtc0_time:
+                            elif (
+                                not rtc0_time
+                                or "None" in rtc0_time
+                                or "Unable" in rtc0_time
+                            ):
                                 rtc0_time = "Not available"
                     elif "Time from external RTC" in line:
                         # Format: "Time from external RTC (DS3231) is: 2025-01-15 14:30:45" or error message
@@ -468,17 +546,27 @@ class DeviceLockingStep(WizardStep):
                             # Check if it's an error message
                             if "was incomparable or incorrect" in external_rtc_time:
                                 # Extract datetime from error message
-                                match = re.search(r'(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})', external_rtc_time)
+                                match = re.search(
+                                    r"(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})",
+                                    external_rtc_time,
+                                )
                                 if match:
-                                    external_rtc_time = f"{match.group(1)} (⚠️ validation failed)"
+                                    external_rtc_time = (
+                                        f"{match.group(1)} (⚠️ validation failed)"
+                                    )
                                 else:
                                     external_rtc_time = "Validation failed"
                             else:
                                 # Extract just the datetime
-                                match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}', external_rtc_time)
+                                match = re.search(
+                                    r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}",
+                                    external_rtc_time,
+                                )
                                 if match:
                                     external_rtc_time = match.group(0)
-                                elif not external_rtc_time or "None" in external_rtc_time:
+                                elif (
+                                    not external_rtc_time or "None" in external_rtc_time
+                                ):
                                     external_rtc_time = "Not available"
                     elif "Time from internal RTC rtc1" in line:
                         # Format: "Time from internal RTC rtc1 (tegra-RTC, not being used) is: 2025-01-15 14:30:45..."
@@ -486,10 +574,16 @@ class DeviceLockingStep(WizardStep):
                         if len(parts) > 1:
                             rtc1_time = parts[1].strip()
                             # Extract just the datetime if present
-                            match = re.search(r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}', rtc1_time)
+                            match = re.search(
+                                r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}", rtc1_time
+                            )
                             if match:
                                 rtc1_time = match.group(0)
-                            elif not rtc1_time or "None" in rtc1_time or "Unable" in rtc1_time:
+                            elif (
+                                not rtc1_time
+                                or "None" in rtc1_time
+                                or "Unable" in rtc1_time
+                            ):
                                 rtc1_time = "Not available"
 
                 # Format the display - Note: External RTC (DS3231) may be exposed as /dev/rtc1 on some systems
@@ -517,16 +611,22 @@ class DeviceLockingStep(WizardStep):
 
             for cmd in wifi_commands:
                 try:
-                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                    result = subprocess.run(
+                        cmd, capture_output=True, text=True, timeout=5
+                    )
                     if result.returncode == 0:
-                        self.logger.info(f"WiFi disabled successfully using: {' '.join(cmd)}")
+                        self.logger.info(
+                            f"WiFi disabled successfully using: {' '.join(cmd)}"
+                        )
                         wifi_disabled = True
                         break
                 except FileNotFoundError:
                     self.logger.debug(f"WiFi command not found: {' '.join(cmd)}")
                     continue
                 except Exception as e:
-                    self.logger.debug(f"Failed to disable WiFi with {' '.join(cmd)}: {e}")
+                    self.logger.debug(
+                        f"Failed to disable WiFi with {' '.join(cmd)}: {e}"
+                    )
                     continue
 
             if not wifi_disabled:
@@ -551,9 +651,13 @@ class DeviceLockingStep(WizardStep):
             locked = False
             for cmd in lock_commands:
                 try:
-                    result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                    result = subprocess.run(
+                        cmd, capture_output=True, text=True, timeout=5
+                    )
                     if result.returncode == 0:
-                        self.logger.info(f"Device locked successfully using: {' '.join(cmd)}")
+                        self.logger.info(
+                            f"Device locked successfully using: {' '.join(cmd)}"
+                        )
                         locked = True
                         break
                 except FileNotFoundError:
@@ -590,11 +694,11 @@ class DeviceLockingStep(WizardStep):
         """Mark the entire setup as complete."""
         instructions = self.instructions_text.toPlainText().strip()
         if instructions:
-            self.state.set_user_input("final_instructions", instructions)
+            self.state.set_user_input(UserInputKey.FINAL_INSTRUCTIONS, instructions)
             self._save_notes_to_file("Device Locking", instructions)
 
-        self.state.set_user_input("device_locked", True)
-        self.state.set_user_input("setup_complete", True)
+        self.state.set_user_input(UserInputKey.DEVICE_LOCKED, True)
+        self.state.set_user_input(UserInputKey.SETUP_COMPLETE, True)
 
         if self.state_manager:
             self.state_manager.save_state(self.state)
@@ -607,7 +711,7 @@ class DeviceLockingStep(WizardStep):
     @handle_step_error
     def _on_continue_clicked(self, checked: bool = False) -> None:
         """Handle continue button click."""
-        if self.state.get_user_input("device_locked", False):
+        if self.state.get_user_input(UserInputKey.DEVICE_LOCKED, False):
             QMessageBox.information(
                 self,
                 "Setup Complete!",
@@ -626,12 +730,14 @@ class DeviceLockingStep(WizardStep):
         self.monitor_timer.start(5000)  # Update every 5 seconds
 
         # Load any saved instructions
-        saved_instructions = self.state.get_user_input("final_instructions", "")
+        saved_instructions = self.state.get_user_input(
+            UserInputKey.FINAL_INSTRUCTIONS, ""
+        )
         if saved_instructions:
             self.instructions_text.setText(saved_instructions)
 
         # Check if already completed
-        if self.state.get_user_input("device_locked", False):
+        if self.state.get_user_input(UserInputKey.DEVICE_LOCKED, False):
             self.continue_button.setEnabled(True)
             self.update_status(StepStatus.COMPLETED)
             self.logger.info("Restored device locking completion state")

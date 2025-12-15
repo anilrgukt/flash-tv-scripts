@@ -8,11 +8,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from models import WizardState
 from PyQt6.QtWidgets import QMessageBox
 
 from .config import get_config
 from .exceptions import ConfigurationError, handle_step_error
-from models import WizardState
 
 
 class StateManager:
@@ -22,11 +22,7 @@ class StateManager:
         self.config = get_config()
         self.state_file_path = Path(state_file_path or self.config.state_file)
         self.backup_file_path = self.state_file_path.with_suffix(".backup")
-
-        # Thread safety
         self._lock = threading.RLock()
-
-        # Ensure directory exists
         self.state_file_path.parent.mkdir(parents=True, exist_ok=True)
 
     @handle_step_error
@@ -34,18 +30,13 @@ class StateManager:
         """Save the current state to disk with atomic writes and thread safety."""
         with self._lock:
             try:
-                # Create backup of existing state
                 if self.state_file_path.exists():
                     self._create_backup()
 
-                # Prepare state data with metadata
                 state_data = self._prepare_state_data(state)
-
-                # Atomic write to temporary file then move
                 self._atomic_write(state_data)
 
             except Exception as e:
-                # Restore backup if write failed
                 self._restore_backup()
                 raise ConfigurationError(
                     f"Failed to save state: {e}",
@@ -53,9 +44,8 @@ class StateManager:
                 )
 
     def _create_backup(self) -> None:
-        """Create backup of current state file."""
+        """Create timestamped backup with rolling retention."""
         try:
-            # Create timestamped backup
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             backup_with_timestamp = self.backup_file_path.with_suffix(
                 f".{timestamp}.backup"
@@ -63,57 +53,49 @@ class StateManager:
 
             if self.state_file_path.exists():
                 self.state_file_path.replace(backup_with_timestamp)
-                # Keep a rolling backup
                 if self.backup_file_path.exists():
                     self.backup_file_path.unlink()
                 backup_with_timestamp.replace(self.backup_file_path)
 
         except OSError as e:
-            # Log but don't fail the save operation
             print(f"Warning: Could not create backup: {e}")
 
     def _prepare_state_data(self, state: WizardState) -> dict[str, Any]:
-        """Prepare state data with metadata."""
+        """Prepare state data with metadata, preserving original created_at timestamp."""
         state_data = state.to_dict()
         current_time = datetime.now().isoformat()
-        
-        # Check if this is a new state file (first save) or existing
+
         created_at = current_time
         if self.state_file_path.exists():
-            # If file exists, try to preserve the original created_at timestamp
             try:
                 with self.state_file_path.open("r", encoding="utf-8") as f:
                     existing_data = json.load(f)
                     created_at = existing_data.get("created_at", current_time)
             except (json.JSONDecodeError, OSError):
-                # If we can't read the existing file, use current time
                 pass
-        
+
         state_data.update(
             {
                 "created_at": created_at,
                 "modified_at": current_time,
                 "last_saved": current_time,
-                "version": "2.0.0",  # State schema version
-                "total_steps": self.config.min_window_width
-                // 100,  # Avoid hardcoded value
+                "version": "2.0.0",
+                "total_steps": self.config.min_window_width // 100,
             }
         )
         return state_data
 
     def _atomic_write(self, state_data: dict[str, Any]) -> None:
-        """Perform atomic write of state data."""
+        """Write to temp file then atomically replace target file."""
         temp_file = self.state_file_path.with_suffix(".tmp")
 
         try:
             with temp_file.open("w", encoding="utf-8") as f:
                 json.dump(state_data, f, indent=2, ensure_ascii=False)
 
-            # Atomic move
             temp_file.replace(self.state_file_path)
 
         except Exception:
-            # Clean up temp file if it exists
             if temp_file.exists():
                 temp_file.unlink()
             raise
@@ -164,7 +146,7 @@ class StateManager:
             )
 
     def _validate_state_data(self, data: dict[str, Any]) -> bool:
-        """Validate the structure of loaded state data."""
+        """Validate state data structure and types."""
         required_keys = ["current_step", "completed_steps", "user_inputs"]
 
         if not isinstance(data, dict):
@@ -174,7 +156,6 @@ class StateManager:
             if key not in data:
                 return False
 
-        # Validate data types
         if not isinstance(data["current_step"], int):
             return False
         if not isinstance(data["completed_steps"], list):
@@ -208,7 +189,7 @@ class StateManager:
 
     @handle_step_error
     def detect_incomplete_session(self) -> bool:
-        """Detect if there's an incomplete session that can be recovered."""
+        """Detect if there's an incomplete session by checking completion markers."""
         if not self.state_file_path.exists():
             return False
 
@@ -216,23 +197,16 @@ class StateManager:
             with self._lock:
                 state_data = json.loads(self.state_file_path.read_text())
 
-                # Check if session was properly completed
                 metadata = state_data.get("metadata", {})
                 wizard_data = state_data.get("wizard_state", {})
 
-                # Session is incomplete if:
-                # 1. No completion timestamp
-                # 2. Not all steps are completed
-                # 3. Has active processes
                 if not metadata.get("completed_at"):
                     return True
 
-                # Check if there are active processes
                 processes = wizard_data.get("processes", {})
                 if processes:
                     return True
 
-                # Check step completion status
                 step_statuses = wizard_data.get("step_statuses", {})
                 if step_statuses and not all(
                     status == "COMPLETED" for status in step_statuses.values()
@@ -242,7 +216,6 @@ class StateManager:
                 return False
 
         except (json.JSONDecodeError, KeyError, OSError):
-            # If we can't read the file, assume it's incomplete
             return True
 
     @handle_step_error
@@ -252,7 +225,7 @@ class StateManager:
             state_info = self.get_state_info()
             created_at = state_info.get("created_at", "Unknown")
             modified_at = state_info.get("modified_at", "Unknown")
-            
+
             # Try to get additional information from the saved state file
             session_info = self._get_detailed_session_info()
             current_step = session_info.get("current_step", "Unknown")
@@ -272,14 +245,12 @@ class StateManager:
             )
 
             if reply == QMessageBox.StandardButton.No:
-                # User chose to start fresh
                 self.clear_state()
                 return False
 
             return True
 
         except Exception:
-            # If anything fails, don't recover
             return False
 
     @handle_step_error
@@ -317,44 +288,47 @@ class StateManager:
                 info["last_modified"] = datetime.fromtimestamp(
                     stat.st_mtime
                 ).isoformat()
-                
-                # Try to get timestamps from saved JSON data first (more accurate)
+
                 try:
                     with self.state_file_path.open("r", encoding="utf-8") as f:
                         data = json.load(f)
-                    
+
                     created_at_json = data.get("created_at")
                     modified_at_json = data.get("modified_at")
-                    
+
                     if created_at_json:
-                        # Try to parse ISO format and reformat for display
                         try:
-                            created_dt = datetime.fromisoformat(created_at_json.replace('Z', '+00:00'))
-                            info["created_at"] = created_dt.strftime("%Y-%m-%d %H:%M:%S")
+                            created_dt = datetime.fromisoformat(
+                                created_at_json.replace("Z", "+00:00")
+                            )
+                            info["created_at"] = created_dt.strftime(
+                                "%Y-%m-%d %H:%M:%S"
+                            )
                         except ValueError:
-                            # If not in ISO format, assume it's already formatted
                             info["created_at"] = str(created_at_json)
-                    
+
                     if modified_at_json:
                         try:
-                            modified_dt = datetime.fromisoformat(modified_at_json.replace('Z', '+00:00'))
-                            info["modified_at"] = modified_dt.strftime("%Y-%m-%d %H:%M:%S")
+                            modified_dt = datetime.fromisoformat(
+                                modified_at_json.replace("Z", "+00:00")
+                            )
+                            info["modified_at"] = modified_dt.strftime(
+                                "%Y-%m-%d %H:%M:%S"
+                            )
                         except ValueError:
                             info["modified_at"] = str(modified_at_json)
-                            
+
                 except (json.JSONDecodeError, OSError):
-                    # Fall back to file system timestamps if JSON reading fails
                     created_dt = datetime.fromtimestamp(stat.st_ctime)
                     modified_dt = datetime.fromtimestamp(stat.st_mtime)
-                    
+
                     info["created_at"] = created_dt.strftime("%Y-%m-%d %H:%M:%S")
                     info["modified_at"] = modified_dt.strftime("%Y-%m-%d %H:%M:%S")
-                
-                # If we still don't have timestamps, use file system as last resort
+
                 if info["created_at"] == "Unknown" or info["modified_at"] == "Unknown":
                     created_dt = datetime.fromtimestamp(stat.st_ctime)
                     modified_dt = datetime.fromtimestamp(stat.st_mtime)
-                    
+
                     if info["created_at"] == "Unknown":
                         info["created_at"] = created_dt.strftime("%Y-%m-%d %H:%M:%S")
                     if info["modified_at"] == "Unknown":
@@ -368,20 +342,23 @@ class StateManager:
             "current_step": "Unknown",
             "completed_steps_count": "Unknown",
         }
-        
+
         try:
             if self.state_file_path.exists():
                 with self.state_file_path.open("r", encoding="utf-8") as f:
                     data = json.load(f)
-                
-                info["current_step"] = data.get("current_step", "Unknown")
+
+                info["current_step"] = str(data.get("current_step", "Unknown"))
                 completed_steps = data.get("completed_steps", [])
-                info["completed_steps_count"] = len(completed_steps) if isinstance(completed_steps, list) else "Unknown"
-                
+                info["completed_steps_count"] = (
+                    str(len(completed_steps))
+                    if isinstance(completed_steps, list)
+                    else "Unknown"
+                )
+
         except (json.JSONDecodeError, OSError):
-            # If we can't read the file, return default values
             pass
-            
+
         return info
 
     def create_state_checkpoint(self, state: WizardState, checkpoint_name: str) -> None:

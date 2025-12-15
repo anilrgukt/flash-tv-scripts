@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from models.enums import StepContentType
+from models.state_keys import WizardStep
 from models.validation_rule import ValidationRule
 
 
@@ -24,20 +25,35 @@ class AutomationConfig:
 
 @dataclass
 class StepDefinition:
-    """Configuration and behavior definition for a wizard step."""
+    """Configuration and behavior definition for a wizard step.
 
-    step_id: int
+    Uses WizardStep enum for type-safe step identification while maintaining
+    backwards compatibility with integer step IDs.
+    """
+
+    step_id: WizardStep | int
     title: str
     description: str
     content_type: StepContentType
-    prerequisites: list[int] = field(default_factory=list)
+    prerequisites: list[WizardStep | int] = field(default_factory=list)
     validation_rules: list[ValidationRule] = field(default_factory=list)
     automation_config: AutomationConfig | None = None
     ui_config: dict[str, Any] = field(default_factory=dict)
 
     def has_prerequisites_met(self, completed_steps: set[int]) -> bool:
-        """Check if all prerequisites are met."""
-        return all(step_id in completed_steps for step_id in self.prerequisites)
+        """Check if all prerequisites are met.
+
+        Args:
+            completed_steps: Set of completed step IDs (as integers)
+
+        Returns:
+            True if all prerequisites are completed, False otherwise
+        """
+        for prereq in self.prerequisites:
+            prereq_num = int(prereq) if isinstance(prereq, WizardStep) else prereq
+            if prereq_num not in completed_steps:
+                return False
+        return True
 
     def validate_inputs(self, inputs: dict[str, Any]) -> tuple[bool, list[str]]:
         """Validate inputs against all validation rules.
