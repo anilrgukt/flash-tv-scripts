@@ -6,7 +6,11 @@ import os
 import shutil
 from datetime import datetime
 
-from config.messages import MESSAGES
+from config.participant_contract import (
+    build_participant_full_id,
+    get_participant_data_dir,
+)
+from config.messages import MESSAGES, get_python_path
 from core import WizardStep
 from core.exceptions import ErrorType, FlashTVError, handle_step_error
 from models import StepStatus
@@ -169,6 +173,9 @@ class GazeDetectionTestingStep(WizardStep):
 
         return button_layout
 
+    def _get_gaze_test_script_dir(self, username: str) -> str:
+        return os.path.join(f"/home/{username}/flash-tv-scripts", "python_scripts")
+
     @handle_step_error
     def _launch_gaze_test(self, checked: bool = False) -> None:
         """Launch the gaze detection test."""
@@ -190,15 +197,19 @@ class GazeDetectionTestingStep(WizardStep):
                     recovery_action="Complete participant setup first",
                 )
 
-            # Combine participant_id and device_id
-            full_participant_id = (
-                f"{participant_id}{device_id}" if device_id else participant_id
-            )
+            full_participant_id = build_participant_full_id(participant_id, device_id)
+            data_path = self.state.get_user_input(UserInputKey.DATA_PATH, "")
+            if not data_path:
+                data_path = str(
+                    get_participant_data_dir(username, participant_id, device_id)
+                )
 
             self.logger.info(
                 f"Starting gaze detection test for participant: {full_participant_id}"
             )
             self.launch_button.setEnabled(False)
+            self.working_button.setEnabled(False)
+            self.not_working_button.setEnabled(False)
             self.update_status(StepStatus.AUTOMATION_RUNNING)
 
             # Start loading progress bar countdown
@@ -208,16 +219,14 @@ class GazeDetectionTestingStep(WizardStep):
             self.loading_timer.start(1000)  # Update every second
 
             # Prepare command for gaze test
-            script_path = os.path.join(
-                f"/home/{username}/flash-tv-scripts/python_scripts",
-                "run_flash_gaze_test.py",
-            )
+            script_dir = self._get_gaze_test_script_dir(username)
+            script_path = os.path.join(script_dir, "run_flash_gaze_test.py")
 
             command = [
-                f"/home/{username}/py38/bin/python",
+                get_python_path(username),
                 script_path,
                 full_participant_id,
-                f"/home/{username}/data/{full_participant_id}_data",
+                data_path,
                 "save-image",
                 username,
             ]
@@ -226,7 +235,7 @@ class GazeDetectionTestingStep(WizardStep):
             process_info = self.process_runner.run_script(
                 command=command,
                 description=f"Gaze detection test for {full_participant_id}",
-                working_dir=f"/home/{username}/flash-tv-scripts/python_scripts",
+                working_dir=script_dir,
                 process_name="gaze_test",
             )
 
@@ -238,6 +247,7 @@ class GazeDetectionTestingStep(WizardStep):
                 self.not_working_button.setEnabled(True)
             else:
                 self.logger.error("Failed to start gaze detection test script")
+                self._reset_test_running_ui(disable_verification=True)
                 self.launch_button.setEnabled(True)
                 self.update_status(StepStatus.FAILED)
                 raise FlashTVError(
@@ -248,6 +258,7 @@ class GazeDetectionTestingStep(WizardStep):
 
         except Exception as e:
             self.logger.error(f"Error launching gaze test: {e}")
+            self._reset_test_running_ui(disable_verification=True)
             self.launch_button.setEnabled(True)
             self.update_status(StepStatus.FAILED)
             raise
@@ -279,6 +290,17 @@ class GazeDetectionTestingStep(WizardStep):
                 f"Loading models... {minutes}m {seconds}s remaining (~{progress_percent}% complete)"
             )
 
+    def _reset_test_running_ui(self, disable_verification: bool = False) -> None:
+        self.loading_timer.stop()
+        self.loading_start_time = None
+        self.loading_progress_bar.setVisible(False)
+        self.loading_progress_bar.setValue(0)
+        self.loading_progress_bar.setFormat("Estimated loading time: %p% complete")
+
+        if disable_verification:
+            self.working_button.setEnabled(False)
+            self.not_working_button.setEnabled(False)
+
     @handle_step_error
     def _gaze_working_confirmed(self, checked: bool = False) -> None:
         """Handle confirmation that gaze detection is working."""
@@ -298,15 +320,14 @@ class GazeDetectionTestingStep(WizardStep):
             if reply == QMessageBox.StandardButton.Yes:
                 self.logger.info("User confirmed gaze detection is working")
 
-                # Stop the loading timer and hide progress bar
-                self.loading_timer.stop()
-                self.loading_progress_bar.setVisible(False)
+                self._reset_test_running_ui()
 
                 # Stop the gaze test process
                 process_info = self.state.get_process("gaze_test")
                 if process_info and process_info.is_running():
                     self.logger.info("Terminating gaze test process")
                     self.process_runner.terminate_process("gaze_test")
+                self.state.remove_process("gaze_test")
 
                 # Clean up test files
                 self._cleanup_test_files()
@@ -347,7 +368,33 @@ class GazeDetectionTestingStep(WizardStep):
         try:
             self.logger.info("Starting test file cleanup")
 
-            test_folders = ["test_res", "test_frames"]
+            participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
+            device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
+            username = self.state.get_user_input(UserInputKey.USERNAME, "")
+            data_path = self.state.get_user_input(UserInputKey.DATA_PATH, "")
+
+            if not data_path and participant_id and username:
+                data_path = str(
+                    get_participant_data_dir(username, participant_id, device_id)
+                )
+
+            test_folders = []
+
+            if username:
+                script_dir = self._get_gaze_test_script_dir(username)
+                test_folders.extend(
+                    [
+                        os.path.join(script_dir, "test_res"),
+                        os.path.join(script_dir, "test_frames"),
+                    ]
+                )
+
+            if data_path and participant_id:
+                full_participant_id = build_participant_full_id(participant_id, device_id)
+                test_folders.append(
+                    os.path.join(data_path, f"{full_participant_id}_gaze_test_frames")
+                )
+
             cleaned_folders = 0
 
             for folder in test_folders:
@@ -370,9 +417,7 @@ class GazeDetectionTestingStep(WizardStep):
         try:
             self.logger.warning("User reported gaze detection issues")
 
-            # Stop the loading timer and hide progress bar
-            self.loading_timer.stop()
-            self.loading_progress_bar.setVisible(False)
+            self._reset_test_running_ui()
 
             # Stop the test process
             process_info = self.state.get_process("gaze_test")
@@ -463,8 +508,11 @@ class GazeDetectionTestingStep(WizardStep):
 
             if status.value == "completed":
                 self.logger.info("Gaze test process ended normally")
+                self._reset_test_running_ui()
             else:
                 self.logger.warning(f"Gaze test process ended with status: {status}")
+                self._reset_test_running_ui(disable_verification=True)
+                self.update_status(StepStatus.FAILED)
 
                 # Log error output
                 if stderr_lines:

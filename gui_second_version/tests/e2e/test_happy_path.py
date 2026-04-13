@@ -6,6 +6,8 @@ mocking external dependencies while testing the full UI flow.
 
 from __future__ import annotations
 
+import sys
+import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -31,19 +33,20 @@ from steps import StepFactory
 @pytest.fixture
 def mock_all_external_deps():
     """Mock all external dependencies for e2e testing."""
-    with patch("subprocess.run") as mock_run, \
-         patch("subprocess.Popen") as mock_popen, \
-         patch("socket.socket") as mock_socket, \
-         patch("cv2.VideoCapture") as mock_cv2, \
-         patch("os.path.exists") as mock_exists, \
-         patch("os.listdir") as mock_listdir:
+    mock_cv2 = MagicMock(name="VideoCapture")
+    fake_cv2 = MagicMock()
+    fake_cv2.VideoCapture = mock_cv2
 
+    with (
+        patch.dict(sys.modules, {"cv2": fake_cv2}),
+        patch("subprocess.run") as mock_run,
+        patch("subprocess.Popen") as mock_popen,
+        patch("socket.socket") as mock_socket,
+        patch("os.path.exists") as mock_exists,
+        patch("os.listdir") as mock_listdir,
+    ):
         # subprocess.run returns success
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="success",
-            stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout="success", stderr="")
 
         # subprocess.Popen returns a mock process
         mock_process = MagicMock()
@@ -89,8 +92,25 @@ def wizard_with_mocks(qtbot, tmp_path: Path, mock_all_external_deps):
     process_runner = ProcessRunner(state)
 
     # Mock process runner methods
-    process_runner.run_command = MagicMock(return_value=("success", ""))
-    process_runner.run_sudo_command = MagicMock(return_value=("success", None))
+    process_runner.run_command = MagicMock(
+        return_value=subprocess.CompletedProcess(
+            args=["mock-command"],
+            returncode=0,
+            stdout="success",
+            stderr="",
+        )
+    )
+    process_runner.run_sudo_command = MagicMock(
+        return_value=(
+            subprocess.CompletedProcess(
+                args=["mock-sudo-command"],
+                returncode=0,
+                stdout="success",
+                stderr="",
+            ),
+            None,
+        )
+    )
 
     return {
         "state": state,
@@ -130,7 +150,9 @@ def find_checkbox_by_text(widget, text: str) -> QCheckBox | None:
     return None
 
 
-def fill_participant_setup(step, qtbot, participant_id: str, device_id: str, username: str, data_path: str):
+def fill_participant_setup(
+    step, qtbot, participant_id: str, device_id: str, username: str, data_path: str
+):
     """Fill in participant setup form fields."""
     line_edits = step.findChildren(QLineEdit)
 
@@ -189,9 +211,11 @@ class TestHappyPathStepByStep:
 
         # Fill in participant information directly via state
         setup["state"].set_user_input(UserInputKey.PARTICIPANT_ID, "P1-3999028")
-        setup["state"].set_user_input(UserInputKey.DEVICE_ID, "A")
+        setup["state"].set_user_input(UserInputKey.DEVICE_ID, "007")
         setup["state"].set_user_input(UserInputKey.USERNAME, "flashsys007")
-        setup["state"].set_user_input(UserInputKey.DATA_PATH, "/home/flashsys007/data")
+        setup["state"].set_user_input(
+            UserInputKey.DATA_PATH, "/home/flashsys007/data/P1-3999028007_data"
+        )
         setup["state"].set_user_input(UserInputKey.SUDO_PASSWORD, "testpass")
 
         # Mark step as completed
@@ -215,9 +239,7 @@ class TestHappyPathStepByStep:
 
         # Mock WiFi check to return connected
         setup["mocks"]["run"].return_value = MagicMock(
-            returncode=0,
-            stdout="inet 192.168.1.100",
-            stderr=""
+            returncode=0, stdout="inet 192.168.1.100", stderr=""
         )
 
         step = StepFactory.create_step_instance(
@@ -256,7 +278,7 @@ class TestHappyPathStepByStep:
         setup["mocks"]["run"].return_value = MagicMock(
             returncode=0,
             stdout="System clock synchronized: yes\nNTP service: active",
-            stderr=""
+            stderr="",
         )
 
         step = StepFactory.create_step_instance(
@@ -285,7 +307,7 @@ class TestHappyPathStepByStep:
             setup["state"].mark_step_completed(step_id)
 
         setup["state"].set_user_input(UserInputKey.PARTICIPANT_ID, "P1-3999028")
-        setup["state"].set_user_input(UserInputKey.DEVICE_ID, "A")
+        setup["state"].set_user_input(UserInputKey.DEVICE_ID, "007")
         setup["state"].set_user_input(UserInputKey.USERNAME, "flashsys007")
 
         definitions = StepFactory.create_step_definitions()
@@ -319,7 +341,7 @@ class TestHappyPathStepByStep:
             setup["state"].mark_step_completed(step_id)
 
         setup["state"].set_user_input(UserInputKey.PARTICIPANT_ID, "P1-3999028")
-        setup["state"].set_user_input(UserInputKey.DEVICE_ID, "A")
+        setup["state"].set_user_input(UserInputKey.DEVICE_ID, "007")
         setup["state"].set_user_input(UserInputKey.USERNAME, "flashsys007")
 
         definitions = StepFactory.create_step_definitions()
@@ -365,12 +387,18 @@ class TestHappyPathStepByStep:
         step.show()
         step.activate_step()
 
-        # Simulate camera selected
-        setup["state"].set_camera_index(0)
+        setup["state"].set_user_input(UserInputKey.SELECTED_CAMERA, "/dev/video0")
+        setup["state"].set_user_input(
+            UserInputKey.SELECTED_CAMERA_NAME, "Integrated Camera"
+        )
+        setup["state"].set_user_input(UserInputKey.CAMERA_TESTED, True)
+        setup["state"].set_user_input(UserInputKey.POV_PICTURE_COMPLETE, True)
         step.update_status(StepStatus.COMPLETED)
         setup["state"].mark_step_completed(WizardStep.CAMERA_SETUP)
 
-        assert setup["state"].get_camera_index() == 0
+        assert (
+            setup["state"].get_user_input(UserInputKey.SELECTED_CAMERA) == "/dev/video0"
+        )
         assert setup["state"].is_step_completed(WizardStep.CAMERA_SETUP)
 
     def test_step7_gallery_creation(self, qtbot, wizard_with_mocks):
@@ -382,9 +410,11 @@ class TestHappyPathStepByStep:
             setup["state"].mark_step_completed(step_id)
 
         setup["state"].set_user_input(UserInputKey.PARTICIPANT_ID, "P1-3999028")
-        setup["state"].set_user_input(UserInputKey.DEVICE_ID, "A")
+        setup["state"].set_user_input(UserInputKey.DEVICE_ID, "007")
         setup["state"].set_user_input(UserInputKey.USERNAME, "flashsys007")
-        setup["state"].set_user_input(UserInputKey.DATA_PATH, "/home/flashsys007/data")
+        setup["state"].set_user_input(
+            UserInputKey.DATA_PATH, "/home/flashsys007/data/P1-3999028007_data"
+        )
 
         definitions = StepFactory.create_step_definitions()
         step_def = definitions[6]  # Gallery Creation
@@ -399,8 +429,12 @@ class TestHappyPathStepByStep:
         step.show()
         step.activate_step()
 
-        # Simulate gallery created
-        setup["state"].set_user_input(UserInputKey.GALLERY_CREATED, True)
+        setup["state"].set_user_input(
+            UserInputKey.GALLERY_PATH,
+            "/home/flashsys007/data/P1-3999028007_data/P1-3999028007_faces",
+        )
+        setup["state"].set_user_input(UserInputKey.GALLERY_VALIDATED, True)
+        setup["state"].set_user_input(UserInputKey.GALLERY_TOTAL_IMAGES, 15)
         step.update_status(StepStatus.COMPLETED)
         setup["state"].mark_step_completed(WizardStep.GALLERY_CREATION)
 
@@ -415,8 +449,16 @@ class TestHappyPathStepByStep:
             setup["state"].mark_step_completed(step_id)
 
         setup["state"].set_user_input(UserInputKey.PARTICIPANT_ID, "P1-3999028")
+        setup["state"].set_user_input(UserInputKey.DEVICE_ID, "007")
         setup["state"].set_user_input(UserInputKey.USERNAME, "flashsys007")
-        setup["state"].set_camera_index(0)
+        setup["state"].set_user_input(
+            UserInputKey.DATA_PATH, "/home/flashsys007/data/P1-3999028007_data"
+        )
+        setup["state"].set_user_input(
+            UserInputKey.GALLERY_PATH,
+            "/home/flashsys007/data/P1-3999028007_data/P1-3999028007_faces",
+        )
+        setup["state"].set_user_input(UserInputKey.GALLERY_VALIDATED, True)
 
         definitions = StepFactory.create_step_definitions()
         step_def = definitions[7]  # Gaze Detection Testing
@@ -433,6 +475,7 @@ class TestHappyPathStepByStep:
 
         # Simulate gaze tested
         setup["state"].set_user_input(UserInputKey.GAZE_TEST_COMPLETE, True)
+        setup["state"].set_user_input(UserInputKey.GAZE_DETECTION_VERIFIED, True)
         step.update_status(StepStatus.COMPLETED)
         setup["state"].mark_step_completed(WizardStep.GAZE_DETECTION_TESTING)
 
@@ -447,9 +490,11 @@ class TestHappyPathStepByStep:
             setup["state"].mark_step_completed(step_id)
 
         setup["state"].set_user_input(UserInputKey.PARTICIPANT_ID, "P1-3999028")
-        setup["state"].set_user_input(UserInputKey.DEVICE_ID, "A")
+        setup["state"].set_user_input(UserInputKey.DEVICE_ID, "007")
         setup["state"].set_user_input(UserInputKey.USERNAME, "flashsys007")
-        setup["state"].set_user_input(UserInputKey.DATA_PATH, "/home/flashsys007/data")
+        setup["state"].set_user_input(
+            UserInputKey.DATA_PATH, "/home/flashsys007/data/P1-3999028007_data"
+        )
         setup["state"].set_user_input(UserInputKey.SUDO_PASSWORD, "testpass")
 
         definitions = StepFactory.create_step_definitions()
@@ -549,20 +594,24 @@ class TestFullHappyPath:
         # Test data for the journey
         test_data = {
             "participant_id": "P1-3999028",
-            "device_id": "A",
+            "device_id": "007",
             "username": "flashsys007",
-            "data_path": "/home/flashsys007/data",
+            "data_path": "/home/flashsys007/data/P1-3999028007_data",
             "sudo_password": "testpass123",
             "wifi_ssid": "FlashTV-Network",
-            "camera_index": 0,
+            "selected_camera": "/dev/video0",
         }
 
         # Set up initial user inputs
-        setup["state"].set_user_input(UserInputKey.PARTICIPANT_ID, test_data["participant_id"])
+        setup["state"].set_user_input(
+            UserInputKey.PARTICIPANT_ID, test_data["participant_id"]
+        )
         setup["state"].set_user_input(UserInputKey.DEVICE_ID, test_data["device_id"])
         setup["state"].set_user_input(UserInputKey.USERNAME, test_data["username"])
         setup["state"].set_user_input(UserInputKey.DATA_PATH, test_data["data_path"])
-        setup["state"].set_user_input(UserInputKey.SUDO_PASSWORD, test_data["sudo_password"])
+        setup["state"].set_user_input(
+            UserInputKey.SUDO_PASSWORD, test_data["sudo_password"]
+        )
 
         # Journey through each step
         completed_steps = []
@@ -585,6 +634,17 @@ class TestFullHappyPath:
             step.activate_step()
             qtbot.wait(10)
 
+            setup["state"].set_user_input(
+                UserInputKey.PARTICIPANT_ID, test_data["participant_id"]
+            )
+            setup["state"].set_user_input(
+                UserInputKey.DEVICE_ID, test_data["device_id"]
+            )
+            setup["state"].set_user_input(UserInputKey.USERNAME, test_data["username"])
+            setup["state"].set_user_input(
+                UserInputKey.DATA_PATH, test_data["data_path"]
+            )
+
             # Perform step-specific actions
             if step_id == WizardStep.PARTICIPANT_SETUP:
                 # User inputs already set
@@ -604,13 +664,28 @@ class TestFullHappyPath:
                 pass  # Auto verification
 
             elif step_id == WizardStep.CAMERA_SETUP:
-                setup["state"].set_camera_index(test_data["camera_index"])
+                setup["state"].set_user_input(
+                    UserInputKey.SELECTED_CAMERA, test_data["selected_camera"]
+                )
+                setup["state"].set_user_input(
+                    UserInputKey.SELECTED_CAMERA_NAME, "Integrated Camera"
+                )
+                setup["state"].set_user_input(UserInputKey.CAMERA_TESTED, True)
+                setup["state"].set_user_input(UserInputKey.POV_PICTURE_COMPLETE, True)
 
             elif step_id == WizardStep.GALLERY_CREATION:
-                setup["state"].set_user_input(UserInputKey.GALLERY_CREATED, True)
+                setup["state"].set_user_input(
+                    UserInputKey.GALLERY_PATH,
+                    "/home/flashsys007/data/P1-3999028007_data/P1-3999028007_faces",
+                )
+                setup["state"].set_user_input(UserInputKey.GALLERY_VALIDATED, True)
+                setup["state"].set_user_input(UserInputKey.GALLERY_TOTAL_IMAGES, 15)
 
             elif step_id == WizardStep.GAZE_DETECTION_TESTING:
                 setup["state"].set_user_input(UserInputKey.GAZE_TEST_COMPLETE, True)
+                setup["state"].set_user_input(
+                    UserInputKey.GAZE_DETECTION_VERIFIED, True
+                )
 
             elif step_id == WizardStep.SERVICE_STARTUP:
                 setup["state"].set_user_input(UserInputKey.SERVICES_VERIFIED, True)
@@ -627,7 +702,9 @@ class TestFullHappyPath:
             completed_steps.append(step_id)
 
             # Verify step completed
-            assert setup["state"].is_step_completed(step_id), f"Step {step_id} ({step_name}) not completed"
+            assert setup["state"].is_step_completed(step_id), (
+                f"Step {step_id} ({step_name}) not completed"
+            )
 
             # Deactivate step (simulating navigation to next)
             step.deactivate_step()
@@ -637,9 +714,11 @@ class TestFullHappyPath:
         assert setup["state"].get_completion_percentage() == 100
 
         # Verify all expected data is in state
-        assert setup["state"].get_combined_id() == "P1-3999028A"
+        assert setup["state"].get_combined_id() == "P1-3999028007"
         assert setup["state"].is_wifi_connected()
-        assert setup["state"].get_camera_index() == 0
+        assert (
+            setup["state"].get_user_input(UserInputKey.SELECTED_CAMERA) == "/dev/video0"
+        )
 
     def test_happy_path_with_state_persistence(self, qtbot, wizard_with_mocks):
         """Test that state persists correctly throughout the journey."""
@@ -647,7 +726,7 @@ class TestFullHappyPath:
 
         # Complete first few steps
         setup["state"].set_user_input(UserInputKey.PARTICIPANT_ID, "P1-3999028")
-        setup["state"].set_user_input(UserInputKey.DEVICE_ID, "A")
+        setup["state"].set_user_input(UserInputKey.DEVICE_ID, "007")
         setup["state"].set_user_input(UserInputKey.USERNAME, "flashsys007")
 
         for i in range(3):

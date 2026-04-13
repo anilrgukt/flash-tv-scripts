@@ -1,6 +1,4 @@
 # FLASH-TV Configuration File
-# This file is the single source of truth for all FLASH-TV settings.
-# Values with ${VAR} syntax are substituted from environment variables.
 
 # =============================================================================
 # Identity Configuration
@@ -135,7 +133,7 @@ backup:
     - "*face*"  # Exclude face images for privacy
 
   # USB detection
-  usb_vendor: "SanDisk Corp. Ultra Fit"
+  usb_vendor: "${BACKUP_USB_VENDOR}"
 
 # =============================================================================
 # Home Assistant Configuration
@@ -143,12 +141,12 @@ backup:
 homeassistant:
   # Container settings
   container_name: "homeassistant"
-  image: "ghcr.io/home-assistant/home-assistant:stable"
+  image: "${HOME_ASSISTANT_IMAGE}"
 
   # Smart plug settings
   smart_plug:
-    entity_id: "switch.third_reality_inc_3rsp02028bz"
-    power_sensor: "sensor.third_reality_inc_3rsp02028bz_power"
+    entity_id: "${DEFAULT_SMART_PLUG_SWITCH_ENTITY_ID}"
+    power_sensor: "${DEFAULT_SMART_PLUG_POWER_SENSOR_ENTITY_ID}"
 
   # Data logging interval
   power_log_interval_seconds: 5

@@ -1,0 +1,62 @@
+#!/bin/bash
+
+if [ $# -lt 3 ]; then
+    echo "Usage: $0 <participant_id> <username> <data_folder_path>"
+    echo "Example: $0 {{FULL_ID}} {{USERNAME}} {{DATA_DIR}}"
+    exit 1
+fi
+
+participant_id="$1"
+username="$2"
+DATA_FOLDER_PATH="$3"
+
+echo "Starting FLASH-TV system with:"
+echo "  Participant ID: ${participant_id}"
+echo "  Username: ${username}"
+echo "  Data Path: ${DATA_FOLDER_PATH}"
+
+video_device_list=$(ls /dev/video*)
+for device in ${video_device_list}
+do
+	camera_being_used=$(fuser "${device}")
+	if [ "${camera_being_used}" ]; then
+		zenity --warning --title "Warning Message" --width 500 --height 100 --text "The camera is being used by another program.\nPlease close the other program before continuing."
+		exit
+	fi
+done
+
+zenity --question --title="Verifying Data Details" --width 500 --height 100 --text="Please verify the following data details\nParticipant ID: ${participant_id}\nUsername: ${username}\nData Folder Path: ${DATA_FOLDER_PATH}" --no-wrap
+user_resp=$?
+
+if [ ${user_resp} -eq 1 ]; then
+	zenity --warning --text="Exiting the code since the data details were not correct according to the user. Please modify them and restart the script."
+	exit
+fi
+
+source "/home/${username}/.bashrc"
+echo "PYTHON_PATH is" "${PYTHON_PATH}"
+
+zenity --question --title="About to run FLASH-TV algorithm" --width 500 --height 100 --text="Click Yes to start video streaming" --no-wrap
+user_resp=$?
+
+if [ ${user_resp} -eq 1 ]; then
+	echo "Exiting the code due to the user clicking No"
+	exit
+fi
+
+source "/home/${username}/py38/bin/activate"
+
+while true;
+do
+if ! [ "$(pgrep -af run_flash_data_collection.py)" ]; then
+	free -m && sync && echo 1 > /proc/sys/vm/drop_caches && free -m;
+
+ 	sleep 1;
+
+	python "/home/${username}/flash-tv-scripts/python_scripts/run_flash_data_collection.py" "${participant_id}" "${DATA_FOLDER_PATH}" save-image "${username}";
+
+	sleep 30;
+else
+	sleep 30;
+fi
+done

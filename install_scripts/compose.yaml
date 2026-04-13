@@ -2,7 +2,7 @@ services:
 
   homeassistant:
     container_name: homeassistant
-    image: "ghcr.io/home-assistant/home-assistant:stable"
+    image: "ghcr.io/home-assistant/home-assistant:2024.3.3"
     volumes:
       - /home/flashsysXXX/homeassistant-compose/config:/config
       - /home/flashsysXXX/data/123XXX_data:/123XXX_data

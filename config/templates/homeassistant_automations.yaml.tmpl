@@ -1,0 +1,24 @@
+- id: flash_tv_power_log_every_5_seconds
+  alias: Save TV power every 5 seconds
+  mode: single
+  trigger:
+    - platform: time_pattern
+      seconds: "/5"
+  condition: []
+  action:
+    - service: notify.file
+      data:
+        message: >-
+          {{ states('{{SMART_PLUG_POWER_SENSOR_ENTITY_ID}}') }};{{ now().strftime('%m.%d.%Y') }};{{ now().strftime('%H.%M.%S') }}
+
+- id: flash_tv_turn_smart_plug_on_every_30_seconds
+  alias: Turn the smart plug back on every 30 seconds
+  mode: single
+  trigger:
+    - platform: time_pattern
+      seconds: "/30"
+  condition: []
+  action:
+    - service: switch.turn_on
+      target:
+        entity_id: {{SMART_PLUG_SWITCH_ENTITY_ID}}

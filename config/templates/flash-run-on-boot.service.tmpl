@@ -1,0 +1,14 @@
+[Unit]
+Description=FLASH-TV startup script
+StartLimitIntervalSec=0
+
+[Service]
+ExecStartPre=/bin/sleep 10
+ExecStart=/bin/bash {{HOME_DIR}}/flash-tv-scripts/services/flash_run_on_boot.sh
+StandardOutput=append:{{DATA_DIR}}/{{FULL_ID}}_flash_logstdout.log
+StandardError=append:{{DATA_DIR}}/{{FULL_ID}}_flash_logstderr.log
+Restart=on-failure
+RestartSec=60
+
+[Install]
+WantedBy=multi-user.target

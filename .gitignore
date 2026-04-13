@@ -210,3 +210,6 @@ CLAUDE.md
 image.png
 
 *.txt
+
+# Generated visual QA artifacts
+gui_second_version/tests/visual/screenshots/*.png

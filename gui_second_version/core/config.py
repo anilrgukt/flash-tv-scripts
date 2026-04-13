@@ -175,7 +175,7 @@ class AppConfig:
 
     def get_python_env_path(self, username: str) -> Path:
         """Get Python virtual environment path."""
-        return Path(f"/home/{username}/py38/bin/python")
+        return Path(f"/home/{username}/py312/bin/python")
 
     def get_model_paths(self, username: str) -> Dict[str, Path]:
         """Get model file paths for a user."""

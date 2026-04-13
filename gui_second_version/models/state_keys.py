@@ -14,7 +14,6 @@ except ImportError:
     from backports.strenum import StrEnum
 
 
-
 class WizardStep(IntEnum):
     """Wizard step identifiers replacing magic number step IDs.
 
@@ -54,7 +53,6 @@ class UserInputKey(StrEnum):
     WIFI_CONNECTED = "wifi_connected"
 
     # Camera Configuration (Step 6)
-    CAMERA_INDEX = "camera_index"
     SELECTED_CAMERA = "selected_camera"
     SELECTED_CAMERA_NAME = "selected_camera_name"
     CAMERA_TESTED = "camera_tested"
@@ -64,9 +62,12 @@ class UserInputKey(StrEnum):
 
     # Gallery Configuration (Step 7)
     GALLERY_PATH = "gallery_path"
-    GALLERY_CREATED = "gallery_created"
     GALLERY_VALIDATED = "gallery_validated"
     GALLERY_TOTAL_IMAGES = "gallery_total_images"
+    GALLERY_ROLE_TC_SELECTED = "gallery_role_tc_selected"
+    GALLERY_ROLE_SIB_SELECTED = "gallery_role_sib_selected"
+    GALLERY_ROLE_PARENT_SELECTED = "gallery_role_parent_selected"
+    GALLERY_CONSENT_CONFIRMED = "gallery_consent_confirmed"
 
     # Smart Plug Configuration (Steps 4-5)
     SMART_PLUG_CONFIGURED = "smart_plug_configured"
@@ -243,24 +244,33 @@ STEP_REQUIRED_INPUTS = {
         UserInputKey.PARTICIPANT_ID,
         UserInputKey.DEVICE_ID,
         UserInputKey.USERNAME,
-        UserInputKey.CAMERA_INDEX,
+        UserInputKey.DATA_PATH,
     ],
     WizardStep.GALLERY_CREATION: [
         UserInputKey.PARTICIPANT_ID,
         UserInputKey.DEVICE_ID,
         UserInputKey.USERNAME,
-        UserInputKey.GALLERY_CREATED,
+        UserInputKey.DATA_PATH,
+        UserInputKey.SELECTED_CAMERA,
+        UserInputKey.CAMERA_TESTED,
+        UserInputKey.POV_PICTURE_COMPLETE,
     ],
     WizardStep.SMART_PLUG_VERIFY: [UserInputKey.PARTICIPANT_ID, UserInputKey.DEVICE_ID],
     WizardStep.GAZE_DETECTION_TESTING: [
         UserInputKey.PARTICIPANT_ID,
         UserInputKey.DEVICE_ID,
-        UserInputKey.SMART_PLUG_PHYSICAL_COMPLETE,
+        UserInputKey.USERNAME,
+        UserInputKey.DATA_PATH,
+        UserInputKey.GALLERY_PATH,
+        UserInputKey.GALLERY_VALIDATED,
     ],
     WizardStep.SERVICE_STARTUP: [
         UserInputKey.PARTICIPANT_ID,
         UserInputKey.DEVICE_ID,
         UserInputKey.USERNAME,
-        UserInputKey.CAMERA_INDEX,
+        UserInputKey.DATA_PATH,
+        UserInputKey.GALLERY_PATH,
+        UserInputKey.GALLERY_VALIDATED,
+        UserInputKey.GAZE_DETECTION_VERIFIED,
     ],
 }

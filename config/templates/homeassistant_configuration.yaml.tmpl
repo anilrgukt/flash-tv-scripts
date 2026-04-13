@@ -1,0 +1,30 @@
+# Loads default set of integrations. Do not remove.
+default_config:
+
+frontend:
+  themes: !include_dir_merge_named themes
+
+homeassistant:
+  allowlist_external_dirs:
+    - "/config"
+    - "{{DATA_DIR_CONTAINER_PATH}}"
+
+notify:
+  - platform: file
+    name: file
+    filename: "{{TV_POWER_CSV_CONTAINER_PATH}}"
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+sensor:
+  - platform: systemmonitor
+    resources:
+      - type: disk_use_percent
+      - type: memory_use_percent
+      - type: memory_use
+      - type: memory_free
+      - type: swap_use_percent
+      - type: swap_use
+      - type: swap_free

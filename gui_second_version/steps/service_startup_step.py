@@ -8,6 +8,10 @@ import shutil
 from datetime import datetime
 
 from config.messages import MESSAGES
+from config.participant_contract import (
+    build_participant_full_id,
+    get_participant_data_dir,
+)
 from core import WizardStep
 from core.exceptions import ErrorType, FlashTVError, handle_step_error
 from models import StepStatus
@@ -69,6 +73,11 @@ class ServiceStartupStep(WizardStep):
 
         return content
 
+    def _update_service_action_buttons(self, busy: bool = False) -> None:
+        self.start_services_button.setEnabled(not self.service_running and not busy)
+        self.stop_services_button.setEnabled(self.service_running and not busy)
+        self.restart_services_button.setEnabled(self.service_running and not busy)
+
     def _create_overview_section(self) -> QWidget:
         """Create the overview section."""
         overview_group, overview_layout = self.ui_factory.create_group_box(
@@ -110,7 +119,7 @@ class ServiceStartupStep(WizardStep):
             callback=self._stop_services,
             style=ButtonStyle.DANGER,
             height=40,
-            enabled=True,
+            enabled=False,
         )
         button_layout.addWidget(self.stop_services_button)
 
@@ -119,7 +128,7 @@ class ServiceStartupStep(WizardStep):
             callback=self._restart_services,
             style=ButtonStyle.SECONDARY,
             height=40,
-            enabled=True,
+            enabled=False,
         )
         button_layout.addWidget(self.restart_services_button)
 
@@ -267,8 +276,8 @@ class ServiceStartupStep(WizardStep):
         - Any existing production log files
         """
         try:
-            full_id = f"{participant_id}{device_id}"
-            data_path = f"/home/{username}/data/{full_id}_data"
+            full_id = build_participant_full_id(participant_id, device_id)
+            data_path = str(get_participant_data_dir(username, participant_id, device_id))
             scripts_path = f"/home/{username}/flash-tv-scripts/python_scripts"
 
             self.logger.info(f"Cleaning up test data for {full_id}")
@@ -388,11 +397,10 @@ class ServiceStartupStep(WizardStep):
                     recovery_action="Ensure sudo password is entered in participant setup",
                 )
 
-            self.start_services_button.setEnabled(False)
+            self._update_service_action_buttons(busy=True)
             self.service_status_label.setText("Starting services...")
             self.update_status(StepStatus.AUTOMATION_RUNNING)
 
-            # First configure the service files with participant details
             self._configure_service_files(username, participant_id, device_id)
 
             self.logger.info("Starting FLASH-TV services...")
@@ -460,6 +468,8 @@ class ServiceStartupStep(WizardStep):
             )
             if all_success:
                 self.service_running = True
+                self.state.set_user_input(UserInputKey.SERVICES_RUNNING, True)
+                self._update_service_action_buttons()
                 self.service_status_label.setText("FLASH-TV services running")
 
                 # Start log monitoring
@@ -480,8 +490,12 @@ class ServiceStartupStep(WizardStep):
 
         except Exception as e:
             self.logger.error(f"Error starting services: {e}")
-            self.start_services_button.setEnabled(True)
-            self.service_status_label.setText("Failed to start services")
+            self.service_running = False
+            self.state.set_user_input(UserInputKey.SERVICES_RUNNING, False)
+            self._update_service_action_buttons()
+            self.service_status_label.setText(
+                "Could not start services. Check the message above and try again."
+            )
             self.update_status(StepStatus.FAILED)
             raise
 
@@ -491,52 +505,92 @@ class ServiceStartupStep(WizardStep):
         try:
             username = self.state.get_user_input(UserInputKey.USERNAME, "")
             self.logger.info("Stopping FLASH-TV systemd services")
+            self._update_service_action_buttons(busy=True)
+            self.service_status_label.setText("Stopping services...")
 
-            # Set sudo password from state for service operations
             if not self.process_runner.set_sudo_password_from_state():
-                self.logger.error("Sudo password required for stopping services")
-                return
+                self.service_running = True
+                self._update_service_action_buttons()
+                self.service_status_label.setText(
+                    "Could not stop services. Enter the sudo password and try again."
+                )
+                raise FlashTVError(
+                    "Sudo password required for stopping services",
+                    ErrorType.VALIDATION_ERROR,
+                    recovery_action="Enter the sudo password and try stopping the services again",
+                )
 
-            # Stop log monitoring
             self._stop_log_monitoring()
+            failed_actions = []
 
-
-            # Stop flash-periodic-restart.service
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "stop", "flash-periodic-restart.service"],
                 "Stop flash-periodic-restart service",
                 timeout_ms=15000,
             )
+            if not (result and result.returncode == 0):
+                failed_actions.append(
+                    f"stop flash-periodic-restart.service ({error or (result.stderr if result else 'no output')})"
+                )
 
-            # Stop flash-run-on-boot.service
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "stop", "flash-run-on-boot.service"],
                 "Stop flash-run-on-boot service",
                 timeout_ms=15000,
             )
+            if not (result and result.returncode == 0):
+                failed_actions.append(
+                    f"stop flash-run-on-boot.service ({error or (result.stderr if result else 'no output')})"
+                )
 
-            # Disable flash-periodic-restart.service
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "disable", "flash-periodic-restart.service"],
                 "Disable flash-periodic-restart service",
                 timeout_ms=15000,
             )
+            if not (result and result.returncode == 0):
+                failed_actions.append(
+                    f"disable flash-periodic-restart.service ({error or (result.stderr if result else 'no output')})"
+                )
 
-            # Disable flash-run-on-boot.service
             result, error = self.process_runner.run_sudo_command(
                 ["systemctl", "disable", "flash-run-on-boot.service"],
                 "Disable flash-run-on-boot service",
                 timeout_ms=15000,
             )
+            if not (result and result.returncode == 0):
+                failed_actions.append(
+                    f"disable flash-run-on-boot.service ({error or (result.stderr if result else 'no output')})"
+                )
 
-            # Stop Home Assistant Docker container
-            self.process_runner.run_command(
+            result = self.process_runner.run_command(
                 ["docker", "compose", "down"],
                 working_dir=f"/home/{username}/homeassistant-compose",
                 timeout_ms=30000,
             )
+            if not (result and result.returncode == 0):
+                failed_actions.append(
+                    f"stop Home Assistant container ({result.stderr if result else 'no output'})"
+                )
+
+            if failed_actions:
+                self.service_running = True
+                self.state.set_user_input(UserInputKey.SERVICES_RUNNING, True)
+                self._update_service_action_buttons()
+                self._start_log_monitoring()
+                self.service_status_label.setText(
+                    "Could not stop all services. Review the error and try again."
+                )
+                raise FlashTVError(
+                    "Could not stop all FLASH-TV services cleanly. "
+                    f"Details: {'; '.join(failed_actions[:3])}",
+                    ErrorType.PROCESS_ERROR,
+                    recovery_action="Review the error details, then try stopping the services again or use manual systemctl and docker commands",
+                )
 
             self.service_running = False
+            self.state.set_user_input(UserInputKey.SERVICES_RUNNING, False)
+            self._update_service_action_buttons()
             self.service_status_label.setText("Services stopped")
 
             self.logger.info("FLASH-TV service stop script executed")
@@ -555,11 +609,20 @@ class ServiceStartupStep(WizardStep):
         try:
             username = self.state.get_user_input(UserInputKey.USERNAME, "")
             self.logger.info("Restarting FLASH-TV services")
+            self._update_service_action_buttons(busy=True)
+            self.service_status_label.setText("Restarting services...")
 
-            # Set sudo password from state for service operations
             if not self.process_runner.set_sudo_password_from_state():
-                self.logger.error("Sudo password required for restarting services")
-                return
+                self.service_running = True
+                self._update_service_action_buttons()
+                self.service_status_label.setText(
+                    "Could not restart services. Enter the sudo password and try again."
+                )
+                raise FlashTVError(
+                    "Sudo password required for restarting services",
+                    ErrorType.VALIDATION_ERROR,
+                    recovery_action="Enter the sudo password and try restarting the services again",
+                )
 
             # Run the restart services script with username as argument
             script_path = (
@@ -578,11 +641,11 @@ class ServiceStartupStep(WizardStep):
                     recovery_action="Check service script and try manual restart",
                 )
 
-            # Services are now restarted - update UI
             self.service_running = True
+            self.state.set_user_input(UserInputKey.SERVICES_RUNNING, True)
+            self._update_service_action_buttons()
             self.service_status_label.setText("FLASH-TV services restarted")
 
-            # Restart log monitoring since services are fresh
             self._stop_log_monitoring()
             self._start_log_monitoring()
 
@@ -590,7 +653,12 @@ class ServiceStartupStep(WizardStep):
 
         except Exception as e:
             self.logger.error(f"Error restarting services: {e}")
-            self.service_status_label.setText("Service restart failed")
+            self.service_running = True
+            self.state.set_user_input(UserInputKey.SERVICES_RUNNING, True)
+            self._update_service_action_buttons()
+            self.service_status_label.setText(
+                "Could not restart services. Check the message above and try again."
+            )
             raise
 
     def _start_log_monitoring(self) -> None:
@@ -625,10 +693,8 @@ class ServiceStartupStep(WizardStep):
             if not participant_id or not username:
                 return
 
-            full_participant_id = (
-                f"{participant_id}{device_id}" if device_id else participant_id
-            )
-            data_path = f"/home/{username}/data/{full_participant_id}_data"
+            full_participant_id = build_participant_full_id(participant_id, device_id)
+            data_path = str(get_participant_data_dir(username, participant_id, device_id))
 
             if not os.path.exists(data_path):
                 return
@@ -936,9 +1002,17 @@ class ServiceStartupStep(WizardStep):
 
         # Check if services already verified
         if self.state.get_user_input(UserInputKey.SERVICES_VERIFIED, False):
+            self.service_running = True
+            self.state.set_user_input(UserInputKey.SERVICES_RUNNING, True)
+            self._update_service_action_buttons()
             self.service_status_label.setText("✅ Services already verified")
             self.continue_button.setEnabled(True)
             self.update_status(StepStatus.COMPLETED)
+        else:
+            self.service_running = bool(
+                self.state.get_user_input(UserInputKey.SERVICES_RUNNING, False)
+            )
+            self._update_service_action_buttons()
 
             # Start log monitoring if services are already running
             self.logger.info("Services already verified - starting log monitoring")
@@ -958,49 +1032,75 @@ class ServiceStartupStep(WizardStep):
     def _configure_service_files(
         self, username: str, participant_id: str, device_id: str
     ) -> None:
-        """Configure service files by replacing placeholder values with participant details."""
         try:
+            combined_participant_id = build_participant_full_id(participant_id, device_id)
+            data_path = str(get_participant_data_dir(username, participant_id, device_id))
             self.logger.info(
-                f"Configuring service files for participant {participant_id} on device {device_id}"
+                "Validating rendered service artifacts for participant "
+                f"{combined_participant_id} on device {device_id}"
             )
 
-            # Define the service files that need configuration
-            service_files = [
-                f"/home/{username}/flash-tv-scripts/services/flash-run-on-boot.service",
-                f"/home/{username}/flash-tv-scripts/services/flash-periodic-restart.service",
-                f"/home/{username}/flash-tv-scripts/services/flash_run_on_boot.sh",
-                f"/home/{username}/flash-tv-scripts/services/flash_periodic_restart.sh",
-            ]
+            expected_checks = {
+                f"/home/{username}/flash-tv-scripts/services/flash-run-on-boot.service": [
+                    f"/home/{username}/flash-tv-scripts/services/flash_run_on_boot.sh",
+                    f"{data_path}/{combined_participant_id}_flash_logstdout.log",
+                    f"{data_path}/{combined_participant_id}_flash_logstderr.log",
+                ],
+                f"/home/{username}/flash-tv-scripts/services/flash-periodic-restart.service": [
+                    f"/home/{username}/flash-tv-scripts/services/flash_periodic_restart.sh",
+                    f"{data_path}/{combined_participant_id}_flash_logstdoutp.log",
+                    f"{data_path}/{combined_participant_id}_flash_logstderrp.log",
+                ],
+                f"/home/{username}/flash-tv-scripts/services/flash_run_on_boot.sh": [
+                    f"export participant_id={combined_participant_id}",
+                    f"export username={username}",
+                ],
+                f"/home/{username}/flash-tv-scripts/services/flash_periodic_restart.sh": [
+                    f"export participant_id={combined_participant_id}",
+                    f"export username={username}",
+                ],
+            }
 
-            # Define the replacements - IMPORTANT: Use combined participant_id + device_id
-            combined_participant_id = f"{participant_id}{device_id}"
-            replacements = {"flashsysXXX": username, "123XXX": combined_participant_id}
+            unresolved_markers = ("flashsysXXX", "123XXX", "{{", "}}")
+            validation_issues: list[str] = []
 
-            self.logger.info(
-                f"Using combined participant ID: {combined_participant_id}"
-            )
+            for service_file, expected_values in expected_checks.items():
+                if not os.path.exists(service_file):
+                    validation_issues.append(f"Missing required artifact: {service_file}")
+                    continue
 
-            for service_file in service_files:
-                if os.path.exists(service_file):
-                    self.logger.info(f"Configuring {service_file}")
+                with open(service_file, "r", encoding="utf-8") as service_handle:
+                    content = service_handle.read()
 
-                    # Read the current content
-                    with open(service_file, "r") as f:
-                        content = f.read()
+                unresolved = [marker for marker in unresolved_markers if marker in content]
+                if unresolved:
+                    validation_issues.append(
+                        f"{service_file} still contains placeholder text ({', '.join(unresolved)})"
+                    )
+                    continue
 
-                    # Apply replacements
-                    for placeholder, value in replacements.items():
-                        content = content.replace(placeholder, value)
+                missing_values = [
+                    value for value in expected_values if value not in content
+                ]
+                if missing_values:
+                    validation_issues.append(
+                        f"{service_file} is not rendered for participant {combined_participant_id}"
+                    )
 
-                    # Write back the configured content
-                    with open(service_file, "w") as f:
-                        f.write(content)
+            if validation_issues:
+                details = "; ".join(validation_issues[:3])
+                if len(validation_issues) > 3:
+                    details += "; ..."
+                raise FlashTVError(
+                    "FLASH-TV service files are not ready for startup yet. "
+                    "Please complete the participant rendering/setup step so the "
+                    "service templates are rendered for this participant before starting services. "
+                    f"Details: {details}",
+                    ErrorType.CONFIGURATION_ERROR,
+                    recovery_action="Re-run the participant setup/change flow to render service files for this participant",
+                )
 
-                    self.logger.info(f"Successfully configured {service_file}")
-                else:
-                    self.logger.warning(f"Service file not found: {service_file}")
-
-            self.logger.info("Service file configuration completed")
+            self.logger.info("Rendered service artifacts validated successfully")
 
             # Copy configured service files to /etc/systemd/system/
             self.logger.info("Copying service files to system directory")

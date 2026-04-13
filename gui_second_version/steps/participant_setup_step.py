@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
-import glob
 import os
 import re
 import subprocess
 
 from config.messages import MESSAGES
+from config.participant_contract import (
+    build_participant_full_id,
+    get_participant_data_dir,
+)
 from config.validation_patterns import VALIDATION
 from core import WizardStep
 from core.exceptions import ErrorType, FlashTVError, handle_step_error
@@ -15,6 +18,11 @@ from models import StepStatus
 from models.state_keys import UserInputKey
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import QWidget
+from utils.identity_detection import (
+    IdentityDetectionResult,
+    derive_device_id_from_username,
+    detect_flash_tv_identity,
+)
 
 
 class ParticipantSetupStep(WizardStep):
@@ -42,6 +50,9 @@ class ParticipantSetupStep(WizardStep):
         self._device_id: str | None = None
         self._username: str | None = None
         self._detection_error: str | None = None
+        self._detection_details: str = ""
+        self._manual_username: str = ""
+        self._manual_device_id: str = ""
 
         # Perform auto-detection BEFORE parent initialization
         self._auto_detect_device_info()
@@ -50,97 +61,63 @@ class ParticipantSetupStep(WizardStep):
         super().__init__(*args, **kwargs)
 
     def _auto_detect_device_info(self) -> None:
-        """Auto-detect device ID and username.
-
-        Scans for /home/flashsysXXX folders using glob, extracts device ID (XXX) and username (flashsysXXX),
-        checks $USER environment variable as validation, returns tuple of (device_id, username, success).
-        """
         try:
-            flashsys_pattern = "/home/flashsys[0-9]*"
-            matching_folders = glob.glob(flashsys_pattern)
+            detection: IdentityDetectionResult = detect_flash_tv_identity()
+            self._detection_details = detection.reason or ""
 
-            valid_folders = []
-            for folder_path in matching_folders:
-                if os.path.isdir(folder_path):
-                    basename = os.path.basename(folder_path)
-                    if re.match(r"^flashsys\d+$", basename):
-                        valid_folders.append(folder_path)
-
-            detected_from_folders = None
-            if valid_folders:
-                folder_path = valid_folders[0]
-                username_from_folder = os.path.basename(folder_path)
-                device_id_match = re.search(r"^flashsys(\d+)$", username_from_folder)
-                if device_id_match:
-                    device_id = device_id_match.group(1)
-                    detected_from_folders = (device_id, username_from_folder)
-                    print(
-                        f"Auto-detected from folder scan: device_id={device_id}, username={username_from_folder}"
-                    )
-
-            current_user = os.environ.get("USER", "")
-            detected_from_user = None
-
-            if current_user and current_user != "root":
-                user_match = re.match(r"^flashsys(\d+)$", current_user)
-                if user_match:
-                    device_id = user_match.group(1)
-                    detected_from_user = (device_id, current_user)
-                    print(
-                        f"Validated from $USER environment: device_id={device_id}, username={current_user}"
-                    )
-
-            if detected_from_folders and detected_from_user:
-                folder_device_id, folder_username = detected_from_folders
-                user_device_id, user_username = detected_from_user
-
-                if (
-                    folder_device_id == user_device_id
-                    and folder_username == user_username
-                ):
-                    self._device_id = folder_device_id
-                    self._username = folder_username
-                    print(
-                        f"Auto-detection successful: Both methods agree on device_id={self._device_id}, username={self._username}"
-                    )
-                else:
-                    print(
-                        f"WARNING: Detection methods disagree - folder: {detected_from_folders}, $USER: {detected_from_user}"
-                    )
-                    self._device_id, self._username = detected_from_folders
-                    print(
-                        f"Using folder detection as primary: device_id={self._device_id}, username={self._username}"
-                    )
-
-            elif detected_from_folders:
-                self._device_id, self._username = detected_from_folders
-                print(
-                    f"Auto-detection via folder scan: device_id={self._device_id}, username={self._username}"
-                )
-
-            elif detected_from_user:
-                device_id, username = detected_from_user
-                expected_home = f"/home/{username}"
-                if os.path.isdir(expected_home):
-                    self._device_id, self._username = detected_from_user
-                    print(
-                        f"Auto-detection via $USER (verified home exists): device_id={self._device_id}, username={self._username}"
-                    )
-                else:
-                    self._detection_error = f"$USER is {username} but /home/{username} directory does not exist"
-                    print(f"ERROR: {self._detection_error}")
-
+            if detection.success:
+                self._username = detection.username
+                self._device_id = detection.device_id
+                self._detection_error = None
             else:
-                self._detection_error = (
-                    "Could not auto-detect device information. "
-                    "No /home/flashsysXXX folders found and $USER is not in flashsysXXX format. "
-                    "Expected format: flashsys followed by digits (e.g., flashsys001, flashsys123)"
-                )
-                print(f"ERROR: {self._detection_error}")
+                self._username = None
+                self._device_id = None
+                self._detection_error = detection.fallback_reason or detection.reason
 
         except Exception as e:
+            self._username = None
+            self._device_id = None
+            self._detection_details = ""
             self._detection_error = f"Error during auto-detection: {e}"
-            print(f"ERROR: Auto-detection failed with exception: {e}")
+
+    def _get_effective_identity(self) -> tuple[str | None, str | None]:
+        username = self._username or self._manual_username.strip() or None
+        manual_device_id = self._manual_device_id.strip()
+        device_id = self._device_id or (
+            manual_device_id if self._is_valid_manual_device_id(manual_device_id) else None
+        )
+        return username, device_id
+
+    def _is_valid_manual_device_id(self, device_id: str) -> bool:
+        return bool(re.fullmatch(r"\d{3}", device_id.strip()))
+
+    def _get_manual_identity_message(self) -> str:
+        manual_username = self._manual_username.strip()
+        manual_device_id = self._manual_device_id.strip()
+
+        if not manual_username:
+            return (
+                "Fallback: enter the FLASH-TV Linux username. If it looks like flashsys###, "
+                "the device ID will be derived automatically."
+            )
+
+        derived_device_id = derive_device_id_from_username(manual_username)
+        if derived_device_id:
+            return (
+                f"Username '{manual_username}' looks valid. Device ID '{derived_device_id}' "
+                "was derived automatically from the username suffix."
+            )
+
+        if not manual_device_id:
+            return (
+                "That username does not end in digits, so the device ID could not be derived. "
+                "Enter the device ID explicitly below."
+            )
+
+        if not self._is_valid_manual_device_id(manual_device_id):
+            return "Enter the 3-digit device ID using numbers only (for example 007)."
+
+        return f"Using manual fallback values: username '{manual_username}' and device ID '{manual_device_id}'."
 
     def create_content_widget(self) -> QWidget:
         """Create the participant setup UI using UI factory."""
@@ -156,7 +133,9 @@ class ParticipantSetupStep(WizardStep):
         sections_layout = self.ui_factory.create_horizontal_section(
             participant_section, detection_section, spacing=12
         )
-        main_layout.addLayout(sections_layout)  # No stretch - sections take natural height
+        main_layout.addLayout(
+            sections_layout
+        )  # No stretch - sections take natural height
 
         self._create_validation_section(main_layout)
 
@@ -247,11 +226,59 @@ class ParticipantSetupStep(WizardStep):
             )
             error_detail.setWordWrap(True)
             detection_layout.addWidget(error_detail)
+
+            self.manual_username_label = self.ui_factory.create_label(
+                "Fallback Username:"
+            )
+            self.manual_username_label.setStyleSheet("font-weight: bold;")
+            detection_layout.addWidget(self.manual_username_label)
+
+            self.manual_username_input = self.ui_factory.create_input_field(
+                "Enter the FLASH-TV Linux username (for example flashsys007)"
+            )
+            self.manual_username_input.textChanged.connect(
+                self._on_manual_username_changed
+            )
+            detection_layout.addWidget(self.manual_username_input)
+
+            self.manual_device_label = self.ui_factory.create_label(
+                "Fallback Device ID:"
+            )
+            self.manual_device_label.setStyleSheet("font-weight: bold;")
+            detection_layout.addWidget(self.manual_device_label)
+
+            self.manual_device_input = self.ui_factory.create_input_field(
+                "Only needed if the username does not end with digits"
+            )
+            self.manual_device_input.textChanged.connect(
+                self._on_manual_device_id_changed
+            )
+            detection_layout.addWidget(self.manual_device_input)
+
+            self.manual_device_label.setVisible(False)
+            self.manual_device_input.setVisible(False)
+
+            self.manual_identity_status = self.ui_factory.create_label(
+                self._get_manual_identity_message()
+            )
+            self.manual_identity_status.setWordWrap(True)
+            self.manual_identity_status.setStyleSheet(
+                "color: #444; padding: 8px; background-color: #fff8e1; border-radius: 4px;"
+            )
+            detection_layout.addWidget(self.manual_identity_status)
         else:
             success_header = self.ui_factory.create_status_label(
                 "✅ Auto-Detection Successful", status_type="success"
             )
             detection_layout.addWidget(success_header)
+
+            if self._detection_details:
+                detection_note = self.ui_factory.create_label(self._detection_details)
+                detection_note.setWordWrap(True)
+                detection_note.setStyleSheet(
+                    "color: #555; padding: 6px; background-color: #f5f5f5; border-radius: 4px;"
+                )
+                detection_layout.addWidget(detection_note)
 
             device_id_label = self.ui_factory.create_label(
                 f"Device ID: {self._device_id}"
@@ -272,9 +299,17 @@ class ParticipantSetupStep(WizardStep):
                     UserInputKey.PARTICIPANT_ID, ""
                 ).strip()
                 if participant_id and self._device_id:
-                    data_path = f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
+                    data_path = str(
+                        get_participant_data_dir(
+                            self._username, participant_id, self._device_id
+                        )
+                    )
                 elif self._device_id:
-                    data_path = f"/home/{self._username}/data/[PARTICIPANT_ID]{self._device_id}_data"
+                    data_path = str(
+                        get_participant_data_dir(
+                            self._username, "[PARTICIPANT_ID]", self._device_id
+                        )
+                    )
                 else:
                     data_path = (
                         f"/home/{self._username}/data/[PARTICIPANT_ID][DEVICE_ID]_data"
@@ -325,26 +360,54 @@ class ParticipantSetupStep(WizardStep):
                 self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
             )
 
-            existing_password = self.state.get_user_input(UserInputKey.SUDO_PASSWORD, "")
+            existing_password = self.state.get_user_input(
+                UserInputKey.SUDO_PASSWORD, ""
+            )
             self.sudo_password_input.setText(existing_password)
+
+            if self._detection_error:
+                self._manual_username = self.state.get_user_input(
+                    UserInputKey.USERNAME, ""
+                ).strip()
+                self._manual_device_id = self.state.get_user_input(
+                    UserInputKey.DEVICE_ID, ""
+                ).strip()
+
+                if hasattr(self, "manual_username_input") and self._manual_username:
+                    self.manual_username_input.setText(self._manual_username)
+                if hasattr(self, "manual_device_input") and self._manual_device_id:
+                    self.manual_device_input.setText(self._manual_device_id)
 
             # Reset validation state when loading - password needs to be re-validated
             self._sudo_validated = False
             if existing_password:
-                self.sudo_validation_label.setText("⏳ Password loaded - will verify when you continue")
-                self.sudo_validation_label.setStyleSheet("color: #666; font-style: italic; padding: 4px;")
-                self.sudo_validation_label.setVisible(True)
+                self.sudo_validation_label.setText(
+                    "⏳ Password loaded. It will be checked when you continue."
+                )
+                self.sudo_validation_label.setStyleSheet(
+                    "color: #666; font-style: italic; padding: 4px;"
+                )
+            self.sudo_validation_label.setVisible(True)
 
-            if self._device_id and self._username and not self._detection_error:
-                self.state.set_user_input(UserInputKey.DEVICE_ID, self._device_id)
-                self.state.set_user_input(UserInputKey.USERNAME, self._username)
+            effective_username, effective_device_id = self._get_effective_identity()
+            if effective_device_id and effective_username:
+                self.state.set_user_input(UserInputKey.DEVICE_ID, effective_device_id)
+                self.state.set_user_input(UserInputKey.USERNAME, effective_username)
 
                 participant_id = self.state.get_user_input(
                     UserInputKey.PARTICIPANT_ID, ""
                 )
-                if participant_id and self._device_id:
-                    data_path = f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
+                if participant_id and effective_device_id:
+                    data_path = str(
+                        get_participant_data_dir(
+                            effective_username, participant_id, effective_device_id
+                        )
+                    )
                     self.state.set_user_input(UserInputKey.DATA_PATH, data_path)
+            else:
+                self.state.remove_user_input(UserInputKey.DEVICE_ID)
+                self.state.remove_user_input(UserInputKey.USERNAME)
+                self.state.remove_user_input(UserInputKey.DATA_PATH)
 
             self.logger.info("Loaded existing values from state")
 
@@ -366,9 +429,16 @@ class ParticipantSetupStep(WizardStep):
         participant_id = text.strip()
         self.state.set_user_input(UserInputKey.PARTICIPANT_ID, participant_id)
 
-        if self._device_id and self._username and not self._detection_error:
+        effective_username, effective_device_id = self._get_effective_identity()
+        if effective_device_id and effective_username:
+            self.state.set_user_input(UserInputKey.USERNAME, effective_username)
+            self.state.set_user_input(UserInputKey.DEVICE_ID, effective_device_id)
             if participant_id:
-                data_path = f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
+                data_path = str(
+                    get_participant_data_dir(
+                        effective_username, participant_id, effective_device_id
+                    )
+                )
                 self.state.set_user_input(UserInputKey.DATA_PATH, data_path)
 
                 if hasattr(self, "data_path_label"):
@@ -378,7 +448,11 @@ class ParticipantSetupStep(WizardStep):
                         "background-color: #e3f2fd; border-radius: 4px;"
                     )
             else:
-                placeholder_path = f"/home/{self._username}/data/[PARTICIPANT_ID]{self._device_id}_data"
+                placeholder_path = str(
+                    get_participant_data_dir(
+                        effective_username, "[PARTICIPANT_ID]", effective_device_id
+                    )
+                )
                 if hasattr(self, "data_path_label"):
                     self.data_path_label.setText(f"Data Path: {placeholder_path}")
                     self.data_path_label.setStyleSheet(
@@ -386,10 +460,65 @@ class ParticipantSetupStep(WizardStep):
                         "background-color: #f5f5f5; border-radius: 4px; font-style: italic;"
                     )
                 self.state.set_user_input(UserInputKey.DATA_PATH, "")
+        else:
+            self.state.remove_user_input(UserInputKey.USERNAME)
+            self.state.remove_user_input(UserInputKey.DEVICE_ID)
+            self.state.remove_user_input(UserInputKey.DATA_PATH)
 
         if self.state_manager:
             self.state_manager.save_state(self.state)
         self._validate_and_update_ui()
+
+    @handle_step_error
+    def _on_manual_username_changed(self, text: str) -> None:
+        self._manual_username = text.strip()
+        derived_device_id = derive_device_id_from_username(self._manual_username)
+
+        if derived_device_id:
+            self._manual_device_id = derived_device_id
+            self.manual_device_input.setText(derived_device_id)
+            self.manual_device_label.setVisible(False)
+            self.manual_device_input.setVisible(False)
+        else:
+            if self.manual_device_input.text().strip() == self._manual_device_id:
+                self.manual_device_input.clear()
+            self._manual_device_id = self.manual_device_input.text().strip()
+            self.manual_device_label.setVisible(bool(self._manual_username))
+            self.manual_device_input.setVisible(bool(self._manual_username))
+
+        self.manual_identity_status.setText(self._get_manual_identity_message())
+
+        effective_username, effective_device_id = self._get_effective_identity()
+        if effective_username:
+            self.state.set_user_input(UserInputKey.USERNAME, effective_username)
+        else:
+            self.state.remove_user_input(UserInputKey.USERNAME)
+        if effective_device_id:
+            self.state.set_user_input(UserInputKey.DEVICE_ID, effective_device_id)
+        else:
+            self.state.remove_user_input(UserInputKey.DEVICE_ID)
+
+        self._on_participant_id_changed(self.participant_id_input.text())
+
+    @handle_step_error
+    def _on_manual_device_id_changed(self, text: str) -> None:
+        if derive_device_id_from_username(self._manual_username):
+            return
+
+        self._manual_device_id = text.strip()
+        self.manual_identity_status.setText(self._get_manual_identity_message())
+
+        effective_username, effective_device_id = self._get_effective_identity()
+        if effective_username:
+            self.state.set_user_input(UserInputKey.USERNAME, effective_username)
+        else:
+            self.state.remove_user_input(UserInputKey.USERNAME)
+        if effective_device_id:
+            self.state.set_user_input(UserInputKey.DEVICE_ID, effective_device_id)
+        else:
+            self.state.remove_user_input(UserInputKey.DEVICE_ID)
+
+        self._on_participant_id_changed(self.participant_id_input.text())
 
     @handle_step_error
     def _on_sudo_password_changed(self, text: str) -> None:
@@ -402,8 +531,12 @@ class ParticipantSetupStep(WizardStep):
 
         # Update validation label to show pending state
         if sudo_password:
-            self.sudo_validation_label.setText("⏳ Password not yet validated - will verify when you continue")
-            self.sudo_validation_label.setStyleSheet("color: #666; font-style: italic; padding: 4px;")
+            self.sudo_validation_label.setText(
+                "⏳ Password entered. It will be checked when you continue."
+            )
+            self.sudo_validation_label.setStyleSheet(
+                "color: #666; font-style: italic; padding: 4px;"
+            )
             self.sudo_validation_label.setVisible(True)
         else:
             self.sudo_validation_label.setVisible(False)
@@ -423,15 +556,25 @@ class ParticipantSetupStep(WizardStep):
             tuple: (is_valid, error_message)
         """
         if not password:
-            return False, "Sudo password is required"
+            return (
+                False,
+                "Enter the sudo password to continue. If you do not know it, ask the study technician for help.",
+            )
 
         try:
             self.logger.info("Validating sudo password...")
 
-            # Use sudo -S -v to validate password without running any actual command
-            # -S reads password from stdin, -v updates cached credentials
+            subprocess.run(
+                ["sudo", "-k"],
+                check=False,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                timeout=5,
+            )
+
             process = subprocess.Popen(
-                ["sudo", "-S", "-v"],
+                ["sudo", "-S", "-k", "-v"],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -448,24 +591,46 @@ class ParticipantSetupStep(WizardStep):
                 # Check for common error messages
                 error_lower = stderr.lower() if stderr else ""
                 if "incorrect password" in error_lower or "sorry" in error_lower:
-                    self.logger.warning("Sudo password validation failed: incorrect password")
-                    return False, "Incorrect sudo password"
+                    self.logger.warning(
+                        "Sudo password validation failed: incorrect password"
+                    )
+                    return (
+                        False,
+                        "That password was not accepted. Re-enter it and try again. If it keeps failing, ask the study technician for help.",
+                    )
                 elif "not in the sudoers file" in error_lower:
-                    self.logger.warning("Sudo password validation failed: user not in sudoers")
-                    return False, "User is not authorized to use sudo"
+                    self.logger.warning(
+                        "Sudo password validation failed: user not in sudoers"
+                    )
+                    return (
+                        False,
+                        "This account cannot perform setup tasks. Sign in with the correct setup account or ask the study technician for help.",
+                    )
                 else:
                     self.logger.warning(f"Sudo password validation failed: {stderr}")
-                    return False, f"Sudo validation failed: {stderr.strip() if stderr else 'Unknown error'}"
+                    return (
+                        False,
+                        "The password could not be checked right now. Try again once. If it still fails, ask the study technician for help.",
+                    )
 
         except subprocess.TimeoutExpired:
             self.logger.error("Sudo password validation timed out")
-            return False, "Sudo validation timed out - please try again"
+            return (
+                False,
+                "Password check took too long. Try again once. If it keeps timing out, ask the study technician for help.",
+            )
         except FileNotFoundError:
             self.logger.error("sudo command not found")
-            return False, "sudo command not found on this system"
+            return (
+                False,
+                "This device is missing a required setup tool. Please ask technical support for help.",
+            )
         except Exception as e:
             self.logger.error(f"Error validating sudo password: {e}")
-            return False, f"Validation error: {e}"
+            return (
+                False,
+                "The password could not be checked because of an unexpected problem. Try again once, then ask technical support for help if needed.",
+            )
 
     @handle_step_error
     def _validate_and_update_ui(self) -> None:
@@ -484,9 +649,8 @@ class ParticipantSetupStep(WizardStep):
             sudo_password = self.state.get_user_input(
                 UserInputKey.SUDO_PASSWORD, ""
             ).strip()
-            has_detection = (
-                self._device_id and self._username and not self._detection_error
-            )
+            effective_username, effective_device_id = self._get_effective_identity()
+            has_detection = bool(effective_device_id and effective_username)
 
             all_requirements_met = bool(
                 participant_id and sudo_password and has_detection and is_valid
@@ -500,21 +664,19 @@ class ParticipantSetupStep(WizardStep):
                 self._hide_validation_error()
                 if all_requirements_met:
                     self.logger.info(
-                        f"Validation successful - Participant: {participant_id}, Device: {self._device_id}, User: {self._username}"
+                        f"Validation successful - Participant: {participant_id}, Device: {effective_device_id}, User: {effective_username}"
                     )
 
             self._update_continue_button(all_requirements_met)
-
-            if all_requirements_met:
-                self.update_status(StepStatus.COMPLETED)
-            else:
-                self.update_status(StepStatus.USER_ACTION_REQUIRED)
+            self.update_status(StepStatus.USER_ACTION_REQUIRED)
 
         except Exception as e:
             self.logger.error(
                 f"Error during validation and UI update: {e}", exc_info=True
             )
-            self._show_validation_error(f"Validation error: {e}")
+            self._show_validation_error(
+                "This step could not be checked because of an unexpected problem. Try again once. If it still fails, ask technical support for help."
+            )
             self._update_continue_button(False)
             self.update_status(StepStatus.FAILED)
 
@@ -544,13 +706,15 @@ class ParticipantSetupStep(WizardStep):
                 UserInputKey.SUDO_PASSWORD, ""
             ).strip()
 
-            if (
-                is_valid
-                and self.next_button.isEnabled()
-                and participant_id
-                and self._device_id
-                and self._username
-            ):
+            if is_valid and self.next_button.isEnabled() and participant_id:
+                effective_username, effective_device_id = self._get_effective_identity()
+                if not effective_username or not effective_device_id:
+                    self.logger.warning(
+                        "Continue clicked without a usable username/device ID"
+                    )
+                    self._validate_and_update_ui()
+                    return
+
                 # Validate sudo password if not already validated
                 if not self._sudo_validated:
                     self.sudo_validation_label.setText("🔄 Validating sudo password...")
@@ -561,10 +725,13 @@ class ParticipantSetupStep(WizardStep):
 
                     # Force UI update to show validation message
                     from PySide6.QtWidgets import QApplication
+
                     QApplication.processEvents()
 
                     # Validate the sudo password
-                    password_valid, password_error = self._validate_sudo_password(sudo_password)
+                    password_valid, password_error = self._validate_sudo_password(
+                        sudo_password
+                    )
 
                     if not password_valid:
                         self.sudo_validation_label.setText(f"❌ {password_error}")
@@ -573,7 +740,9 @@ class ParticipantSetupStep(WizardStep):
                             "background-color: #ffebee; border-radius: 4px;"
                         )
                         self.sudo_validation_label.setVisible(True)
-                        self.logger.warning(f"Sudo password validation failed: {password_error}")
+                        self.logger.warning(
+                            f"Sudo password validation failed: {password_error}"
+                        )
                         return
 
                     # Password is valid
@@ -587,15 +756,25 @@ class ParticipantSetupStep(WizardStep):
                     self.logger.info("Sudo password validated successfully")
 
                 data_path = ""
-                if self._device_id:
-                    data_path = f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
+                if effective_device_id:
+                    self.state.set_user_input(UserInputKey.USERNAME, effective_username)
+                    self.state.set_user_input(
+                        UserInputKey.DEVICE_ID, effective_device_id
+                    )
+                    full_participant_id = build_participant_full_id(
+                        participant_id, effective_device_id
+                    )
+                    data_path = str(
+                        get_participant_data_dir(
+                            effective_username, participant_id, effective_device_id
+                        )
+                    )
                     self.state.set_user_input(UserInputKey.DATA_PATH, data_path)
 
                     os.makedirs(data_path, exist_ok=True)
                     self.logger.info(f"Created data directory: {data_path}")
 
                     # Configure event store with participant info for audit logging
-                    full_participant_id = f"{participant_id}{self._device_id}"
                     self.event_store.configure(
                         participant_id=full_participant_id,
                         data_path=data_path,
@@ -603,11 +782,13 @@ class ParticipantSetupStep(WizardStep):
                     )
                     self.logger.info("Event store configured for audit logging")
 
-                self.device_detected.emit(self._device_id, self._username, data_path)
+                self.device_detected.emit(
+                    effective_device_id, effective_username, data_path
+                )
 
                 self.logger.info(
                     f"Participant setup completed - ID: {participant_id}, "
-                    f"Device: {self._device_id}, Username: {self._username}, "
+                    f"Device: {effective_device_id}, Username: {effective_username}, "
                     f"Data Path: {data_path}"
                 )
 
@@ -627,7 +808,7 @@ class ParticipantSetupStep(WizardStep):
             raise FlashTVError(
                 f"Failed to complete step: {e}",
                 ErrorType.PROCESS_ERROR,
-                recovery_action="Check all fields and try again",
+                recovery_action="Check the highlighted fields and try again. If the step still will not continue, ask the study technician for help.",
             )
 
     def validate_inputs(self) -> tuple[bool, list[str]]:
@@ -650,10 +831,12 @@ class ParticipantSetupStep(WizardStep):
                 UserInputKey.PARTICIPANT_ID, ""
             ).strip()
             if not participant_id:
-                errors.append("Participant ID is required")
+                errors.append(
+                    "Enter the participant ID to continue. If you are unsure which ID to use, ask the study technician before continuing."
+                )
             elif not re.match(VALIDATION.PARTICIPANT_ID, participant_id):
                 errors.append(
-                    "Participant ID must be in format P1-XXXX or ES-XXXX (e.g., P1-0123, ES-0456)"
+                    "The participant ID format is not valid. Use P1-XXXX or ES-XXXX, then try again. If you are unsure, ask the study technician."
                 )
 
             # 2. Validate sudo password
@@ -661,23 +844,45 @@ class ParticipantSetupStep(WizardStep):
                 UserInputKey.SUDO_PASSWORD, ""
             ).strip()
             if not sudo_password:
-                errors.append("Sudo password is required for system operations")
+                errors.append(
+                    "Enter the sudo password to continue. If you do not know it, ask the study technician for help."
+                )
 
-            # 3. Ensure auto-detection succeeded
-            # Note: Don't add to errors list - already displayed in detection section
-            # Just track internally for validation status
-            has_detection_error = bool(self._detection_error) or not (self._device_id and self._username)
+            effective_username, effective_device_id = self._get_effective_identity()
+            has_detection_error = not (effective_device_id and effective_username)
 
-            # Optional: Validate that the detected username home directory exists
-            if self._username and not self._detection_error:
-                home_path = f"/home/{self._username}"
+            if self._detection_error and not effective_username:
+                errors.append(
+                    "The device account was not found automatically. Use the fallback username field on the right. If that still does not work, ask the study technician for help."
+                )
+            elif self._manual_username and not derive_device_id_from_username(
+                self._manual_username
+            ):
+                manual_device_id = self._manual_device_id.strip()
+                if not manual_device_id:
+                    errors.append(
+                        "The device ID is still missing. Enter a username ending in digits or fill in the fallback device ID. If you are unsure, ask the study technician."
+                    )
+                elif not self._is_valid_manual_device_id(manual_device_id):
+                    errors.append(
+                        "Enter the 3-digit device ID using numbers only (for example 007). If you are unsure, ask the study technician."
+                    )
+            elif effective_username and not effective_device_id:
+                errors.append(
+                    "The device ID is still missing. Enter a username ending in digits or fill in the fallback device ID. If you are unsure, ask the study technician."
+                )
+
+            if effective_username:
+                home_path = f"/home/{effective_username}"
                 if not os.path.isdir(home_path):
                     errors.append(
-                        f"Auto-detected home directory does not exist: {home_path}"
+                        "The selected setup account is not available on this device. Check the fallback username/device ID entries. If they look correct and this still fails, ask technical support for help."
                     )
 
         except Exception as e:
-            errors.append(f"Validation error: {e}")
+            errors.append(
+                "This step could not be checked because of an unexpected problem. Try again once. If it still fails, ask technical support for help."
+            )
             self.logger.error(f"Exception during input validation: {e}", exc_info=True)
 
         # is_valid requires no errors AND successful auto-detection
@@ -750,7 +955,8 @@ class ParticipantSetupStep(WizardStep):
         Returns:
             str: Generated data path or empty string if auto-detection failed
         """
-        if not self.is_auto_detection_successful():
+        effective_username, effective_device_id = self._get_effective_identity()
+        if not (effective_username and effective_device_id):
             return ""
 
         if participant_id is None:
@@ -761,6 +967,10 @@ class ParticipantSetupStep(WizardStep):
         if not participant_id:
             return ""
 
-        if self._device_id:
-            return f"/home/{self._username}/data/{participant_id}{self._device_id}_data"
-        return f"/home/{self._username}/data/{participant_id}_data"  # Fallback if no device_id
+        if effective_device_id:
+            return str(
+                get_participant_data_dir(
+                    effective_username, participant_id, effective_device_id
+                )
+            )
+        return f"/home/{effective_username}/data/{participant_id}_data"

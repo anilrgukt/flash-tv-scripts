@@ -145,15 +145,16 @@ class FlashTVSetupWizard(QMainWindow):
 
         # Next/Finish buttons
         self.next_button = QPushButton("Next →")
-        self.next_button.clicked.connect(self.go_to_next_step)
+        self.next_button.clicked.connect(self.advance_from_current_step)
         self.next_button.setMaximumWidth(80)
         self.next_button.setMinimumHeight(25)
         self.next_button.setMaximumHeight(25)
         progress_nav_layout.addWidget(self.next_button)
 
-        self.finish_button = QPushButton("Finish")
+        self.finish_button = QPushButton("Complete Setup")
         self.finish_button.clicked.connect(self.finish_setup)
         self.finish_button.setVisible(False)
+        self.finish_button.setEnabled(False)
         self.finish_button.setMaximumWidth(80)
         self.finish_button.setMinimumHeight(25)
         self.finish_button.setMaximumHeight(25)
@@ -211,7 +212,7 @@ class FlashTVSetupWizard(QMainWindow):
 
                 step_widget.status_changed.connect(self.on_step_status_changed)
                 step_widget.step_completed.connect(self.on_step_completed)
-                step_widget.request_next_step.connect(self.go_to_next_step)
+                step_widget.request_next_step.connect(self.navigate_to_next_step)
 
                 self.steps[step_id] = step_widget
                 self.step_stack.addWidget(step_widget)
@@ -244,15 +245,20 @@ class FlashTVSetupWizard(QMainWindow):
         )
 
         self.prev_button.setEnabled(current_step > 1)
-        self.next_button.setEnabled(current_step < MESSAGES.TOTAL_STEPS)
+        self.next_button.setEnabled(
+            current_step < MESSAGES.TOTAL_STEPS
+            and self._can_advance_from_current_step()
+        )
 
         # Show finish button on last step
         if current_step == MESSAGES.TOTAL_STEPS:
             self.next_button.setVisible(False)
             self.finish_button.setVisible(True)
+            self.finish_button.setEnabled(self._can_advance_from_current_step())
         else:
             self.next_button.setVisible(True)
             self.finish_button.setVisible(False)
+            self.finish_button.setEnabled(False)
 
         # Update navigation status
         if self.current_step_widget:
@@ -266,8 +272,48 @@ class FlashTVSetupWizard(QMainWindow):
         if self.state.current_step > 1:
             self.navigate_to_step(self.state.current_step - 1)
 
-    def go_to_next_step(self) -> None:
-        """Navigate to the next step."""
+    def _get_current_step_advance_control(self):
+        if not self.current_step_widget:
+            return None
+
+        for attribute_name in ("continue_button", "next_button"):
+            control = getattr(self.current_step_widget, attribute_name, None)
+            if control is not None:
+                return control
+
+        return None
+
+    def _can_advance_from_current_step(self) -> bool:
+        if not self.current_step_widget:
+            return False
+
+        advance_control = self._get_current_step_advance_control()
+        if advance_control is not None:
+            return advance_control.isEnabled()
+
+        return bool(self.current_step_widget.is_completed())
+
+    def advance_from_current_step(self) -> None:
+        if (
+            self.state.current_step >= MESSAGES.TOTAL_STEPS
+            or not self.current_step_widget
+        ):
+            return
+
+        advance_control = self._get_current_step_advance_control()
+        if advance_control is not None:
+            if advance_control.isEnabled():
+                advance_control.click()
+            elif status_bar := self.statusBar():
+                status_bar.showMessage("Complete the current step before continuing.")
+            return
+
+        if self.current_step_widget.is_completed():
+            self.navigate_to_next_step()
+        elif status_bar := self.statusBar():
+            status_bar.showMessage("Complete the current step before continuing.")
+
+    def navigate_to_next_step(self) -> None:
         if self.state.current_step < MESSAGES.TOTAL_STEPS:
             self.navigate_to_step(self.state.current_step + 1)
 
@@ -276,11 +322,11 @@ class FlashTVSetupWizard(QMainWindow):
         self.update_ui()
 
         status_messages = {
-            StepStatus.PENDING: "Step is pending prerequisite completion",
-            StepStatus.USER_ACTION_REQUIRED: "User action required to continue",
-            StepStatus.AUTOMATION_RUNNING: "Automation is running...",
-            StepStatus.COMPLETED: "Step completed successfully",
-            StepStatus.FAILED: "Step failed - review and retry",
+            StepStatus.PENDING: "Complete the required setup step before continuing.",
+            StepStatus.USER_ACTION_REQUIRED: "Please finish the action shown in this step before continuing.",
+            StepStatus.AUTOMATION_RUNNING: "Working on this step...",
+            StepStatus.COMPLETED: "This step is complete.",
+            StepStatus.FAILED: "This step needs attention before you continue.",
         }
 
         message = status_messages.get(status, f"Step status: {status.value}")
@@ -316,9 +362,11 @@ class FlashTVSetupWizard(QMainWindow):
             msg.setWindowTitle("Setup Incomplete")
             msg.setIcon(QMessageBox.Icon.Warning)
             msg.setText(
-                f"Setup is not complete. {completed_steps}/{MESSAGES.TOTAL_STEPS} steps finished."
+                f"Setup is not finished yet. {completed_steps}/{MESSAGES.TOTAL_STEPS} steps are complete."
             )
-            msg.setInformativeText("Are you sure you want to finish setup now?")
+            msg.setInformativeText(
+                "Go back and finish the remaining steps unless you have been told to stop. If you are blocked and cannot continue safely, ask for help."
+            )
             msg.setStandardButtons(
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
             )

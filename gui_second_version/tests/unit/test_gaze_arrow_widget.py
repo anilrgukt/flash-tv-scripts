@@ -30,10 +30,10 @@ class TestGazeArrowWidgetInitialization:
         min_size = widget.minimumSize()
         max_size = widget.maximumSize()
 
-        assert min_size.width() >= 200
-        assert min_size.height() >= 280
-        assert max_size.width() <= 250
-        assert max_size.height() <= 320
+        assert min_size.width() == 150
+        assert min_size.height() == 200
+        assert max_size.width() == 220
+        assert max_size.height() == 280
 
     def test_initialization_with_parent(self, qtbot):
         """Test widget initializes with parent."""
@@ -57,7 +57,7 @@ class TestSetGaze:
             yaw_deg=-5.0,
             watching_tv=True,
             timestamp="12:00:00.000",
-            status="WATCHING TV"
+            status="WATCHING TV",
         )
 
         assert widget.pitch_deg == 10.0
@@ -245,12 +245,12 @@ class TestArrowCalculation:
 
         # Various angle combinations
         test_cases = [
-            (0.0, 0.0),      # Center
-            (45.0, 0.0),     # Right
-            (-45.0, 0.0),    # Left
-            (0.0, 45.0),     # Up
-            (0.0, -45.0),    # Down
-            (30.0, 30.0),    # Upper right
+            (0.0, 0.0),  # Center
+            (45.0, 0.0),  # Right
+            (-45.0, 0.0),  # Left
+            (0.0, 45.0),  # Up
+            (0.0, -45.0),  # Down
+            (30.0, 30.0),  # Upper right
             (-30.0, -30.0),  # Lower left
         ]
 

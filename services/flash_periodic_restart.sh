@@ -84,31 +84,97 @@ do
 	cp "/home/${username}/data/${participant_id}_data/${participant_id}_flash_logstdoutp.log" "/home/${username}/data/${participant_id}_data/${participant_id}_flash_logstderrp.log" "${LOG_FOLDER_PATH}/varlogs_${datetime}"
  
 	# Backup files to the USB, not including faces
-	if lsusb | grep -q "SanDisk Corp. Ultra Fit"; then	
+	BORG_CHECK_TIMEOUT="15m"
+	BORG_REPAIR_TIMEOUT="30m"
+	BORG_CREATE_TIMEOUT="2h"
+	BORG_PRUNE_TIMEOUT="30m"
+	BACKUP_USB_VENDOR="$(python3 -c 'import importlib.util, sys; spec = importlib.util.spec_from_file_location("flash_tv_install_defaults", sys.argv[1]); module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module); print(module.BACKUP_USB_VENDOR)' "/home/${username}/flash-tv-scripts/config/install_defaults.py")"
+	BACKUP_USB_LSBLK_PATTERN="${BACKUP_USB_VENDOR%% *}"
+	BACKUP_USB_BLOCK_ID=""
+	BACKUP_USB_UUID=""
+	BACKUP_USB_MOUNT_PATH=""
 
-		if [ "$(lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}')" ]; then
-	 
-	 		BACKUP_USB_PATH="$(lsblk -o NAME,TRAN,MOUNTPOINT | grep -A 1 -w usb | grep -v usb | awk '{print $2}')"
+	if lsusb | grep -Fq "${BACKUP_USB_VENDOR}"; then
+		BACKUP_USB_BLOCK_ID="$(lsblk -J -l -o NAME,MODEL,TYPE,PKNAME | python3 -c 'import json, sys
+vendor = sys.argv[1]
+disk_name = ""
+for device in json.load(sys.stdin).get("blockdevices", []):
+    if device.get("type") == "disk" and vendor in (device.get("model") or ""):
+        disk_name = device.get("name") or ""
+    elif disk_name and device.get("type") == "part" and device.get("pkname") == disk_name:
+        print(device.get("name") or "")
+        break
+' "${BACKUP_USB_LSBLK_PATTERN}")"
 
+		if [ -n "${BACKUP_USB_BLOCK_ID}" ]; then
+			BACKUP_USB_UUID="$(sudo blkid -t TYPE=vfat -sUUID "/dev/${BACKUP_USB_BLOCK_ID}" | cut -d '"' -f2)"
+
+			if [ -n "${BACKUP_USB_UUID}" ]; then
+				BACKUP_USB_MOUNT_PATH="/media/${username}/${BACKUP_USB_UUID}"
+
+				if mountpoint -q "${BACKUP_USB_MOUNT_PATH}"; then
+					echo "Backup USB is already mounted at ${BACKUP_USB_MOUNT_PATH} at Time: ${datetime}"
+				else
+					echo "Backup USB mount is not active at ${BACKUP_USB_MOUNT_PATH} at Time: ${datetime}. Attempting to mount it now."
+
+					if sudo mount "${BACKUP_USB_MOUNT_PATH}"; then
+						echo "Backup USB mount attempt succeeded at Time: ${datetime}"
+					elif udisksctl mount -b "/dev/${BACKUP_USB_BLOCK_ID}"; then
+						echo "Backup USB mount attempt succeeded through udisksctl at Time: ${datetime}"
+					else
+						echo "Backup USB mount attempt failed at Time: ${datetime}. Borg will still be attempted in case the repository is still reachable."
+					fi
+				fi
+			else
+				echo "Backup USB UUID was not found at Time: ${datetime}. Borg will still be attempted using the configured repository path."
+			fi
 		else
-		
-			echo "Backup USB not Found in lsblk at Time: ${datetime}"
-			
-	 	fi
-	
+			echo "Backup USB block device was not found in lsblk at Time: ${datetime}. Borg will still be attempted using the configured repository path."
+		fi
 	else
-		
-		echo "Backup USB not Found in lsusb at Time: ${datetime}"
-  
+		echo "Backup USB was not found in lsusb at Time: ${datetime}. Attempting Borg anyway in case the repository path is still available."
 	fi
 
- 	source "/home/${username}/.bashrc"
+	BORG_ENV_FILE="/home/${username}/.flash_borg_env"
+	if [ -f "${BORG_ENV_FILE}" ]; then
+		source "${BORG_ENV_FILE}"
+	else
+		echo "Borg environment file ${BORG_ENV_FILE} was not found at Time: ${datetime}. Borg commands may fail until USB backup setup is rerun."
+	fi
+	read -r -a BACKUP_DIR_ARRAY <<< "${BACKUP_DIRS}"
+	SKIP_BORG_CREATE=0
 
+	echo "Starting Borg repository check at Time: ${datetime}"
+	if timeout "${BORG_CHECK_TIMEOUT}" borg check --lock-wait 60 --repository-only; then
+		echo "Borg repository check passed at Time: ${datetime}"
+	else
+		echo "Borg repository check failed at Time: ${datetime}. Attempting repair before backup creation."
 
-	
-	borg create --exclude "/home/${username}/data/*.zip" --exclude "/home/${username}/data/*/*face*" "::${participant_id}-FLASH-HA-Data-Backup-${datetime}" ${BACKUP_DIRS}
-		
-	echo "USB Backup without Face Folders Created at Time: ${datetime}"
+		if timeout "${BORG_REPAIR_TIMEOUT}" borg check --lock-wait 60 --repair --repository-only; then
+			echo "Borg repository repair completed at Time: ${datetime}"
+		else
+			echo "Borg repository repair failed or timed out at Time: ${datetime}. Skipping Borg backup creation because the repository could not be trusted. Operator escalation is required before the next backup attempt."
+			SKIP_BORG_CREATE=1
+		fi
+	fi
+
+	if [ "${SKIP_BORG_CREATE}" -eq 0 ]; then
+		echo "Starting Borg backup creation at Time: ${datetime}"
+		if timeout "${BORG_CREATE_TIMEOUT}" borg create --lock-wait 60 --exclude "/home/${username}/data/*.zip" --exclude "/home/${username}/data/*/*face*" "::${participant_id}-FLASH-HA-Data-Backup-${datetime}" "${BACKUP_DIR_ARRAY[@]}"; then
+			echo "USB backup without face folders created at Time: ${datetime}"
+			echo "Starting Borg prune after successful backup creation at Time: ${datetime}"
+
+			if timeout "${BORG_PRUNE_TIMEOUT}" borg prune --lock-wait 60 --glob-archives "${participant_id}-FLASH-HA-Data-Backup-*" --keep-last 30; then
+				echo "Borg prune completed at Time: ${datetime}"
+			else
+				echo "Borg prune failed or timed out at Time: ${datetime}. The device runtime will continue."
+			fi
+		else
+			echo "Borg backup creation failed or timed out at Time: ${datetime}. The device runtime will continue without stopping FLASH."
+		fi
+	else
+		echo "Borg backup creation was skipped at Time: ${datetime}. The device runtime will continue without stopping FLASH while the operator escalates the untrusted repository state."
+	fi
 
   	source "/home/${username}/py38/bin/activate"
 	

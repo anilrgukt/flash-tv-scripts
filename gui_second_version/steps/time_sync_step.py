@@ -5,24 +5,22 @@ from __future__ import annotations
 import os
 from datetime import datetime
 
-from config.messages import MESSAGES
+from config.messages import MESSAGES, get_python_path
+from config.participant_contract import build_participant_full_id
 from core import WizardStep
 from core.exceptions import ErrorType, FlashTVError, handle_step_error
 from models import StepStatus
 from models.state_keys import UserInputKey
-from PySide6.QtCore import QDateTime, QTimer
-from PySide6.QtWidgets import (
-    QDateTimeEdit,
-    QDialog,
-    QDialogButtonBox,
-    QMessageBox,
-    QWidget,
-)
+from PySide6.QtCore import QDateTime
+from PySide6.QtWidgets import QDateTimeEdit, QDialog, QDialogButtonBox, QWidget
 from utils.ui_factory import ButtonStyle
 
 
 class TimeSyncStep(WizardStep):
     """Step 3: Synchronize System Time with RTC integration using new framework patterns."""
+
+    NTP_POLL_INTERVAL_MS = 2000
+    NTP_POLL_MAX_ATTEMPTS = 15
 
     def create_content_widget(self) -> QWidget:
         """Create the time synchronization UI using UI factory."""
@@ -47,6 +45,16 @@ class TimeSyncStep(WizardStep):
 
         # Setup timer for time display updates - use base class create_timer for automatic cleanup
         self.time_update_timer = self.create_timer(1000, self._safe_update_time_display)
+        self.ntp_poll_timer = self.create_timer(
+            self.NTP_POLL_INTERVAL_MS, self._poll_ntp_status, start=False
+        )
+        self.workflow_delay_timer = self.create_timer(
+            1000, self._run_scheduled_workflow_callback, start=False
+        )
+        self._current_time_source = "unknown"
+        self._ntp_poll_attempts = 0
+        self._scheduled_workflow_callback = None
+        self._rtc_persistence_verified = False
 
         return content
 
@@ -84,10 +92,6 @@ class TimeSyncStep(WizardStep):
         return details_group
 
     def _create_actions_section(self) -> QWidget:
-        """Create the time synchronization actions section with auto-workflow status and manual controls."""
-        from PySide6.QtWidgets import QStackedWidget
-
-        # Create a container widget
         actions_container = QWidget()
         actions_container_layout = self.ui_factory.create_vertical_layout()
         actions_container.setLayout(actions_container_layout)
@@ -109,52 +113,25 @@ class TimeSyncStep(WizardStep):
 
         actions_container_layout.addWidget(rtc_status_group)
 
-        # Create stacked widget to switch between auto-workflow view and manual controls
-        self.actions_stack = QStackedWidget()
-        actions_container_layout.addWidget(self.actions_stack)
-
-        # === Page 0: Auto-Workflow Status View ===
-        self.auto_workflow_widget = QWidget()
-        auto_layout = self.ui_factory.create_vertical_layout()
-        self.auto_workflow_widget.setLayout(auto_layout)
-
-        # Large status indicator
+        workflow_group, workflow_layout = self.ui_factory.create_group_box(
+            "Time Sync Workflow Status"
+        )
         self.workflow_status_label = self.ui_factory.create_status_label(
-            "⏳ Automatic Time Sync in Progress...", status_type="info"
+            "Ready to configure time", status_type="info"
         )
-        self.workflow_status_label.setStyleSheet("""
-            font-weight: bold;
-            padding: 15px;
-            background-color: #e3f2fd;
-            border: 2px solid #2196f3;
-            border-radius: 8px;
-        """)
-        auto_layout.addWidget(self.workflow_status_label)
+        workflow_layout.addWidget(self.workflow_status_label)
 
-        # Step progress indicator
         self.workflow_steps_label = self.ui_factory.create_label(
-            "Step 1/4: Enabling NTP synchronization..."
+            "Automatic sync will start if WiFi is available."
         )
-        self.workflow_steps_label.setStyleSheet("padding: 8px;")
-        auto_layout.addWidget(self.workflow_steps_label)
+        workflow_layout.addWidget(self.workflow_steps_label)
 
-        # Info text during auto-workflow
-        auto_info_label = self.ui_factory.create_label(
-            "Please wait while the system synchronizes time automatically.\n"
-            "Manual controls will appear if automatic sync fails or completes."
+        self.workflow_hint_label = self.ui_factory.create_label(
+            "If internet time is unavailable, set the time manually and the RTC will be configured automatically."
         )
-        auto_info_label.setStyleSheet("color: #666; font-style: italic; padding: 10px;")
-        auto_layout.addWidget(auto_info_label)
+        workflow_layout.addWidget(self.workflow_hint_label)
+        actions_container_layout.addWidget(workflow_group)
 
-        auto_layout.addStretch()
-        self.actions_stack.addWidget(self.auto_workflow_widget)
-
-        # === Page 1: Manual Controls View ===
-        self.manual_controls_widget = QWidget()
-        manual_layout = self.ui_factory.create_vertical_layout()
-        self.manual_controls_widget.setLayout(manual_layout)
-
-        # Manual controls group
         manual_group, manual_group_layout = self.ui_factory.create_group_box(
             "Time Synchronization Controls"
         )
@@ -224,37 +201,55 @@ class TimeSyncStep(WizardStep):
         rtc_buttons_layout.addWidget(self.sync_from_external_rtc_button)
 
         manual_group_layout.addLayout(rtc_buttons_layout)
-
-        manual_layout.addWidget(manual_group)
-        self.actions_stack.addWidget(self.manual_controls_widget)
-
-        # Start with manual controls visible (auto-workflow will switch to page 0)
-        self.actions_stack.setCurrentIndex(1)
+        actions_container_layout.addWidget(manual_group)
 
         return actions_container
 
     def _show_auto_workflow_view(self) -> None:
-        """Switch to auto-workflow status view, hiding manual controls."""
-        self.actions_stack.setCurrentIndex(0)
-        self.workflow_status_label.setText("⏳ Automatic Time Sync in Progress...")
-        self.workflow_status_label.setStyleSheet("""
-            font-weight: bold;
-            padding: 15px;
-            background-color: #e3f2fd;
-            border: 2px solid #2196f3;
-            border-radius: 8px;
-        """)
+        self.workflow_status_label.setText("⏳ Automatic time sync in progress...")
+        self.workflow_status_label.setStyleSheet(
+            f"color: {self.config.info_color}; font-weight: bold; padding: 5px;"
+        )
+        self._set_manual_controls_enabled(False)
 
     def _show_manual_controls_view(self) -> None:
-        """Switch to manual controls view."""
-        self.actions_stack.setCurrentIndex(1)
+        self._set_manual_controls_enabled(True)
+
+    def _set_manual_controls_enabled(self, enabled: bool) -> None:
+        for button in (
+            self.manual_time_button,
+            self.sync_button,
+            self.set_external_rtc_button,
+            self.check_rtc_button,
+            self.sync_from_external_rtc_button,
+        ):
+            if button is self.sync_from_external_rtc_button and not enabled:
+                button.setEnabled(False)
+            elif button is self.sync_from_external_rtc_button and enabled:
+                continue
+            else:
+                button.setEnabled(enabled)
 
     def _update_workflow_step(self, step: int, total: int, message: str) -> None:
         """Update the workflow progress display."""
         self.workflow_steps_label.setText(f"Step {step}/{total}: {message}")
-        # Force UI update
-        from PySide6.QtWidgets import QApplication
-        QApplication.processEvents()
+        self.workflow_hint_label.setText(message)
+
+    def _schedule_workflow_callback(self, delay_ms: int, callback) -> None:
+        self._scheduled_workflow_callback = callback
+        self.workflow_delay_timer.stop()
+        self.workflow_delay_timer.setInterval(delay_ms)
+        self.workflow_delay_timer.start()
+
+    def _run_scheduled_workflow_callback(self) -> None:
+        self.workflow_delay_timer.stop()
+        callback = self._scheduled_workflow_callback
+        self._scheduled_workflow_callback = None
+        if callback is not None:
+            callback()
+
+    def _command_succeeded(self, result, error) -> bool:
+        return bool(result) and result.returncode == 0 and not error
 
     def _create_continue_section(self):
         """Create the continue button section using UI factory."""
@@ -277,27 +272,44 @@ class TimeSyncStep(WizardStep):
         self.time_label.setText(f"Current System Time: {current_time}")
 
     @handle_step_error
-    def _check_rtc_status(self, checked: bool = False) -> None:
+    def _check_rtc_status(self, checked: bool = False) -> bool:
         """Check both external and internal RTC status with error handling."""
         try:
             self.logger.info("Checking RTC status")
             username = self.state.get_user_input(UserInputKey.USERNAME, "")
+            external_rtc_available = False
 
             if not username:
                 self.logger.error("Username not available for RTC check")
-                self.details_text.append("❌ Username not available for RTC operations")
-                return
+                self.details_text.append(
+                    "❌ The setup account is missing, so the RTC cannot be checked."
+                )
+                self.details_text.append(
+                    "📌 Go back to Participant Setup, confirm the device account details, then try again."
+                )
+                self.details_text.append(
+                    "📌 If the account details already look correct, ask the study technician for help."
+                )
+                return False
 
             # Set sudo password from state for RTC operations
             if not self.process_runner.set_sudo_password_from_state():
                 self.logger.error("Sudo password not available for RTC operations")
-                self.details_text.append("❌ Sudo password required for RTC operations")
-                return
+                self.details_text.append(
+                    "❌ The sudo password is missing, so the RTC cannot be checked."
+                )
+                self.details_text.append(
+                    "📌 Go back to Participant Setup, re-enter the password, and try again."
+                )
+                self.details_text.append(
+                    "📌 If the password is not accepted there either, ask the study technician for help."
+                )
+                return False
 
             # Check external RTC using the Python script
             self.details_text.append("📡 Checking External RTC (DS3231) status...")
 
-            python_path = f"/home/{username}/py38/bin/python"
+            python_path = get_python_path(username)
             # Get the script path using username from state
             rtc_check_script = f"/home/{username}/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py"
 
@@ -305,7 +317,7 @@ class TimeSyncStep(WizardStep):
             data_path = self.state.get_user_input(UserInputKey.DATA_PATH, "")
             participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
             device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
-            combined_id = f"{participant_id}{device_id}"
+            combined_id = build_participant_full_id(participant_id, device_id)
 
             if not data_path:
                 # If no data path, use a temporary placeholder
@@ -322,6 +334,7 @@ class TimeSyncStep(WizardStep):
             )
 
             if result and result.returncode == 0:
+                external_rtc_available = True
                 self.external_rtc_label.setText(
                     "📡 External RTC (DS3231): ✅ Available"
                 )
@@ -344,6 +357,13 @@ class TimeSyncStep(WizardStep):
                     f"color: {self.config.error_color}; font-weight: bold; padding: 5px;"
                 )
                 self.details_text.append(f"External RTC Error: {error_msg}")
+                self.details_text.append(
+                    "📌 Try the RTC action again after checking the cable or RTC hardware connection."
+                )
+                self.details_text.append(
+                    "📌 If the RTC still is not detected, stop here and ask technical support for help."
+                )
+                self.sync_from_external_rtc_button.setEnabled(False)
                 self.logger.warning(f"External RTC not available: {error_msg}")
 
             # Check internal RTC (needs sudo)
@@ -373,14 +393,73 @@ class TimeSyncStep(WizardStep):
                 self.details_text.append(f"Internal RTC Error: {error_msg}")
                 self.logger.warning(f"Internal RTC not available: {error_msg}")
 
+            return external_rtc_available
+
         except Exception as e:
             self.logger.error(f"Error checking RTC status: {e}")
-            self.details_text.append(f"Error checking RTC status: {str(e)}")
+            self.details_text.append(
+                "❌ The RTC could not be checked because of an unexpected problem."
+            )
+            self.details_text.append(
+                "📌 Try the RTC action again once. If it still fails, ask technical support for help."
+            )
             raise FlashTVError(
                 f"Failed to check RTC status: {e}",
                 ErrorType.PROCESS_ERROR,
-                recovery_action="Check RTC hardware connections",
+                recovery_action="Try the RTC action again after checking the RTC connection. If it still fails, ask technical support for help.",
             )
+
+    def _set_ready_to_continue_state(
+        self, system_message: str, rtc_message: str
+    ) -> None:
+        self._rtc_persistence_verified = True
+        self.sync_status_label.setText(system_message)
+        self.sync_status_label.setStyleSheet(
+            f"color: {self.config.success_color}; font-weight: bold; padding: 5px;"
+        )
+        self.workflow_status_label.setText(f"✅ {rtc_message}")
+        self.workflow_status_label.setStyleSheet(
+            f"color: {self.config.success_color}; font-weight: bold; padding: 5px;"
+        )
+        self.workflow_steps_label.setText("Ready to continue")
+        self.workflow_hint_label.setText(
+            "System time is valid, the external RTC check succeeded, and you can continue."
+        )
+        self.details_text.append(f"✅ {system_message}")
+        self.details_text.append(f"✅ {rtc_message}")
+        self.details_text.append("✅ Ready to continue to the next step.")
+        self._enable_continue()
+
+    def _block_until_rtc_is_fixed(self, error_message: str) -> None:
+        self._rtc_persistence_verified = False
+        self.continue_button.setEnabled(False)
+        self.state.set_user_input(UserInputKey.TIME_SYNCED, False)
+        self.sync_status_label.setText(
+            "⚠️ System time is set, but RTC persistence is not confirmed"
+        )
+        self.sync_status_label.setStyleSheet(
+            f"color: {self.config.warning_color}; font-weight: bold; padding: 5px;"
+        )
+        self.workflow_status_label.setText(
+            "❌ External RTC save/check is still required"
+        )
+        self.workflow_status_label.setStyleSheet(
+            f"color: {self.config.error_color}; font-weight: bold; padding: 5px;"
+        )
+        self.workflow_steps_label.setText(
+            "Do not continue until the RTC issue is resolved"
+        )
+        self.workflow_hint_label.setText(
+            "Retry the RTC action. If it still fails after checking the RTC connection, ask technical support for help."
+        )
+        self.details_text.append(f"❌ {error_message}")
+        self.details_text.append(
+            "📌 Continue is locked because the external RTC was not saved and verified successfully."
+        )
+        self.details_text.append(
+            "📌 Retry the RTC step. If the error persists, check RTC hardware/connections or escalate to technical support."
+        )
+        self.update_status(StepStatus.USER_ACTION_REQUIRED)
 
     @handle_step_error
     def _sync_from_external_rtc(self, checked: bool = False) -> None:
@@ -398,23 +477,12 @@ class TimeSyncStep(WizardStep):
                     ErrorType.VALIDATION_ERROR,
                 )
 
-            reply = QMessageBox.question(
-                self,
-                "Sync from External RTC",
-                "This will set the system time from the External RTC (DS3231). Continue?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-
-            if reply != QMessageBox.StandardButton.Yes:
-                self.logger.info("User cancelled RTC sync")
-                return
-
             self.logger.info("Syncing system time from external RTC")
             self.update_status(StepStatus.AUTOMATION_RUNNING)
             self.sync_from_external_rtc_button.setEnabled(False)
 
             # Run the RTC sync script
-            python_path = f"/home/{username}/py38/bin/python"
+            python_path = get_python_path(username)
             # Get the script path relative to user's home directory
             rtc_sync_script = f"/home/{username}/flash-tv-scripts/python_scripts/update_or_check_system_time_from_RTCs.py"
 
@@ -422,7 +490,7 @@ class TimeSyncStep(WizardStep):
             data_path = self.state.get_user_input(UserInputKey.DATA_PATH, "")
             participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
             device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
-            combined_id = f"{participant_id}{device_id}"
+            combined_id = build_participant_full_id(participant_id, device_id)
 
             if not data_path:
                 self.logger.error("Data path not available for RTC sync")
@@ -444,23 +512,37 @@ class TimeSyncStep(WizardStep):
                 "sync system time from external RTC",
             )
 
-            if error:
+            if not self._command_succeeded(result, error):
                 self.logger.error(f"Failed to sync from RTC: {error}")
-                self.details_text.append(f"❌ Failed to sync from RTC: {error}")
+                self.details_text.append(
+                    "❌ The system time could not be restored from the external RTC."
+                )
+                self.details_text.append(
+                    "📌 Try 'Sync from External RTC' again. If it still fails, check the RTC connection."
+                )
+                self.details_text.append(
+                    "📌 If the RTC should be available but still does not work, ask technical support for help."
+                )
                 self.update_status(StepStatus.FAILED)
                 raise FlashTVError(
                     f"Failed to sync from external RTC: {error}",
                     ErrorType.PROCESS_ERROR,
-                    recovery_action="Check script permissions and RTC hardware",
+                    recovery_action="Try syncing from the external RTC again. If it still fails after checking the RTC connection, ask technical support for help.",
                 )
             else:
                 self.details_text.append("✅ System time synced from external RTC!")
                 self.logger.info("RTC sync completed successfully")
-
-                # Check time status and show verification
-                self._check_time_status()
-                self._verify_time_manually()
-                self.update_status(StepStatus.USER_ACTION_REQUIRED)
+                self._set_time_source("rtc")
+                rtc_verified = self._check_rtc_status()
+                if rtc_verified:
+                    self._set_ready_to_continue_state(
+                        "System time was restored from the external RTC.",
+                        "External RTC check succeeded.",
+                    )
+                else:
+                    self._block_until_rtc_is_fixed(
+                        "System time was restored, but the external RTC check failed afterward."
+                    )
 
         except Exception as e:
             self.logger.error(f"Error during RTC sync: {e}")
@@ -485,23 +567,12 @@ class TimeSyncStep(WizardStep):
                     ErrorType.VALIDATION_ERROR,
                 )
 
-            reply = QMessageBox.question(
-                self,
-                "Set External RTC",
-                "This will set the External RTC (DS3231) to the current system time. Continue?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-
-            if reply != QMessageBox.StandardButton.Yes:
-                self.logger.info("User cancelled RTC setting")
-                return
-
             self.logger.info("Setting external RTC to system time")
             self.update_status(StepStatus.AUTOMATION_RUNNING)
             self.set_external_rtc_button.setEnabled(False)
 
             # Run the RTC set script with start_date.txt path
-            python_path = f"/home/{username}/py38/bin/python"
+            python_path = get_python_path(username)
             # Get the script path relative to user's home directory
             rtc_set_script = f"/home/{username}/flash-tv-scripts/python_scripts/set_external_RTC_and_save_start_date.py"
 
@@ -509,7 +580,7 @@ class TimeSyncStep(WizardStep):
             data_path = self.state.get_user_input(UserInputKey.DATA_PATH, "")
             participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
             device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
-            combined_id = f"{participant_id}{device_id}"
+            combined_id = build_participant_full_id(participant_id, device_id)
 
             if not data_path:
                 self.logger.error("Data path not available")
@@ -531,14 +602,22 @@ class TimeSyncStep(WizardStep):
                 "set external RTC to system time",
             )
 
-            if error:
+            if not self._command_succeeded(result, error):
                 self.logger.error(f"Failed to set RTC: {error}")
-                self.details_text.append(f"❌ Failed to set external RTC: {error}")
+                self.details_text.append(
+                    "❌ The external RTC could not be saved with the current time."
+                )
+                self.details_text.append(
+                    "📌 Try the RTC save again. If it still fails, check the RTC connection."
+                )
+                self.details_text.append(
+                    "📌 If the RTC should be available but still does not save, ask technical support for help."
+                )
                 self.update_status(StepStatus.FAILED)
                 raise FlashTVError(
                     f"Failed to set external RTC: {error}",
                     ErrorType.PROCESS_ERROR,
-                    recovery_action="Check script permissions and RTC hardware",
+                    recovery_action="Try saving the time to the external RTC again. If it still fails after checking the RTC connection, ask technical support for help.",
                 )
             else:
                 self.details_text.append("✅ External RTC has been set to system time!")
@@ -560,8 +639,23 @@ class TimeSyncStep(WizardStep):
                     )
 
                 # Now check RTC status to verify it was set
-                self._check_rtc_status()
-                self.update_status(StepStatus.USER_ACTION_REQUIRED)
+                if self._current_time_source == "unknown":
+                    self._set_time_source("rtc")
+                rtc_verified = self._check_rtc_status()
+                if rtc_verified:
+                    system_message = {
+                        "manual": "System time was set manually.",
+                        "ntp": "System time was synchronized from network time.",
+                        "rtc": "System time was set and preserved for RTC use.",
+                    }.get(self._current_time_source, "System time is valid.")
+                    self._set_ready_to_continue_state(
+                        system_message,
+                        "External RTC was written and verified successfully.",
+                    )
+                else:
+                    self._block_until_rtc_is_fixed(
+                        "The system time looks valid, but the external RTC write/check did not succeed."
+                    )
 
         except Exception as e:
             self.logger.error(f"Error during RTC set: {e}")
@@ -586,60 +680,71 @@ class TimeSyncStep(WizardStep):
                 self._parse_time_status(result.stdout)
             else:
                 error_msg = result.stderr if result else "Command failed"
-                self.details_text.append(f"Error checking time status: {error_msg}")
+                self.details_text.append(
+                    "❌ The current time could not be checked automatically."
+                )
+                self.details_text.append(
+                    "📌 Try the check again once. If it still fails, use manual time setup or ask technical support for help."
+                )
                 self.logger.error(f"Time status check failed: {error_msg}")
 
         except Exception as e:
             self.logger.error(f"Error checking time status: {e}")
-            self.details_text.append(f"Error: {str(e)}")
+            self.details_text.append(
+                "❌ The current time could not be checked because of an unexpected problem."
+            )
+            self.details_text.append(
+                "📌 Try again once. If it still fails, use manual time setup or ask technical support for help."
+            )
             raise FlashTVError(
                 f"Failed to check time status: {e}",
                 ErrorType.PROCESS_ERROR,
-                recovery_action="Try checking time status manually",
+                recovery_action="Try the time check again. If it still fails, use manual time setup or ask technical support for help.",
             )
-
-    def _verify_time_manually(self) -> None:
-        """Show dialog for manual time verification."""
-        try:
-            current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-            QMessageBox.information(
-                self,
-                "Verify Time",
-                f"System time has been synced from RTC.\n\n"
-                f"Current system time: {current_time}\n\n"
-                f"Please verify this matches the actual time.\n"
-                f"If incorrect, use 'Manually Set Time' to correct it.",
-                QMessageBox.StandardButton.Ok,
-            )
-
-            self.details_text.append(
-                f"\n✅ Time verification completed at {current_time}"
-            )
-            self._enable_continue()
-
-        except Exception as e:
-            self.logger.error(f"Error during time verification: {e}")
 
     def _parse_time_status(self, status_output: str) -> None:
         """Parse timedatectl status output and update UI."""
         try:
-            # Parse for sync status
-            if "synchronized: yes" in status_output.lower():
-                self.sync_status_label.setText("✅ System time is synchronized")
+            lower_output = status_output.lower()
+            synchronized = "synchronized: yes" in lower_output
+            ntp_active = "ntp service: active" in lower_output
+
+            if synchronized:
+                self._set_time_source("ntp")
+                self.workflow_status_label.setText(
+                    "⏳ System time is valid. Saving/checking the external RTC is still required."
+                )
+                self.workflow_status_label.setStyleSheet(
+                    f"color: {self.config.warning_color}; font-weight: bold; padding: 5px;"
+                )
+                self.workflow_steps_label.setText(
+                    "System time is valid, but this step is not complete until the RTC succeeds."
+                )
+                self.workflow_hint_label.setText(
+                    "The wizard will now try to save the valid system time to the external RTC."
+                )
+                self.logger.info("System time is synchronized via NTP")
+            elif self._current_time_source == "rtc":
+                self.sync_status_label.setText("✅ Time configured from external RTC")
                 self.sync_status_label.setStyleSheet(
                     f"color: {self.config.success_color}; font-weight: bold; padding: 5px;"
                 )
-                self._enable_continue()
-                self.logger.info("System time is synchronized")
-            else:
-                self.sync_status_label.setText("⚠️ System time is not synchronized")
+                self.logger.info("System time is configured from RTC")
+            elif self._current_time_source == "manual":
+                self.sync_status_label.setText("✅ Time set manually and saved to RTC")
                 self.sync_status_label.setStyleSheet(
-                    f"color: {self.config.error_color}; font-weight: bold; padding: 5px;"
+                    f"color: {self.config.success_color}; font-weight: bold; padding: 5px;"
                 )
-                self.logger.warning("System time is not synchronized")
+                self.logger.info("System time is configured manually")
+            else:
+                self.sync_status_label.setText(
+                    "⚠️ System time still needs to be configured"
+                )
+                self.sync_status_label.setStyleSheet(
+                    f"color: {self.config.warning_color}; font-weight: bold; padding: 5px;"
+                )
+                self.logger.warning("System time is not yet configured")
 
-            # Check NTP service
             if "ntp service: active" in status_output.lower():
                 self.details_text.append("✅ NTP service is active")
                 self.logger.debug("NTP service is active")
@@ -647,8 +752,75 @@ class TimeSyncStep(WizardStep):
                 self.details_text.append("⚠️ NTP service is inactive")
                 self.logger.debug("NTP service is inactive")
 
+            if (
+                not synchronized
+                and ntp_active
+                and self._current_time_source == "unknown"
+            ):
+                self.details_text.append(
+                    "⏳ NTP is active but synchronization is still pending."
+                )
+
         except Exception as e:
             self.logger.error(f"Error parsing time status: {e}")
+
+    def _set_time_source(self, source: str) -> None:
+        self._current_time_source = source
+        source_messages = {
+            "ntp": "✅ Time synchronized from network time",
+            "rtc": "✅ Time configured from external RTC",
+            "manual": "✅ Time set manually and saved to RTC",
+            "unknown": "🔍 Checking time synchronization status...",
+        }
+        status_type = "success" if source != "unknown" else "info"
+        self.sync_status_label.setText(
+            source_messages.get(source, source_messages["unknown"])
+        )
+        self.sync_status_label.setStyleSheet(
+            self.ui_factory.create_status_label(
+                "tmp", status_type=status_type
+            ).styleSheet()
+        )
+
+    def _is_system_time_reasonable(self) -> bool:
+        now = datetime.now()
+        return 2024 <= now.year <= datetime.now().year + 1
+
+    def _begin_ntp_polling(self) -> None:
+        self._ntp_poll_attempts = 0
+        self.ntp_poll_timer.start()
+
+    def _poll_ntp_status(self) -> None:
+        self._ntp_poll_attempts += 1
+        self._update_workflow_step(
+            3,
+            4,
+            f"Waiting for network time sync ({self._ntp_poll_attempts}/{self.NTP_POLL_MAX_ATTEMPTS})...",
+        )
+
+        result = self.process_runner.run_command(
+            ["timedatectl", "status"], timeout_ms=5000
+        )
+        if (
+            result
+            and result.returncode == 0
+            and "synchronized: yes" in result.stdout.lower()
+        ):
+            self.ntp_poll_timer.stop()
+            self.details_text.append("✅ Network time synchronization confirmed")
+            self._set_time_source("ntp")
+            self._schedule_workflow_callback(500, self._automatic_set_rtc)
+            return
+
+        if self._ntp_poll_attempts >= self.NTP_POLL_MAX_ATTEMPTS:
+            self.ntp_poll_timer.stop()
+            self.details_text.append(
+                "⚠️ WiFi is connected, but internet time did not finish in time."
+            )
+            self._handle_automatic_workflow_failure(
+                "WiFi is connected but time servers are unreachable or still pending."
+            )
+            return
 
     def _check_wifi_connected(self) -> bool:
         """Check if WiFi is currently connected."""
@@ -711,23 +883,12 @@ class TimeSyncStep(WizardStep):
                 self.logger.warning(f"Time sync service restart warning: {error2}")
 
             self.details_text.append("✅ Time sync service restarted")
-
-            # Wait for synchronization
-            self._update_workflow_step(2, 4, "Waiting for time sync (5 seconds)...")
-            self.details_text.append("⏰ Waiting 5 seconds for time synchronization...")
-            import time
-
-            time.sleep(5)
-
-            # Step 3: Verify time sync
-            self._update_workflow_step(3, 4, "Verifying time synchronization...")
-            self.details_text.append("⏰ Step 3/4: Verifying time synchronization...")
-            self._check_time_status()
-
-            # Step 4: Set external RTC
-            self._update_workflow_step(4, 4, "Configuring external RTC...")
-            self.details_text.append("⏰ Step 4/4: Configuring external RTC...")
-            QTimer.singleShot(1000, self._automatic_set_rtc)
+            self.details_text.append(
+                "⏰ Waiting for network time to finish synchronizing..."
+            )
+            self._schedule_workflow_callback(
+                self.NTP_POLL_INTERVAL_MS, self._begin_ntp_polling
+            )
 
         except Exception as e:
             self._handle_automatic_workflow_failure(f"Automatic workflow error: {e}")
@@ -744,13 +905,13 @@ class TimeSyncStep(WizardStep):
                 raise FlashTVError("Sudo password required", ErrorType.VALIDATION_ERROR)
 
             # Get paths
-            python_path = f"/home/{username}/py38/bin/python"
+            python_path = get_python_path(username)
             rtc_set_script = f"/home/{username}/flash-tv-scripts/python_scripts/set_external_RTC_and_save_start_date.py"
 
             data_path = self.state.get_user_input(UserInputKey.DATA_PATH, "")
             participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
             device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
-            combined_id = f"{participant_id}{device_id}"
+            combined_id = build_participant_full_id(participant_id, device_id)
 
             if not data_path:
                 raise FlashTVError(
@@ -758,8 +919,6 @@ class TimeSyncStep(WizardStep):
                 )
 
             # Ensure data directory exists
-            import os
-
             os.makedirs(data_path, exist_ok=True)
             start_date_file = os.path.join(data_path, f"{combined_id}_start_date.txt")
 
@@ -769,11 +928,15 @@ class TimeSyncStep(WizardStep):
                 "set external RTC automatically",
             )
 
-            if error:
+            if not self._command_succeeded(result, error):
                 self.details_text.append(
                     f"⚠️ Warning: Could not set external RTC: {error}"
                 )
                 self.logger.warning(f"RTC setup failed: {error}")
+                self._handle_automatic_workflow_failure(
+                    f"Could not configure external RTC: {error or result.stderr}"
+                )
+                return
             else:
                 self.details_text.append("✅ External RTC configured successfully")
 
@@ -785,10 +948,11 @@ class TimeSyncStep(WizardStep):
                     self.details_text.append(
                         "✅ NTP disabled - system will use RTC time"
                     )
+                self._set_time_source("rtc")
 
             # Check RTC status
             self.details_text.append("🔍 Checking RTC status...")
-            QTimer.singleShot(1000, self._complete_automatic_workflow)
+            self._schedule_workflow_callback(1000, self._complete_automatic_workflow)
 
         except Exception as e:
             self._handle_automatic_workflow_failure(f"RTC setup error: {e}")
@@ -797,47 +961,22 @@ class TimeSyncStep(WizardStep):
         """Complete the automatic workflow and show results."""
         try:
             # Check RTC status
-            self._check_rtc_status()
-
-            # Update workflow status to show success
-            self.workflow_status_label.setText("✅ Automatic Time Sync Complete!")
-            self.workflow_status_label.setStyleSheet("""
-                font-weight: bold;
-                padding: 15px;
-                background-color: #e8f5e9;
-                border: 2px solid #4caf50;
-                border-radius: 8px;
-            """)
-            self.workflow_steps_label.setText("All steps completed successfully")
-
-            # Mark as completed
-            self.details_text.append(
-                "\n✅ Automatic time synchronization completed successfully!"
-            )
-            self.details_text.append(
-                "System time synced from NTP and saved to external RTC"
-            )
-
-            self._enable_continue()
-
-            QMessageBox.information(
-                self,
-                "Time Sync Complete",
-                "Time synchronization completed successfully!\n\n"
-                "✅ System time synced with network time\n"
-                "✅ External RTC configured\n"
-                "✅ Ready to continue",
-                QMessageBox.StandardButton.Ok,
-            )
-
-            # Switch back to manual controls (but keep success message visible briefly)
-            QTimer.singleShot(2000, self._show_manual_controls_view)
+            rtc_verified = self._check_rtc_status()
+            if rtc_verified:
+                self._set_ready_to_continue_state(
+                    "System time was synchronized from network time.",
+                    "External RTC was written and checked successfully.",
+                )
+            else:
+                self._block_until_rtc_is_fixed(
+                    "Automatic time setup finished, but the external RTC check did not succeed."
+                )
+            self._show_manual_controls_view()
 
         except Exception as e:
             self.logger.error(f"Error completing workflow: {e}")
+            self.update_status(StepStatus.USER_ACTION_REQUIRED)
             self._show_manual_controls_view()
-        finally:
-            self.update_status(StepStatus.COMPLETED)
 
     def _handle_automatic_workflow_failure(self, error_message: str) -> None:
         """Handle failure in automatic workflow."""
@@ -853,27 +992,33 @@ class TimeSyncStep(WizardStep):
             border-radius: 8px;
         """)
         self.workflow_steps_label.setText("Please use manual controls below")
+        self.workflow_hint_label.setText(
+            "Try the manual time or RTC controls below. If the step still will not finish after one retry, ask technical support for help."
+        )
 
-        self.details_text.append(f"\n❌ Automatic workflow failed: {error_message}")
+        self.details_text.append("\n❌ Automatic time setup could not finish.")
         self.details_text.append(
-            "\n📌 Please use manual controls to complete time setup"
+            "📌 What to try next: use the manual time button or retry the RTC action below."
+        )
+        self.details_text.append(
+            "📌 When to ask for help: if the clock still will not set correctly or the RTC still fails after one retry, ask technical support."
         )
 
         self.update_status(StepStatus.USER_ACTION_REQUIRED)
-
-        QMessageBox.warning(
-            self,
-            "Automatic Setup Failed",
-            f"Automatic time synchronization failed:\n\n{error_message}\n\n"
-            "Please use the manual controls to complete setup.",
-            QMessageBox.StandardButton.Ok,
-        )
 
         # Switch to manual controls view
         self._show_manual_controls_view()
 
     def _enable_continue(self) -> None:
         """Enable continue button and mark step as completed."""
+        if not self._rtc_persistence_verified:
+            self.logger.warning(
+                "Attempted to complete time sync step before RTC persistence was verified"
+            )
+            self.continue_button.setEnabled(False)
+            self.update_status(StepStatus.USER_ACTION_REQUIRED)
+            return
+
         self.continue_button.setEnabled(True)
         self.update_status(StepStatus.COMPLETED)
         # Save time sync completion
@@ -885,23 +1030,7 @@ class TimeSyncStep(WizardStep):
     def _synchronize_time(self, checked: bool = False) -> None:
         """Synchronize system time using NTP with comprehensive error handling."""
         try:
-            # Confirm with user
-            reply = QMessageBox.question(
-                self,
-                "Synchronize Time",
-                "This will enable automatic time synchronization using NTP. Continue?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-
-            if reply != QMessageBox.StandardButton.Yes:
-                self.logger.info("User cancelled time synchronization")
-                return
-
             self.logger.info("Starting time synchronization process")
-            self.update_status(StepStatus.AUTOMATION_RUNNING)
-            self.sync_button.setEnabled(False)
-
-            # Set sudo password from state for time sync operations
             if not self.process_runner.set_sudo_password_from_state():
                 self.logger.error(
                     "Sudo password not available for time sync operations"
@@ -911,67 +1040,16 @@ class TimeSyncStep(WizardStep):
                     ErrorType.VALIDATION_ERROR,
                 )
 
-            # Enable NTP
-            result1, error1 = self.process_runner.run_sudo_command(
-                ["timedatectl", "set-ntp", "1"], "enable time synchronization"
-            )
-
-            if error1:
-                self.logger.error(f"Failed to enable NTP: {error1}")
-                QMessageBox.critical(
-                    self, "Error", f"Failed to enable NTP synchronization: {error1}"
-                )
-                self.update_status(StepStatus.FAILED)
-                return
-
-            # Restart time sync service
-            result2, error2 = self.process_runner.run_sudo_command(
-                ["systemctl", "restart", MESSAGES.Services.SYSTEMD_TIMESYNCD],
-                "restart time sync service",
-            )
-
-            if error2:
-                self.logger.warning(f"Failed to restart time sync service: {error2}")
-
-            # Wait for synchronization
-            import time
-
-            time.sleep(3)
-
-            # Recheck status
-            self._check_time_status()
-
-            # Persist state
-            if self.state_manager:
-                self.state_manager.save_state(self.state)
-
-            if self.continue_button.isEnabled():
-                self.logger.info("Time synchronization completed successfully")
-                self.details_text.append(
-                    "✅ Time synchronization completed successfully!"
-                )
-            else:
-                self.update_status(StepStatus.USER_ACTION_REQUIRED)
-                self.logger.warning("Time synchronization enabled but still pending")
-                QMessageBox.warning(
-                    self,
-                    "Synchronization Pending",
-                    "NTP synchronization has been enabled but may take a few moments to complete.",
-                )
+            self._automatic_ntp_workflow()
 
         except Exception as e:
             self.logger.error(f"Error during time synchronization: {e}")
-            QMessageBox.critical(
-                self, "Error", f"Time synchronization failed: {str(e)}"
-            )
             self.update_status(StepStatus.FAILED)
             raise FlashTVError(
                 f"Time synchronization failed: {e}",
                 ErrorType.PROCESS_ERROR,
                 recovery_action="Try manually setting the time or check NTP service",
             )
-        finally:
-            self.sync_button.setEnabled(True)
 
     @handle_step_error
     def _set_time_manually(self, checked: bool = False) -> None:
@@ -1047,9 +1125,6 @@ class TimeSyncStep(WizardStep):
 
                 if error:
                     self.logger.error(f"Failed to set time manually: {error}")
-                    QMessageBox.critical(
-                        self, "Error", f"Failed to set system time: {error}"
-                    )
                     raise FlashTVError(
                         f"Failed to set time manually: {error}",
                         ErrorType.PROCESS_ERROR,
@@ -1065,12 +1140,13 @@ class TimeSyncStep(WizardStep):
                     self.details_text.append(
                         "✅ Manual time setting completed successfully!"
                     )
+                    self._set_time_source("manual")
 
                     # Automatically configure RTC after manual time set
                     self.details_text.append(
                         "\n⏰ Automatically configuring external RTC..."
                     )
-                    QTimer.singleShot(1000, self._automatic_set_rtc)
+                    self._schedule_workflow_callback(1000, self._automatic_set_rtc)
             else:
                 self.logger.info("User cancelled manual time setting")
 
@@ -1098,10 +1174,8 @@ class TimeSyncStep(WizardStep):
                 self.request_next_step.emit()
             else:
                 self.logger.warning("Continue clicked but time not synchronized")
-                QMessageBox.warning(
-                    self,
-                    "Time Not Synchronized",
-                    "Please synchronize the system time before continuing.",
+                self.details_text.append(
+                    "⚠️ Please configure the system time before continuing."
                 )
 
         except Exception as e:
@@ -1118,14 +1192,34 @@ class TimeSyncStep(WizardStep):
         super().activate_step()
 
         self.logger.info("Time synchronization step activated")
+        self._current_time_source = "unknown"
+        self._rtc_persistence_verified = False
+        self.continue_button.setEnabled(False)
 
         # Check if already completed in state
-        if self.state.get_user_input(UserInputKey.TIME_SYNCED, False):
+        if (
+            self.state.get_user_input(UserInputKey.TIME_SYNCED, False)
+            and self._is_system_time_reasonable()
+        ):
             self.logger.info("Time synchronization already completed")
-            self.sync_status_label.setText("✅ Time synchronization already completed")
+            self.sync_status_label.setText(
+                "✅ Previously configured time still looks valid"
+            )
             self.sync_status_label.setStyleSheet(
                 f"color: {self.config.success_color}; font-weight: bold; padding: 5px;"
             )
+            self.details_text.append("✅ Previously configured time still looks valid.")
+            self.workflow_status_label.setText(
+                "✅ External RTC save/check already completed earlier."
+            )
+            self.workflow_status_label.setStyleSheet(
+                f"color: {self.config.success_color}; font-weight: bold; padding: 5px;"
+            )
+            self.workflow_steps_label.setText("Ready to continue")
+            self.workflow_hint_label.setText(
+                "System time is valid and the prior RTC completion state was restored."
+            )
+            self._rtc_persistence_verified = True
             self._enable_continue()
             self._show_manual_controls_view()
             return
@@ -1133,12 +1227,14 @@ class TimeSyncStep(WizardStep):
         # Check current time status first
         self._check_time_status()
 
-        # If time is already synchronized (e.g., NTP already working), we're done
-        # _parse_time_status() will have called _enable_continue() if synchronized
-        if self.continue_button.isEnabled():
-            self.logger.info("System time is already synchronized - no further action needed")
-            self.details_text.append("✅ System time is already synchronized via NTP")
-            self._show_manual_controls_view()
+        if self._current_time_source == "ntp":
+            self.logger.info(
+                "System time is already synchronized - now persisting to external RTC"
+            )
+            self.details_text.append(
+                "✅ System time is already valid. The wizard will now save it to the external RTC."
+            )
+            self._schedule_workflow_callback(500, self._automatic_set_rtc)
             return
 
         # Time is NOT synchronized - need to set it up
@@ -1150,22 +1246,14 @@ class TimeSyncStep(WizardStep):
             self.details_text.append(
                 "✅ WiFi connected - starting automatic time synchronization..."
             )
-            QTimer.singleShot(500, self._automatic_ntp_workflow)
+            self._schedule_workflow_callback(500, self._automatic_ntp_workflow)
         else:
             # No WiFi and time not synchronized - prompt user to manually set time
             self.details_text.append("⚠️ No WiFi connection detected")
             self.details_text.append(
-                "📌 Please manually set the current time using the button below"
+                "📌 Please set the current time manually using the button below. If you expected WiFi to work, ask the study technician for help before continuing."
             )
             self._show_manual_controls_view()
-            QMessageBox.information(
-                self,
-                "Manual Time Setup Required",
-                "WiFi is not connected and system time is not synchronized.\n\n"
-                "Please manually set the current date and time.\n"
-                "The system will automatically configure the RTC after you set the time.",
-                QMessageBox.StandardButton.Ok,
-            )
 
     def update_ui(self) -> None:
         """Update UI elements periodically with framework integration."""

@@ -117,12 +117,24 @@ def capture_screenshots():
 
         # Pre-populate state with test data so steps render properly
         wizard.state.set_user_input(UserInputKey.PARTICIPANT_ID, "P1-3999028")
-        wizard.state.set_user_input(UserInputKey.DEVICE_ID, "A")
+        wizard.state.set_user_input(UserInputKey.DEVICE_ID, "007")
         wizard.state.set_user_input(UserInputKey.USERNAME, "flashsys007")
-        wizard.state.set_user_input(UserInputKey.DATA_PATH, "/home/flashsys007/data")
+        wizard.state.set_user_input(
+            UserInputKey.DATA_PATH, "/home/flashsys007/data/P1-3999028007_data"
+        )
         wizard.state.set_user_input(UserInputKey.WIFI_SSID, "FLASH-Network")
         wizard.state.set_user_input(UserInputKey.WIFI_CONNECTED, True)
-        wizard.state.set_camera_index(0)
+        wizard.state.set_user_input(UserInputKey.SELECTED_CAMERA, "/dev/video0")
+        wizard.state.set_user_input(
+            UserInputKey.SELECTED_CAMERA_NAME, "Screenshot Camera"
+        )
+        wizard.state.set_user_input(UserInputKey.CAMERA_TESTED, True)
+        wizard.state.set_user_input(UserInputKey.POV_PICTURE_COMPLETE, True)
+        wizard.state.set_user_input(
+            UserInputKey.GALLERY_PATH,
+            "/home/flashsys007/data/P1-3999028007_data/P1-3999028007_faces",
+        )
+        wizard.state.set_user_input(UserInputKey.GALLERY_VALIDATED, True)
 
         # Process events to render
         app.processEvents()

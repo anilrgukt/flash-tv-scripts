@@ -3,9 +3,6 @@
 export username=flashsysXXX
 export participantID=123XXX
 
-# Set up rtc0 (PSEQ_RTC) as the main internal RTC instead of rtc1 (tegra-RTC)
-sudo sed -i 's/ATTR{hctosys}=="1"/ATTR{hctosys}=="0"/g' "/lib/udev/rules.d/50-udev-default.rules"
-
 # shellcheck source=/dev/null
 source "/home/${username}/py38/bin/activate"
 

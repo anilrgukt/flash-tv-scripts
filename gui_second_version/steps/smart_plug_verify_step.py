@@ -12,6 +12,11 @@ from glob import glob
 import numpy as np
 import pyqtgraph as pg
 from config.messages import MESSAGES
+from config.participant_contract import (
+    build_participant_full_id,
+    get_participant_data_dir,
+    get_tv_power_csv_path,
+)
 from core import WizardStep
 from core.exceptions import ErrorType, FlashTVError, handle_step_error
 from PySide6.QtCore import Qt, QTimer
@@ -34,9 +39,11 @@ class SmartPlugVerifyStep(WizardStep):
         main_layout = self.ui_factory.create_main_step_layout()
         content.setLayout(main_layout)
 
-        # Create status section
-        status_section = self._create_status_section()
-        main_layout.addWidget(status_section)
+        top_section = self._create_top_section()
+        main_layout.addLayout(top_section)
+
+        middle_section = self._create_middle_section()
+        main_layout.addLayout(middle_section)
 
         # Create interactive plot section
         plot_section = self._create_plot_section()
@@ -56,7 +63,9 @@ class SmartPlugVerifyStep(WizardStep):
         self.last_connected = None
 
         # Setup timer for status updates - use base class create_timer for automatic cleanup
-        self.status_timer = self.create_timer(5000, self._safe_update_status, start=False)
+        self.status_timer = self.create_timer(
+            5000, self._safe_update_status, start=False
+        )
 
         return content
 
@@ -84,8 +93,9 @@ class SmartPlugVerifyStep(WizardStep):
             Navigate to Home Assistant\n
             Go to History page\n
             You will then manually select the power data from the dropdown if not already selected\n
-            You will then test by turning the TV on/off\n
-            You will then click the 'Capture Screenshot' button to capture a screenshot that best represents the on and off power states"""
+            You will then test by turning the TV OFF for about 1 minute and then ON for about 1 minute\n
+            This check should be short and usually takes no more than about 5 minutes total\n
+            You will then click the 'Capture Screenshot' button to capture a screenshot that best represents the off and on power states"""
         )
         automation_layout.addWidget(automation_text)
         automation_layout.addStretch()
@@ -178,10 +188,11 @@ class SmartPlugVerifyStep(WizardStep):
         instruction_label = self.ui_factory.create_label(
             "After browser opens:\n\n"
             "1. Enter the room name in the textbox\n"
-            "2. Turn TV OFF and wait a few minutes\n"
-            "3. Turn TV ON and wait a few minutes\n"
-            "4. Click 'Capture Screenshot' to capture screenshot\n"
-            "5. Click 'Data Verified' if everything works correctly"
+            "2. Turn TV OFF and watch the plot for about 1 minute\n"
+            "3. Turn TV ON and watch the plot for about 1 minute\n"
+            "4. This check should stay short and usually take no more than about 5 minutes total\n"
+            "5. Click 'Capture Screenshot' to capture screenshot\n"
+            "6. Click 'Data Verified' if everything works correctly"
         )
         instruction_layout.addWidget(instruction_label)
         instruction_layout.addStretch()
@@ -208,6 +219,8 @@ class SmartPlugVerifyStep(WizardStep):
         )
         self.current_marker_type = "on"  # Toggle between 'on' and 'off' when placing
         self.region_items = []  # Store LinearRegionItem objects for shaded regions
+        self.auto_scroll_enabled = True
+        self._programmatic_view_update = False
 
         # Data boundaries for axis restrictions
         self.data_start_time = None
@@ -256,6 +269,7 @@ class SmartPlugVerifyStep(WizardStep):
         # Connect range change signal for axis restrictions
         self.vb = self.plot_widget.plotItem.getViewBox()
         self.vb.sigRangeChanged.connect(self._enforce_range_limits)
+        self.vb.sigRangeChanged.connect(self._handle_view_range_changed)
 
         # Add plot to layout
         plot_layout.addWidget(self.plot_widget)
@@ -278,15 +292,14 @@ class SmartPlugVerifyStep(WizardStep):
         )
         button_layout.addWidget(self.clear_markers_button)
 
-        # Data verified button
-        self.data_verified_button = self.ui_factory.create_action_button(
-            "✓ Data Verified - Power Changes Detected",
-            callback=self._data_verified,
-            style=ButtonStyle.SUCCESS,
-            height=40,
-            enabled=False,
+        self.reset_auto_scroll_button = self.ui_factory.create_action_button(
+            "Follow Latest Data",
+            callback=self._reset_plot_auto_scroll,
+            style=ButtonStyle.SECONDARY,
+            height=35,
         )
-        button_layout.addWidget(self.data_verified_button)
+        button_layout.addWidget(self.reset_auto_scroll_button)
+        self._update_auto_scroll_button_text()
 
         plot_layout.addLayout(button_layout)
 
@@ -533,7 +546,7 @@ class SmartPlugVerifyStep(WizardStep):
             line.setValue(snapped_pos)
 
         self.logger.info(
-            f"Moved {line.marker_type.upper()} {line.marker_position} marker to {snapped_pos:.2f} seconds"
+            f"Moved {line.marker_type.upper()} {line.marker_position} marker to {self._format_timestamp_for_display(snapped_pos)}"
         )
         self._redraw_plot()
 
@@ -585,24 +598,26 @@ class SmartPlugVerifyStep(WizardStep):
         # Prevent zooming out beyond allowed range
         current_width = x_max - x_min
         max_width = max_end - max_start
+        min_width = min(60, max_width) if max_width > 0 else 0
 
         if current_width > max_width:
             # Force back to full allowed range
             x_min = max_start
             x_max = max_end
-        elif current_width < 60:  # Minimum 1 minute visible (60 seconds)
+        elif min_width > 0 and current_width < min_width:
             # Prevent over-zooming
             center = (x_range[0] + x_range[1]) / 2
-            x_min = center - 30  # 30 seconds before center
-            x_max = center + 30  # 30 seconds after center
+            half_width = min_width / 2
+            x_min = center - half_width
+            x_max = center + half_width
 
             # Adjust if this pushes us out of bounds
             if x_min < max_start:
                 x_min = max_start
-                x_max = x_min + 60
+                x_max = min(max_end, x_min + min_width)
             elif x_max > max_end:
                 x_max = max_end
-                x_min = x_max - 60
+                x_min = max(max_start, x_max - min_width)
 
         # Force Y range to always be the full data range (no Y-axis zooming)
         y_min = self.data_min_y  # Always 0
@@ -617,8 +632,95 @@ class SmartPlugVerifyStep(WizardStep):
 
         if x_changed or y_changed:
             self.vb.blockSignals(True)
-            self.vb.setRange(xRange=[x_min, x_max], yRange=[y_min, y_max], padding=0)
-            self.vb.blockSignals(False)
+            self._programmatic_view_update = True
+            try:
+                self.vb.setRange(
+                    xRange=[x_min, x_max], yRange=[y_min, y_max], padding=0
+                )
+            finally:
+                self._programmatic_view_update = False
+                self.vb.blockSignals(False)
+
+    def _handle_view_range_changed(self, _, view_range) -> None:
+        self._center_no_data_text()
+        if self._programmatic_view_update or self.data_start_time is None:
+            return
+
+        if self.auto_scroll_enabled:
+            self.auto_scroll_enabled = False
+            self._update_auto_scroll_button_text()
+            self.logger.info(
+                "Manual plot navigation detected - preserving current view until 'Follow Latest Data' is pressed"
+            )
+
+    def _update_auto_scroll_button_text(self) -> None:
+        if not hasattr(self, "reset_auto_scroll_button"):
+            return
+
+        if self.auto_scroll_enabled:
+            self.reset_auto_scroll_button.setText("Following Latest Data")
+        else:
+            self.reset_auto_scroll_button.setText("Follow Latest Data")
+
+    def _reset_plot_auto_scroll(self, checked: bool = False) -> None:
+        self.auto_scroll_enabled = True
+        self._update_auto_scroll_button_text()
+        self._apply_current_view_range(force=True)
+
+    def _format_timestamp_for_display(self, timestamp: float) -> str:
+        try:
+            return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+        except (OverflowError, OSError, ValueError):
+            return f"{timestamp:.2f}"
+
+    def _format_duration_for_display(self, seconds: float) -> str:
+        total_seconds = max(0, int(round(seconds)))
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, secs = divmod(remainder, 60)
+        if hours:
+            return f"{hours}h {minutes}m {secs}s"
+        if minutes:
+            return f"{minutes}m {secs}s"
+        return f"{secs}s"
+
+    def _sanitize_filename_component(self, value: str) -> str:
+        sanitized = "".join(
+            char if char.isalnum() or char in (" ", "-", "_") else "_"
+            for char in value.strip()
+        ).strip(" ._")
+        return sanitized or "Room"
+
+    def _get_auto_scroll_window(self) -> float:
+        if self.data_start_time is None or self.data_end_time is None:
+            return 0
+
+        return 10 * 60
+
+    def _apply_current_view_range(self, force: bool = False) -> None:
+        if self.data_start_time is None or self.data_end_time is None:
+            return
+
+        if not force and not self.auto_scroll_enabled:
+            return
+
+        x_end = self.data_end_time
+        window = self._get_auto_scroll_window()
+        x_start = max(self.data_start_time, x_end - window)
+
+        if x_end <= x_start:
+            x_start = self.data_start_time
+
+        self._programmatic_view_update = True
+        try:
+            self.vb.setRange(
+                xRange=[x_start, x_end],
+                yRange=[self.data_min_y, self.data_max_y],
+                padding=0,
+            )
+        finally:
+            self._programmatic_view_update = False
+
+        self._center_no_data_text()
 
     def _center_no_data_text(self) -> None:
         """Center the 'No Data' text in the visible plot area."""
@@ -650,7 +752,7 @@ class SmartPlugVerifyStep(WizardStep):
                 self.power_values,
                 pen=pg.mkPen("b", width=2),
                 name="TV Power",
-                stepMode='left',  # Step-wise display: value holds until next data point
+                stepMode="left",  # Step-wise display: value holds until next data point
             )
         else:
             # Update existing curve with new data
@@ -699,16 +801,14 @@ class SmartPlugVerifyStep(WizardStep):
             if not all([participant_id, device_id, username]):
                 return
 
-            full_id = f"{participant_id}{device_id}"
-            csv_file = f"/home/{username}/data/{full_id}_data/{full_id}_tv_power_5s.csv"
+            csv_file = str(get_tv_power_csv_path(username, participant_id, device_id))
 
             if not os.path.exists(csv_file):
                 return
 
             # Read CSV file and parse timestamps
             # Format: power_value;date;time (e.g., 45.2;01.15.2025;14.30.45)
-            powers = []
-            timestamps = []
+            data_points = []
             first_timestamp = None
 
             with open(csv_file, "r") as f:
@@ -723,42 +823,39 @@ class SmartPlugVerifyStep(WizardStep):
                             # Parse timestamp
                             datetime_str = f"{date_str} {time_str}"
                             dt = datetime.strptime(datetime_str, "%m.%d.%Y %H.%M.%S")
+                            timestamp = dt.timestamp()
 
-                            if first_timestamp is None:
+                            if first_timestamp is None or dt < first_timestamp:
                                 first_timestamp = dt
 
-                            # Calculate seconds from first timestamp
-                            elapsed_seconds = (dt - first_timestamp).total_seconds()
-
-                            powers.append(power)
-                            timestamps.append(elapsed_seconds)
+                            data_points.append((timestamp, power))
                         except Exception:
                             # Skip malformed lines
                             continue
 
-            if powers and timestamps:
+            if data_points:
+                data_points.sort(key=lambda point: point[0])
+                timestamps = [timestamp for timestamp, _ in data_points]
+                powers = [power for _, power in data_points]
+
                 # Store both timestamps and power values
                 self.power_times = np.array(timestamps)
                 self.power_values = np.array(powers)
                 self.first_timestamp = first_timestamp
 
                 # Set data boundaries for axis restrictions
-                self.data_start_time = 0  # Start at 0 seconds
-                self.data_end_time = self.power_times[-1]  # End at last timestamp
+                self.data_start_time = float(self.power_times[0])
+                self.data_end_time = float(self.power_times[-1])
                 self.data_min_y = 0  # Always start at 0
                 self.data_max_y = max(powers) * 1.5 if powers else 100  # 1.5x max power
 
                 # Always redraw plot with latest data
                 self._redraw_plot()
 
-                # Set initial view range (only on first load)
-                if not hasattr(self, "_initial_view_set"):
-                    self.vb.setRange(
-                        xRange=[self.data_start_time, self.data_end_time],
-                        yRange=[self.data_min_y, self.data_max_y],
-                        padding=0,
-                    )
-                    self._initial_view_set = True
+                self._apply_current_view_range(
+                    force=not hasattr(self, "_initial_view_set")
+                )
+                self._initial_view_set = True
 
                 # Only log once
                 if not hasattr(self, "_data_loaded_logged"):
@@ -843,9 +940,7 @@ class SmartPlugVerifyStep(WizardStep):
             device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
             username = self.state.get_user_input(UserInputKey.USERNAME, "")
 
-            full_participant_id = (
-                f"{participant_id}{device_id}" if device_id else participant_id
-            )
+            full_participant_id = build_participant_full_id(participant_id, device_id)
 
             self.logger.info("Preparing to capture screenshot...")
             self.power_cycle_button.setEnabled(False)
@@ -974,13 +1069,14 @@ class SmartPlugVerifyStep(WizardStep):
 
             if screenshot_taken and os.path.exists(temp_screenshot):
                 # Create destination path
-                data_path = f"/home/{username}/data/{participant_id}_data"
+                data_path = str(get_participant_data_dir(username, participant_id))
                 self.logger.info(f"Creating data directory: {data_path}")
                 os.makedirs(data_path, exist_ok=True)
 
                 # Create filename with participant ID and room name
+                sanitized_room_name = self._sanitize_filename_component(room_name)
                 screenshot_filename = (
-                    f"{participant_id} {room_name} TV Power Baseline.png"
+                    f"{participant_id} {sanitized_room_name} TV Power Baseline.png"
                 )
                 destination_path = os.path.join(data_path, screenshot_filename)
 
@@ -1242,10 +1338,10 @@ class SmartPlugVerifyStep(WizardStep):
                         "tv_off_period_end", max(off_onset, off_offset)
                     )
                     self.logger.info(
-                        f"Saved ON period: {min(on_onset, on_offset):.2f} - {max(on_onset, on_offset):.2f}"
+                        f"Saved ON period: {self._format_timestamp_for_display(min(on_onset, on_offset))} - {self._format_timestamp_for_display(max(on_onset, on_offset))}"
                     )
                     self.logger.info(
-                        f"Saved OFF period: {min(off_onset, off_offset):.2f} - {max(off_onset, off_offset):.2f}"
+                        f"Saved OFF period: {self._format_timestamp_for_display(min(off_onset, off_offset))} - {self._format_timestamp_for_display(max(off_onset, off_offset))}"
                     )
 
                     # Save plot image and marker info to data folder
@@ -1306,7 +1402,6 @@ class SmartPlugVerifyStep(WizardStep):
 
             self.logger.info(f"Plot image saved to: {plot_path}")
 
-            # Extract marker positions (in seconds)
             on_onset = self.marker_pairs["on"]["onset"].value()
             on_offset = self.marker_pairs["on"]["offset"].value()
             off_onset = self.marker_pairs["off"]["onset"].value()
@@ -1368,21 +1463,24 @@ class SmartPlugVerifyStep(WizardStep):
                 )
                 f.write(f"Total Data Points: {len(self.power_values)}\n")
                 f.write(
-                    f"Total Duration: {self.power_times[-1]:.2f} seconds ({self.power_times[-1] / 60:.2f} minutes)\n\n"
+                    f"Total Duration: {self._format_duration_for_display(self.data_end_time - self.data_start_time)}\n"
+                )
+                f.write(
+                    f"Plot Range: {self._format_timestamp_for_display(self.data_start_time)} to {self._format_timestamp_for_display(self.data_end_time)}\n\n"
                 )
 
                 f.write("ON PERIOD MARKERS\n")
                 f.write("-" * 60 + "\n")
                 f.write(
-                    f"Start Time: {on_start_time:.2f} seconds ({on_start_time / 60:.2f} minutes)\n"
+                    f"Start Time: {self._format_timestamp_for_display(on_start_time)}\n"
                 )
                 f.write(
-                    f"End Time: {on_end_time:.2f} seconds ({on_end_time / 60:.2f} minutes)\n"
+                    f"End Time: {self._format_timestamp_for_display(on_end_time)}\n"
                 )
                 f.write(f"Start Index: {on_start_idx}\n")
                 f.write(f"End Index: {on_end_idx}\n")
                 f.write(
-                    f"Duration: {on_end_time - on_start_time:.2f} seconds ({(on_end_time - on_start_time) / 60:.2f} minutes)\n"
+                    f"Duration: {self._format_duration_for_display(on_end_time - on_start_time)}\n"
                 )
                 f.write(f"Data Points: {len(on_values)}\n")
                 f.write(f"Average Power: {on_avg:.2f} W\n")
@@ -1391,7 +1489,7 @@ class SmartPlugVerifyStep(WizardStep):
                 f.write(f"Max Power: {on_max:.2f} W\n\n")
 
                 # Write all ON period time values as a list
-                f.write("ON Period - Time Values (seconds):\n")
+                f.write("ON Period - Time Values (epoch seconds):\n")
                 f.write(str(on_times.tolist()) + "\n\n")
 
                 # Write all ON period power values as a list
@@ -1401,15 +1499,15 @@ class SmartPlugVerifyStep(WizardStep):
                 f.write("OFF PERIOD MARKERS\n")
                 f.write("-" * 60 + "\n")
                 f.write(
-                    f"Start Time: {off_start_time:.2f} seconds ({off_start_time / 60:.2f} minutes)\n"
+                    f"Start Time: {self._format_timestamp_for_display(off_start_time)}\n"
                 )
                 f.write(
-                    f"End Time: {off_end_time:.2f} seconds ({off_end_time / 60:.2f} minutes)\n"
+                    f"End Time: {self._format_timestamp_for_display(off_end_time)}\n"
                 )
                 f.write(f"Start Index: {off_start_idx}\n")
                 f.write(f"End Index: {off_end_idx}\n")
                 f.write(
-                    f"Duration: {off_end_time - off_start_time:.2f} seconds ({(off_end_time - off_start_time) / 60:.2f} minutes)\n"
+                    f"Duration: {self._format_duration_for_display(off_end_time - off_start_time)}\n"
                 )
                 f.write(f"Data Points: {len(off_values)}\n")
                 f.write(f"Average Power: {off_avg:.2f} W\n")
@@ -1418,7 +1516,7 @@ class SmartPlugVerifyStep(WizardStep):
                 f.write(f"Max Power: {off_max:.2f} W\n\n")
 
                 # Write all OFF period time values as a list
-                f.write("OFF Period - Time Values (seconds):\n")
+                f.write("OFF Period - Time Values (epoch seconds):\n")
                 f.write(str(off_times.tolist()) + "\n\n")
 
                 # Write all OFF period power values as a list
@@ -1434,12 +1532,12 @@ class SmartPlugVerifyStep(WizardStep):
                     f"Power Ratio (ON / OFF): {on_avg / off_avg if off_avg > 0 else float('inf'):.2f}x\n\n"
                 )
 
-                f.write("RAW MARKER POSITIONS (Time in seconds)\n")
+                f.write("RAW MARKER POSITIONS (Epoch Seconds)\n")
                 f.write("-" * 60 + "\n")
-                f.write(f"ON Onset: {on_onset:.2f} seconds\n")
-                f.write(f"ON Offset: {on_offset:.2f} seconds\n")
-                f.write(f"OFF Onset: {off_onset:.2f} seconds\n")
-                f.write(f"OFF Offset: {off_offset:.2f} seconds\n")
+                f.write(f"ON Onset: {on_onset:.2f}\n")
+                f.write(f"ON Offset: {on_offset:.2f}\n")
+                f.write(f"OFF Onset: {off_onset:.2f}\n")
+                f.write(f"OFF Offset: {off_offset:.2f}\n")
 
             self.logger.info(f"Marker info saved to: {info_path}")
 

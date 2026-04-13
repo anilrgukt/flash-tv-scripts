@@ -6,14 +6,15 @@ These tests verify that wizard steps work correctly with their dependencies
 
 from __future__ import annotations
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtWidgets import QLineEdit
+from PySide6.QtWidgets import QLineEdit, QMessageBox
 
 from core import ProcessRunner, StateManager
 from models import StepDefinition, StepStatus, WizardState
-from models.enums import StepContentType
+from models.enums import ProcessStatus, StepContentType
 from models.state_keys import UserInputKey, WizardStep
 from steps import StepFactory
 
@@ -45,6 +46,18 @@ def step_definition_wifi() -> StepDefinition:
         description="Configure WiFi",
         content_type=StepContentType.MIXED,
         prerequisites=[WizardStep.PARTICIPANT_SETUP],
+        validation_rules=[],
+    )
+
+
+@pytest.fixture
+def step_definition_gaze() -> StepDefinition:
+    return StepDefinition(
+        step_id=WizardStep.GAZE_DETECTION_TESTING,
+        title="Gaze Detection Testing",
+        description="Test gaze detection system functionality.",
+        content_type=StepContentType.MIXED,
+        prerequisites=[],
         validation_rules=[],
     )
 
@@ -172,6 +185,48 @@ class TestParticipantSetupStep:
 
         # Should not raise any errors
 
+    @patch("steps.participant_setup_step.detect_flash_tv_identity")
+    @patch("steps.participant_setup_step.os.path.isdir")
+    def test_manual_fallback_rejects_non_numeric_device_id(
+        self,
+        mock_isdir,
+        mock_detect_identity,
+        qtbot,
+        wizard_state: WizardState,
+        mock_process_runner: ProcessRunner,
+        step_definition_participant: StepDefinition,
+        state_manager: StateManager,
+    ):
+        from utils.identity_detection import IdentityDetectionResult
+
+        mock_detect_identity.return_value = IdentityDetectionResult(
+            reason="Automatic username and device ID detection did not succeed.",
+            fallback_reason="No flashsys### home directory was found under /home.",
+        )
+        mock_isdir.side_effect = lambda path: path == "/home/operator"
+
+        step = StepFactory.create_step_instance(
+            step_definition_participant,
+            wizard_state,
+            mock_process_runner,
+            state_manager,
+        )
+        qtbot.addWidget(step)
+        step.show()
+
+        step.participant_id_input.setText("P1-0123")
+        step.sudo_password_input.setText("testpass")
+        step.manual_username_input.setText("operator")
+        step.manual_device_input.setText("abc")
+
+        is_valid, errors = step.validate_inputs()
+
+        assert is_valid is False
+        assert step.next_button.isEnabled() is False
+        assert wizard_state.get_user_input(UserInputKey.DEVICE_ID, "") == ""
+        assert any("3-digit device ID" in error for error in errors)
+        assert "3-digit device ID" in step.validation_label.text()
+
 
 class TestWiFiConnectionStep:
     """Integration tests for WiFiConnectionStep."""
@@ -206,11 +261,14 @@ class TestWiFiConnectionStep:
         state_manager: StateManager,
     ):
         """Test WiFi status checking."""
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="SSID: TestNetwork\nSignal: 80%",
-            stderr=""
-        )
+        mock_run.side_effect = [
+            MagicMock(
+                returncode=0,
+                stdout="802-11-wireless:TestNetwork:activated\n",
+                stderr="",
+            ),
+            MagicMock(returncode=0, stdout="PING ok", stderr=""),
+        ]
 
         step = StepFactory.create_step_instance(
             step_definition_wifi,
@@ -220,6 +278,188 @@ class TestWiFiConnectionStep:
         )
         qtbot.addWidget(step)
         step.show()
+        step.activate_step()
+
+        assert populated_state.get_user_input(UserInputKey.WIFI_SSID) == "TestNetwork"
+        assert populated_state.get_user_input(UserInputKey.WIFI_CONNECTED) is True
+        assert step.current_status == StepStatus.COMPLETED
+        assert step.continue_button.isEnabled()
+        assert step.wifi_status_label.text() == "✅ Already connected to: TestNetwork"
+        assert "Internet time is available" in step.internet_status_label.text()
+        assert "time.google.com" in step.internet_status_label.text()
+        assert mock_run.call_args_list[0].args[0] == [
+            "nmcli",
+            "-t",
+            "-f",
+            "TYPE,NAME,STATE",
+            "connection",
+            "show",
+            "--active",
+        ]
+        assert mock_run.call_args_list[1].args[0] == [
+            "ping",
+            "-c",
+            "1",
+            "-W",
+            "2",
+            "time.google.com",
+        ]
+
+
+class TestGazeDetectionTestingStep:
+
+    def test_cleanup_removes_participant_specific_gaze_frames_folder(
+        self,
+        qtbot,
+        tmp_path,
+        populated_state: WizardState,
+        mock_process_runner: ProcessRunner,
+        step_definition_gaze: StepDefinition,
+        state_manager: StateManager,
+        monkeypatch,
+    ):
+        data_path = tmp_path / "P1-3999028007_data"
+        data_path.mkdir()
+        participant_frames = data_path / "P1-3999028007_gaze_test_frames"
+        participant_frames.mkdir()
+        script_dir = tmp_path / "python_scripts"
+        script_dir.mkdir()
+        (script_dir / "test_res").mkdir()
+        (script_dir / "test_frames").mkdir()
+        cwd_test_res = tmp_path / "cwd_test_res"
+        cwd_test_frames = tmp_path / "cwd_test_frames"
+        cwd_test_res.mkdir()
+        cwd_test_frames.mkdir()
+
+        populated_state.set_user_input(UserInputKey.DATA_PATH, str(data_path))
+
+        step = StepFactory.create_step_instance(
+            step_definition_gaze,
+            populated_state,
+            mock_process_runner,
+            state_manager,
+        )
+        qtbot.addWidget(step)
+        monkeypatch.setattr(step, "_get_gaze_test_script_dir", lambda username: str(script_dir))
+
+        with monkeypatch.context() as m:
+            m.chdir(tmp_path)
+            os.rename(cwd_test_res, tmp_path / "test_res")
+            os.rename(cwd_test_frames, tmp_path / "test_frames")
+            step._cleanup_test_files()
+
+        assert not (script_dir / "test_res").exists()
+        assert not (script_dir / "test_frames").exists()
+        assert not participant_frames.exists()
+        assert (tmp_path / "test_res").exists()
+        assert (tmp_path / "test_frames").exists()
+
+    def test_gaze_confirmed_success_clears_process_state_before_next_ui_tick(
+        self,
+        qtbot,
+        populated_state: WizardState,
+        mock_process_runner: ProcessRunner,
+        step_definition_gaze: StepDefinition,
+        state_manager: StateManager,
+    ):
+        process_info = MagicMock()
+        process_info.is_running.return_value = True
+        process_info.get_status.return_value = ProcessStatus.FAILED
+        process_info.get_output.return_value = ([], ["fatal error"])
+        populated_state.add_process("gaze_test", process_info)
+        mock_process_runner.terminate_process = MagicMock(return_value=True)
+
+        step = StepFactory.create_step_instance(
+            step_definition_gaze,
+            populated_state,
+            mock_process_runner,
+            state_manager,
+        )
+        qtbot.addWidget(step)
+
+        with (
+            patch(
+                "steps.gaze_detection_testing_step.QMessageBox.question",
+                return_value=QMessageBox.StandardButton.Yes,
+            ),
+            patch("steps.gaze_detection_testing_step.QMessageBox.information"),
+            patch.object(step, "_cleanup_test_files"),
+        ):
+            step._gaze_working_confirmed()
+
+        assert populated_state.get_process("gaze_test") is None
+        assert step.current_status == StepStatus.COMPLETED
+
+        step.update_ui()
+
+        assert step.current_status == StepStatus.COMPLETED
+        mock_process_runner.terminate_process.assert_called_once_with("gaze_test")
+
+    def test_gaze_failure_path_resets_ui_and_stops_process(
+        self,
+        qtbot,
+        populated_state: WizardState,
+        mock_process_runner: ProcessRunner,
+        step_definition_gaze: StepDefinition,
+        state_manager: StateManager,
+    ):
+        process_info = MagicMock()
+        process_info.is_running.return_value = True
+        populated_state.add_process("gaze_test", process_info)
+        mock_process_runner.terminate_process = MagicMock(return_value=True)
+
+        step = StepFactory.create_step_instance(
+            step_definition_gaze,
+            populated_state,
+            mock_process_runner,
+            state_manager,
+        )
+        qtbot.addWidget(step)
+
+        step.launch_button.setEnabled(False)
+        step.working_button.setEnabled(True)
+        step.not_working_button.setEnabled(True)
+        step.loading_progress_bar.setVisible(True)
+        step.loading_timer.start(1000)
+
+        step._gaze_not_working()
+
+        mock_process_runner.terminate_process.assert_called_once_with("gaze_test")
+        assert step.launch_button.isEnabled() is True
+        assert step.working_button.isEnabled() is False
+        assert step.not_working_button.isEnabled() is False
+        assert step.loading_progress_bar.isVisible() is False
+        assert step.loading_timer.isActive() is False
+        assert step.current_status == StepStatus.FAILED
+
+    def test_gaze_early_exit_reenables_launch_and_clears_process(
+        self,
+        qtbot,
+        populated_state: WizardState,
+        mock_process_runner: ProcessRunner,
+        step_definition_gaze: StepDefinition,
+        state_manager: StateManager,
+    ):
+        process_info = MagicMock()
+        process_info.is_running.return_value = False
+        process_info.get_status.return_value = ProcessStatus.FAILED
+        process_info.get_output.return_value = ([], ["fatal error"])
+        populated_state.add_process("gaze_test", process_info)
+
+        step = StepFactory.create_step_instance(
+            step_definition_gaze,
+            populated_state,
+            mock_process_runner,
+            state_manager,
+        )
+        qtbot.addWidget(step)
+
+        step.launch_button.setEnabled(False)
+
+        step.update_ui()
+
+        assert step.launch_button.isEnabled() is True
+        assert populated_state.get_process("gaze_test") is None
 
 
 class TestTimeSyncStep:
@@ -237,10 +477,8 @@ class TestTimeSyncStep:
             validation_rules=[],
         )
 
-    @patch("subprocess.run")
     def test_time_sync_check(
         self,
-        mock_run,
         qtbot,
         completed_steps_state: WizardState,
         mock_process_runner: ProcessRunner,
@@ -248,10 +486,12 @@ class TestTimeSyncStep:
         state_manager: StateManager,
     ):
         """Test time sync status checking."""
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="System clock synchronized: yes",
-            stderr=""
+        mock_process_runner.run_command = MagicMock(
+            return_value=MagicMock(
+                returncode=0,
+                stdout="System clock synchronized: yes\nNTP service: active",
+                stderr="",
+            )
         )
 
         step = StepFactory.create_step_instance(
@@ -262,6 +502,22 @@ class TestTimeSyncStep:
         )
         qtbot.addWidget(step)
         step.show()
+        step._check_time_status()
+
+        mock_process_runner.run_command.assert_called_once_with(
+            ["timedatectl", "status"], timeout_ms=10000
+        )
+        assert step.sync_status_label.text() == "✅ Time synchronized from network time"
+        assert (
+            step.workflow_status_label.text()
+            == "⏳ System time is valid. Saving/checking the external RTC is still required."
+        )
+        assert (
+            step.workflow_steps_label.text()
+            == "System time is valid, but this step is not complete until the RTC succeeds."
+        )
+        assert "System Time Status:" in step.details_text.toPlainText()
+        assert "✅ NTP service is active" in step.details_text.toPlainText()
 
 
 # ============================================================================

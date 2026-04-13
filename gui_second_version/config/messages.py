@@ -7,6 +7,12 @@ and UI labels to improve maintainability and enable future localization.
 from dataclasses import dataclass
 from typing import Dict
 
+from config.participant_contract import (
+    get_gallery_dir as get_gallery_dir_path,
+    get_participant_data_dir as get_participant_data_dir_path,
+    get_tv_power_csv_path as get_tv_power_csv_contract_path,
+)
+
 
 @dataclass
 class StepMessages:
@@ -308,7 +314,7 @@ Enter your Home Assistant URL to configure integration."""
         """Input field placeholders."""
 
         PARTICIPANT_ID = "P1-XXXX or ES-XXXX"
-        DEVICE_ID = "0XX"
+        DEVICE_ID = "007"
         USERNAME = "flashsysXXX"
         DATA_PATH = "/home/flashsysXXX/data"
 
@@ -421,13 +427,10 @@ def get_data_path(participant_id: str, username: str, device_id: str = "") -> st
         Data path in format: /home/{username}/data/{participant_id}{device_id}_data
 
     Example:
-        >>> get_data_path("P1-3999", "flashsys028", "-A")
-        '/home/flashsys028/data/P1-3999-A_data'
+        >>> get_data_path("P1-3999", "flashsys028", "007")
+        '/home/flashsys028/data/P1-3999007_data'
     """
-    full_participant_id = (
-        f"{participant_id}{device_id}" if device_id else participant_id
-    )
-    return f"/home/{username}/data/{full_participant_id}_data"
+    return str(get_participant_data_dir_path(username, participant_id, device_id))
 
 
 def get_faces_path(participant_id: str, username: str, device_id: str = "") -> str:
@@ -439,16 +442,17 @@ def get_faces_path(participant_id: str, username: str, device_id: str = "") -> s
         device_id: Optional device ID to append (e.g., '028')
 
     Returns:
-        Faces path in format: /home/{username}/data/{participant_id}{device_id}_faces
+        Faces path in format: /home/{username}/data/{participant_id}{device_id}_data/{participant_id}{device_id}_faces
 
     Example:
-        >>> get_faces_path("P1-3999", "flashsys028", "-A")
-        '/home/flashsys028/data/P1-3999-A_faces'
+        >>> get_faces_path("P1-3999", "flashsys028", "007")
+        '/home/flashsys028/data/P1-3999007_data/P1-3999007_faces'
     """
-    full_participant_id = (
-        f"{participant_id}{device_id}" if device_id else participant_id
-    )
-    return f"/home/{username}/data/{full_participant_id}_faces"
+    return str(get_gallery_dir_path(username, participant_id, device_id))
+
+
+def get_tv_power_csv_path(participant_id: str, username: str, device_id: str = "") -> str:
+    return str(get_tv_power_csv_contract_path(username, participant_id, device_id))
 
 
 def get_python_path(username: str) -> str:
@@ -462,9 +466,9 @@ def get_python_path(username: str) -> str:
 
     Example:
         >>> get_python_path("flashsys028")
-        '/home/flashsys028/py38/bin/python'
+        '/home/flashsys028/py312/bin/python'
     """
-    return f"/home/{username}/py38/bin/python"
+    return f"/home/{username}/py312/bin/python"
 
 
 # Global singleton instance

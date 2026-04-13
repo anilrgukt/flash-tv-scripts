@@ -15,8 +15,7 @@ class InputSanitizer:
     # Participant ID pattern: P1-XXXX or ES-XXXX
     PARTICIPANT_ID_PATTERN = re.compile(r"^(P1|ES)-\d{4}$")
 
-    # Device ID pattern: -A, -B, -C, -D
-    DEVICE_ID_PATTERN = re.compile(r"^-[A-D]$")
+    DEVICE_ID_PATTERN = re.compile(r"^\d{3}$")
 
     # Family ID pattern: 3-digit number (legacy support)
     FAMILY_ID_PATTERN = re.compile(r"^\d{3}$")
@@ -89,7 +88,7 @@ class InputSanitizer:
             device_id: Raw device ID from user input
 
         Returns:
-            Validated device ID in uppercase
+            Validated 3-digit device ID
 
         Raises:
             ValidationError: If device ID is invalid
@@ -97,13 +96,13 @@ class InputSanitizer:
         if not device_id:
             raise ValidationError("Device ID cannot be empty", field="device_id")
 
-        device_id = device_id.strip().upper()
+        device_id = device_id.strip()
 
         if not InputSanitizer.DEVICE_ID_PATTERN.match(device_id):
             raise ValidationError(
-                "Invalid device ID format. Expected: -A, -B, -C, or -D",
+                "Invalid device ID format. Expected: 3-digit device ID (for example 007)",
                 field="device_id",
-                recovery_action="Select a valid device ID from the dropdown",
+                recovery_action="Enter the 3 digits at the end of the username, for example 007.",
             )
 
         return device_id

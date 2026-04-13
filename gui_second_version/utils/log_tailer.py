@@ -92,7 +92,9 @@ class LogTailer:
                 state.buffered_lines.extend(new_lines)
                 # Trim buffer to max size
                 if len(state.buffered_lines) > self.max_buffer_lines:
-                    state.buffered_lines = state.buffered_lines[-self.max_buffer_lines :]
+                    state.buffered_lines = state.buffered_lines[
+                        -self.max_buffer_lines :
+                    ]
 
             if include_all:
                 return state.buffered_lines.copy()
@@ -296,9 +298,7 @@ class StderrLogTailer(LogTailer):
         super().__init__(max_buffer_lines)
         self._is_known_safe = is_error_func or (lambda x: False)
 
-    def get_new_content_with_errors(
-        self, filepath: str
-    ) -> tuple[list[str], list[str]]:
+    def get_new_content_with_errors(self, filepath: str) -> tuple[list[str], list[str]]:
         """Get new lines categorized as errors or safe warnings.
 
         Args:
@@ -315,3 +315,13 @@ class StderrLogTailer(LogTailer):
                 error_lines.append(line)
 
         return new_lines, error_lines
+
+    def get_all_content_with_errors(self, filepath: str) -> tuple[list[str], list[str]]:
+        all_lines = self.get_all_lines(filepath)
+
+        error_lines = []
+        for line in all_lines:
+            if not self._is_known_safe(line):
+                error_lines.append(line)
+
+        return all_lines, error_lines

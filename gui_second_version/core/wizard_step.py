@@ -47,6 +47,7 @@ class WizardStep(QWidget):
         self.event_store = get_event_store()
 
         self._managed_timers: list[QTimer] = []
+        self._reactivate_timers: set[int] = set()
 
         self._setup_ui()
         self.update_status(StepStatus.PENDING)
@@ -221,6 +222,14 @@ class WizardStep(QWidget):
         try:
             self.logger.info(f"Activating step {self.step_definition.step_id}")
 
+            if not self.update_timer.isActive():
+                self.update_timer.start(self.config.status_update_interval_ms)
+
+            for timer in self._managed_timers:
+                if id(timer) in self._reactivate_timers and not timer.isActive():
+                    timer.start(timer.interval())
+            self._reactivate_timers.clear()
+
             # Log step activation to event store
             self.event_store.log_step_activated(
                 self.step_definition.step_id,
@@ -277,8 +286,10 @@ class WizardStep(QWidget):
 
     def stop_all_timers(self) -> None:
         """Stop all managed timers."""
+        self._reactivate_timers.clear()
         for timer in self._managed_timers:
             if timer.isActive():
+                self._reactivate_timers.add(id(timer))
                 timer.stop()
 
     def deactivate_step(self) -> None:
@@ -323,14 +334,15 @@ class WizardStep(QWidget):
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle keyboard events for navigation.
 
-        - Enter/Return: Click continue button if enabled
+        - Enter/Return: Click the step's advance button if enabled
         - Escape: No action (could be used for cancel in future)
         """
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            # Try to find and click the continue button
-            if hasattr(self, "continue_button") and self.continue_button.isEnabled():
-                self.continue_button.click()
-                return
+            for attribute_name in ("continue_button", "next_button"):
+                advance_button = getattr(self, attribute_name, None)
+                if advance_button is not None and advance_button.isEnabled():
+                    advance_button.click()
+                    return
         super().keyPressEvent(event)
 
     def _save_notes_to_file(self, step_name: str, notes: str) -> bool:

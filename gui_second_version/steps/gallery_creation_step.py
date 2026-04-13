@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import shutil
 
 from config.messages import MESSAGES
+from config.participant_contract import build_participant_full_id, get_gallery_dir
 from core import WizardStep
 from core.exceptions import ErrorType, FlashTVError, handle_step_error
 from models import ProcessStatus, StepStatus
@@ -43,6 +45,9 @@ class GalleryCreationStep(WizardStep):
 
         # Right column: Status
         right_column = self.ui_factory.create_vertical_layout(spacing=8)
+
+        verification_section = self._create_verification_section()
+        right_column.addWidget(verification_section)
 
         status_section = self._create_status_section()
         right_column.addWidget(status_section, 1)
@@ -92,11 +97,71 @@ class GalleryCreationStep(WizardStep):
 
         return setup_group
 
+    def _create_verification_section(self) -> QWidget:
+        verification_group, verification_layout = self.ui_factory.create_group_box(
+            "Gallery Verification",
+            spacing=4,
+            margins=(10, 10, 10, 10),
+        )
+        verification_group.setMinimumHeight(250)
+
+        verification_layout.addWidget(
+            self.ui_factory.create_label(
+                "Select the family roles captured today. Unchecked roles will be filled automatically.",
+                style="color: #333;",
+            )
+        )
+
+        self.tc_checkbox = self.ui_factory.create_checkbox(
+            "Target child captured",
+            callback=self._on_gallery_verification_changed,
+            checked=False,
+        )
+        self.sib_checkbox = self.ui_factory.create_checkbox(
+            "Sibling captured",
+            callback=self._on_gallery_verification_changed,
+            checked=False,
+        )
+        self.parent_checkbox = self.ui_factory.create_checkbox(
+            "Parent captured",
+            callback=self._on_gallery_verification_changed,
+            checked=False,
+        )
+
+        verification_layout.addWidget(self.tc_checkbox)
+        verification_layout.addWidget(self.sib_checkbox)
+        verification_layout.addWidget(self.parent_checkbox)
+
+        verification_layout.addWidget(
+            self.ui_factory.create_label(
+                "Consent confirmation",
+                style="font-weight: bold; margin-top: 6px; padding-top: 6px; border-top: 1px solid #d9d9d9;",
+            )
+        )
+
+        self.consent_checkbox = self.ui_factory.create_checkbox(
+            "Family consent for selected face photos confirmed",
+            callback=self._on_gallery_verification_changed,
+            checked=False,
+        )
+        verification_layout.addWidget(self.consent_checkbox)
+
+        self.gallery_readiness_label = self.ui_factory.create_label(
+            "Confirm consent and select at least one role to enable Create Gallery.",
+            style="color: #666; padding-top: 4px;",
+        )
+        verification_layout.addWidget(self.gallery_readiness_label)
+        verification_layout.addStretch()
+
+        return verification_group
+
     def _create_status_section(self) -> QWidget:
         """Create the combined status section for gallery creation and validation."""
         status_group, status_layout = self.ui_factory.create_group_box(
-            "Gallery Creation and Validation"
+            "Create Gallery and Validation"
         )
+
+        status_layout.setSpacing(6)
 
         # Create gallery button
         self.create_gallery_button = self.ui_factory.create_action_button(
@@ -104,6 +169,7 @@ class GalleryCreationStep(WizardStep):
             callback=self._create_gallery,
             style=ButtonStyle.PRIMARY,
             height=40,
+            enabled=False,
         )
         status_layout.addWidget(self.create_gallery_button)
 
@@ -118,12 +184,104 @@ class GalleryCreationStep(WizardStep):
         # Combined status output
         self.gallery_output = self.ui_factory.create_text_area(
             placeholder="Click 'Create Gallery' to begin. Status will appear here...",
-            max_height=300,
+            max_height=150,
+            min_height=120,
             read_only=True,
         )
-        status_layout.addWidget(self.gallery_output)
+        status_layout.addWidget(self.gallery_output, 1)
+
+        self._update_gallery_readiness()
 
         return status_group
+
+    def _on_gallery_verification_changed(self) -> None:
+        self._persist_gallery_verification_state()
+        self._update_gallery_readiness()
+
+    def _persist_gallery_verification_state(self) -> None:
+        self.state.set_user_input(
+            UserInputKey.GALLERY_ROLE_TC_SELECTED, self.tc_checkbox.isChecked()
+        )
+        self.state.set_user_input(
+            UserInputKey.GALLERY_ROLE_SIB_SELECTED, self.sib_checkbox.isChecked()
+        )
+        self.state.set_user_input(
+            UserInputKey.GALLERY_ROLE_PARENT_SELECTED, self.parent_checkbox.isChecked()
+        )
+        self.state.set_user_input(
+            UserInputKey.GALLERY_CONSENT_CONFIRMED, self.consent_checkbox.isChecked()
+        )
+
+        if self.state_manager:
+            self.state_manager.save_state(self.state)
+
+    def _has_gallery_consent(self) -> bool:
+        return self.consent_checkbox.isChecked()
+
+    def _get_selected_family_roles(self) -> list[str]:
+        selected_roles: list[str] = []
+
+        if self.tc_checkbox.isChecked():
+            selected_roles.append("tc")
+        if self.sib_checkbox.isChecked():
+            selected_roles.append("sib")
+        if self.parent_checkbox.isChecked():
+            selected_roles.append("parent")
+
+        return selected_roles
+
+    def _is_gallery_ready_to_create(self) -> bool:
+        return self._has_gallery_consent() and bool(self._get_selected_family_roles())
+
+    def _update_gallery_readiness(self) -> None:
+        selected_count = len(self._get_selected_family_roles())
+        ready_to_create = self._is_gallery_ready_to_create()
+        process_info = self.state.get_process("gallery_creation")
+        process_running = bool(process_info and process_info.is_running())
+
+        self.create_gallery_button.setEnabled(ready_to_create and not process_running)
+
+        if ready_to_create:
+            self.gallery_readiness_label.setText(
+                "Ready to create the gallery with the selected family roles."
+            )
+            self.gallery_readiness_label.setStyleSheet(
+                "color: #2e7d32; font-weight: bold; padding-top: 4px;"
+            )
+        elif not self._has_gallery_consent() and selected_count == 0:
+            self.gallery_readiness_label.setText(
+                "To enable Create Gallery, confirm consent and check at least one family role."
+            )
+            self.gallery_readiness_label.setStyleSheet("color: #666; padding-top: 4px;")
+        elif not self._has_gallery_consent():
+            self.gallery_readiness_label.setText(
+                "Consent still needs to be confirmed before gallery creation can start."
+            )
+            self.gallery_readiness_label.setStyleSheet(
+                "color: #f57c00; font-weight: bold; padding-top: 4px;"
+            )
+        else:
+            self.gallery_readiness_label.setText(
+                "Check at least one family role before creating the gallery."
+            )
+            self.gallery_readiness_label.setStyleSheet(
+                "color: #f57c00; font-weight: bold; padding-top: 4px;"
+            )
+
+    def _restore_gallery_verification_state(self) -> None:
+        self.tc_checkbox.setChecked(
+            self.state.get_user_input(UserInputKey.GALLERY_ROLE_TC_SELECTED, False)
+        )
+        self.sib_checkbox.setChecked(
+            self.state.get_user_input(UserInputKey.GALLERY_ROLE_SIB_SELECTED, False)
+        )
+        self.parent_checkbox.setChecked(
+            self.state.get_user_input(UserInputKey.GALLERY_ROLE_PARENT_SELECTED, False)
+        )
+        self.consent_checkbox.setChecked(
+            self.state.get_user_input(UserInputKey.GALLERY_CONSENT_CONFIRMED, False)
+        )
+        self._update_gallery_readiness()
 
     def _create_shortcuts_section(self) -> QWidget:
         """Create the keyboard shortcuts reference section."""
@@ -159,14 +317,10 @@ class GalleryCreationStep(WizardStep):
             participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
             device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
             data_path = self.state.get_user_input(UserInputKey.DATA_PATH, "")
+            username = self.state.get_user_input(UserInputKey.USERNAME, "")
 
-            if participant_id and data_path:
-                # Include device_id in gallery path to match data path format
-                if device_id:
-                    full_participant_id = f"{participant_id}{device_id}"
-                else:
-                    full_participant_id = participant_id
-                gallery_path = str(Path(data_path) / f"{full_participant_id}_faces")
+            if participant_id and data_path and username:
+                gallery_path = str(get_gallery_dir(username, participant_id, device_id))
                 self.gallery_path_input.setText(gallery_path)
                 self.state.set_user_input(UserInputKey.GALLERY_PATH, gallery_path)
                 self.logger.info(f"Auto-generated gallery path: {gallery_path}")
@@ -198,10 +352,16 @@ class GalleryCreationStep(WizardStep):
             if not all([participant_id, data_path, username]):
                 self.logger.error("Missing required information for gallery creation")
                 self.gallery_output.append(MESSAGES.Errors.ERROR_MISSING_GALLERY_INFO)
+                self.gallery_output.append(
+                    "📌 What to try next: go back to Participant Setup and confirm the participant ID and device account details."
+                )
+                self.gallery_output.append(
+                    "📌 When to ask for help: if those details look correct but this step still cannot start, ask technical support."
+                )
                 raise FlashTVError(
                     "Missing participant ID, data path, or username",
                     ErrorType.VALIDATION_ERROR,
-                    recovery_action="Complete participant setup first",
+                    recovery_action="Go back to Participant Setup and confirm the participant ID and device account details. If that still does not fix it, ask technical support for help.",
                 )
 
             self.logger.info(
@@ -209,18 +369,18 @@ class GalleryCreationStep(WizardStep):
             )
             self.update_status(StepStatus.AUTOMATION_RUNNING)
             self.create_gallery_button.setEnabled(False)
+            self.continue_button.setEnabled(False)
             self.progress_bar.setVisible(True)
             self.progress_bar.setValue(10)
             self.progress_bar.setFormat("Starting gallery creation... %p%")
 
             # Construct gallery path
-            if device_id:
-                full_participant_id = f"{participant_id}{device_id}"
-            else:
-                full_participant_id = participant_id
-            gallery_path = str(Path(data_path) / f"{full_participant_id}_faces")
+            full_participant_id = build_participant_full_id(participant_id, device_id)
+            gallery_path = str(get_gallery_dir(username, participant_id, device_id))
             self.gallery_path_input.setText(gallery_path)
             self.state.set_user_input(UserInputKey.GALLERY_PATH, gallery_path)
+            self.state.set_user_input(UserInputKey.GALLERY_VALIDATED, False)
+            self.state.set_user_input(UserInputKey.GALLERY_TOTAL_IMAGES, 0)
 
             # Persist state
             if self.state_manager:
@@ -265,17 +425,20 @@ class GalleryCreationStep(WizardStep):
             else:
                 self.logger.error("Failed to start gallery creation script")
                 self.gallery_output.append(
-                    "❌ Failed to start gallery creation process"
+                    "❌ The gallery window could not be started."
                 )
                 self.gallery_output.append(
-                    "💡 Please check script permissions and try again"
+                    "📌 What to try next: click 'Create Gallery' again once."
+                )
+                self.gallery_output.append(
+                    "📌 When to ask for help: if the gallery window still does not open, ask technical support."
                 )
                 self.update_status(StepStatus.FAILED)
                 self._reset_gallery_creation_ui()
                 raise FlashTVError(
                     "Failed to start gallery creation script",
                     ErrorType.PROCESS_ERROR,
-                    recovery_action="Check script permissions and try again",
+                    recovery_action="Try starting gallery creation again once. If the window still does not open, ask technical support for help.",
                 )
 
         except Exception as e:
@@ -374,6 +537,104 @@ class GalleryCreationStep(WizardStep):
                 f"⚠️  Warning: Could not fill missing extra faces: {e}"
             )
 
+    @handle_step_error
+    def _fill_unchecked_family_roles(self) -> None:
+        participant_id = self.state.get_user_input(UserInputKey.PARTICIPANT_ID, "")
+        device_id = self.state.get_user_input(UserInputKey.DEVICE_ID, "")
+        data_path = self.state.get_user_input(UserInputKey.DATA_PATH, "")
+        username = self.state.get_user_input(UserInputKey.USERNAME, "")
+
+        if not all([participant_id, data_path, username]):
+            self.logger.warning("Missing required information for family role fillers")
+            self.gallery_output.append(
+                "⚠️ Could not fill missing family roles because participant setup information is incomplete."
+            )
+            self.gallery_output.append(
+                "📌 Go back to Participant Setup, confirm the participant details, and then rerun gallery creation if needed."
+            )
+            return
+
+        combined_id = f"{participant_id}{device_id}" if device_id else participant_id
+        faces_folder = Path(data_path) / f"{combined_id}_faces"
+
+        if not faces_folder.exists():
+            self.logger.warning(f"Faces folder does not exist: {faces_folder}")
+            self.gallery_output.append(
+                "⚠️ The gallery folder was not found, so missing family roles were not filled."
+            )
+            self.gallery_output.append(
+                "📌 Create the gallery again. If the folder still is not created, ask technical support for help."
+            )
+            return
+
+        filler_root = Path(f"/home/{username}/flash-tv-scripts/filler_faces")
+        role_fillers = {
+            "tc": {
+                "checked": self.tc_checkbox.isChecked(),
+                "source_dir": filler_root / "face1",
+                "label": "target child",
+            },
+            "sib": {
+                "checked": self.sib_checkbox.isChecked(),
+                "source_dir": filler_root / "face2",
+                "label": "sibling",
+            },
+            "parent": {
+                "checked": self.parent_checkbox.isChecked(),
+                "source_dir": filler_root / "face3",
+                "label": "parent",
+            },
+        }
+
+        for role_name, role_info in role_fillers.items():
+            if role_info["checked"]:
+                continue
+
+            source_dir = role_info["source_dir"]
+            label = role_info["label"]
+
+            if not source_dir.exists():
+                self.logger.warning(
+                    f"Filler directory not found for {label}: {source_dir}"
+                )
+                self.gallery_output.append(
+                    f"⚠️  Missing filler folder for {label}; continuing without automatic fill."
+                )
+                continue
+
+            source_files = sorted(source_dir.glob("*.png"))
+            if not source_files:
+                self.logger.warning(
+                    f"No filler face images found for {label}: {source_dir}"
+                )
+                self.gallery_output.append(
+                    f"⚠️  No filler images were found for {label}; continuing without automatic fill."
+                )
+                continue
+
+            if len(source_files) < 5:
+                self.logger.warning(
+                    f"Incomplete filler set for {label}: found {len(source_files)} image(s)"
+                )
+                self.gallery_output.append(
+                    f"⚠️  Only found {len(source_files)} filler image(s) for {label}. Copying what is available."
+                )
+
+            copied_count = 0
+            for index, source_file in enumerate(source_files[:5], start=1):
+                destination_file = (
+                    faces_folder / f"{combined_id}_{role_name}{index}.png"
+                )
+                shutil.copy2(source_file, destination_file)
+                copied_count += 1
+
+            self.logger.info(
+                f"Filled {copied_count} deterministic face(s) for unchecked role: {label}"
+            )
+            self.gallery_output.append(
+                f"🧩 Added {copied_count} filler face(s) for {label}."
+            )
+
     def _validate_gallery(self, checked: bool = False) -> None:
         """Validate the gallery structure and contents automatically."""
         try:
@@ -390,11 +651,16 @@ class GalleryCreationStep(WizardStep):
             if not gallery_dir.exists():
                 self.logger.error(f"Gallery directory does not exist: {gallery_path}")
                 self.gallery_output.append("❌ Gallery directory does not exist")
-                self.gallery_output.append("💡 Please create the gallery first")
+                self.gallery_output.append(
+                    "📌 What to try next: create the gallery again before continuing."
+                )
+                self.gallery_output.append(
+                    "📌 When to ask for help: if the gallery folder still is not created, ask technical support."
+                )
                 raise FlashTVError(
                     f"Gallery directory does not exist: {gallery_path}",
                     ErrorType.SYSTEM_ERROR,
-                    recovery_action="Create the gallery first",
+                    recovery_action="Create the gallery again before continuing. If the gallery folder still is not created, ask technical support for help.",
                 )
 
             # Check for required face categories
@@ -451,7 +717,10 @@ class GalleryCreationStep(WizardStep):
                 )
                 self.gallery_output.append("\n❌ Gallery validation failed")
                 self.gallery_output.append(
-                    "💡 Please complete gallery creation for all categories"
+                    "📌 What to try next: reopen the gallery window and capture the missing face groups, then validate again."
+                )
+                self.gallery_output.append(
+                    "📌 When to ask for help: if the gallery will not save the missing images after another try, ask technical support."
                 )
                 self.update_status(StepStatus.USER_ACTION_REQUIRED)
 
@@ -493,9 +762,9 @@ class GalleryCreationStep(WizardStep):
     def _reset_gallery_creation_ui(self) -> None:
         """Reset the gallery creation UI after process completion."""
         try:
-            self.create_gallery_button.setEnabled(True)
             self.progress_bar.setVisible(False)
             self.progress_bar.setValue(0)
+            self._update_gallery_readiness()
             self.logger.debug("Reset gallery creation UI")
 
         except Exception as e:
@@ -510,6 +779,8 @@ class GalleryCreationStep(WizardStep):
 
         # Clear previous output to avoid duplicates when re-activating step
         self.gallery_output.clear()
+
+        self._restore_gallery_verification_state()
 
         # Auto-generate gallery path from participant info
         self._load_existing_gallery_path()
@@ -536,7 +807,9 @@ class GalleryCreationStep(WizardStep):
             self._validate_gallery()
         else:
             self.gallery_output.append("📋 Ready to create face gallery")
-            self.gallery_output.append("👆 Click button above to begin")
+            self.gallery_output.append(
+                "👆 Complete the verification section above to enable Create Gallery"
+            )
 
     def update_ui(self) -> None:
         """Update UI elements periodically with framework integration."""
@@ -598,6 +871,8 @@ class GalleryCreationStep(WizardStep):
                     self.progress_bar.setFormat("Gallery creation completed! %p%")
                     self.gallery_output.append("\n✅ Gallery creation window closed")
 
+                    self._fill_unchecked_family_roles()
+
                     # Check and fill missing extra faces with poster faces
                     self._fill_missing_extra_faces()
 
@@ -605,36 +880,48 @@ class GalleryCreationStep(WizardStep):
 
                     # Automatically validate the gallery
                     self._validate_gallery()
-                    self.update_status(StepStatus.USER_ACTION_REQUIRED)
                 elif status == ProcessStatus.FAILED:
                     self.logger.error("Gallery creation failed")
                     self.progress_bar.setFormat("Gallery creation failed")
                     self.gallery_output.append("\n❌ Gallery creation failed")
+                    self.gallery_output.append(
+                        "📌 What to try next: restart gallery creation once and watch for any problem in the capture window."
+                    )
+                    self.gallery_output.append(
+                        "📌 When to ask for help: if it fails again, ask technical support and share the details below if requested."
+                    )
 
                     # Get and show error output
                     stdout_lines, stderr_lines = process_info.get_output()
                     if stderr_lines:
-                        self.gallery_output.append("\nError output:")
+                        self.gallery_output.append("\nSupport details:")
                         for line in stderr_lines[-10:]:
                             self.gallery_output.append(f"  {line}")
-
-                    self.gallery_output.append(
-                        "💡 Please check the error messages and try again"
-                    )
                     self.update_status(StepStatus.FAILED)
                 elif status == ProcessStatus.TERMINATED:
                     self.logger.warning("Gallery creation was terminated")
                     self.progress_bar.setFormat("Gallery creation terminated")
-                    self.gallery_output.append("\n⚠️ Gallery creation was terminated")
+                    self.gallery_output.append("\n⚠️ Gallery creation was closed before it finished.")
                     self.gallery_output.append(
-                        "💡 You can restart the process if needed"
+                        "📌 What to try next: start gallery creation again and finish the capture steps."
+                    )
+                    self.gallery_output.append(
+                        "📌 When to ask for help: if the gallery window keeps closing early, ask technical support."
                     )
                     self.update_status(StepStatus.FAILED)
                 else:
                     self.logger.error(
                         "Gallery creation finished with unexpected status"
                     )
-                    self.gallery_output.append(f"\n⚠️ Unexpected status: {status}")
+                    self.gallery_output.append(
+                        "\n⚠️ Gallery creation finished in an unexpected way."
+                    )
+                    self.gallery_output.append(
+                        "📌 What to try next: restart gallery creation once."
+                    )
+                    self.gallery_output.append(
+                        "📌 When to ask for help: if this happens again, ask technical support."
+                    )
                     self.update_status(StepStatus.FAILED)
 
                 self._reset_gallery_creation_ui()

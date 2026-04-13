@@ -1,0 +1,16 @@
+services:
+
+  homeassistant:
+    container_name: homeassistant
+    image: "{{HOME_ASSISTANT_IMAGE}}"
+    volumes:
+      - {{HOMEASSISTANT_CONFIG_DIR}}:/config
+      - {{DATA_DIR}}:{{DATA_DIR_CONTAINER_PATH}}
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    restart: unless-stopped
+    devices:
+      - /dev/ttyUSB0
+      - /dev/ttyUSB1
+    privileged: true
+    network_mode: host

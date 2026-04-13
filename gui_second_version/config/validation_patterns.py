@@ -17,7 +17,7 @@ class ValidationPatterns:
 
     # Compiled regex patterns
     PARTICIPANT_ID: Pattern[str] = re.compile(r"^(P1|ES)-\d{4}$")
-    DEVICE_ID: Pattern[str] = re.compile(r"^-[A-D]$")
+    DEVICE_ID: Pattern[str] = re.compile(r"^\d{3}$")
     IPV4_ADDRESS: Pattern[str] = re.compile(
         r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}"
         r"(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
@@ -55,7 +55,7 @@ class ValidationPatterns:
     def validate_device_id(cls, value: str) -> Tuple[bool, str]:
         """Validate device ID format.
 
-        Device IDs must be in the format: -A, -B, -C, or -D
+        Device IDs must be 3-digit numbers such as 007 or 123.
 
         Args:
             value: Input value to validate
@@ -64,19 +64,19 @@ class ValidationPatterns:
             Tuple of (is_valid, error_message)
 
         Example:
-            >>> ValidationPatterns.validate_device_id("-A")
+            >>> ValidationPatterns.validate_device_id("007")
             (True, "")
-            >>> ValidationPatterns.validate_device_id("-E")
-            (False, "Invalid format. Expected: -A, -B, -C, or -D")
+            >>> ValidationPatterns.validate_device_id("07")
+            (False, "Invalid format. Expected: 3-digit device ID (for example 007)")
         """
         if not value:
             return False, "Device ID is required"
 
-        normalized = value.strip().upper()
+        normalized = value.strip()
         if cls.DEVICE_ID.match(normalized):
             return True, ""
 
-        return False, "Invalid format. Expected: -A, -B, -C, or -D"
+        return False, "Invalid format. Expected: 3-digit device ID (for example 007)"
 
     @classmethod
     def validate_ipv4(cls, value: str) -> Tuple[bool, str]:

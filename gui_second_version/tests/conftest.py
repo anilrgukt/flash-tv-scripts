@@ -46,12 +46,6 @@ def qapp() -> Generator[QApplication, None, None]:
     # Don't quit the app as pytest-qt handles cleanup
 
 
-@pytest.fixture
-def qtbot(qapp, qtbot):
-    """Enhanced qtbot fixture that ensures QApplication exists."""
-    return qtbot
-
-
 # ============================================================================
 # State Fixtures
 # ============================================================================
@@ -68,9 +62,9 @@ def populated_state() -> WizardState:
     """Create a WizardState with common test data populated."""
     state = WizardState()
     state.set_user_input(UserInputKey.PARTICIPANT_ID, "P1-3999028")
-    state.set_user_input(UserInputKey.DEVICE_ID, "A")
-    state.set_user_input(UserInputKey.USERNAME, "testuser")
-    state.set_user_input(UserInputKey.DATA_PATH, "/home/testuser/data")
+    state.set_user_input(UserInputKey.DEVICE_ID, "007")
+    state.set_user_input(UserInputKey.USERNAME, "flashsys007")
+    state.set_user_input(UserInputKey.DATA_PATH, "/home/flashsys007/data/P1-3999028007_data")
     state.set_user_input(UserInputKey.SUDO_PASSWORD, "testpass")
     return state
 
@@ -80,14 +74,18 @@ def completed_steps_state() -> WizardState:
     """Create a WizardState with several steps marked completed."""
     state = WizardState()
     state.set_user_input(UserInputKey.PARTICIPANT_ID, "P1-3999028")
-    state.set_user_input(UserInputKey.DEVICE_ID, "A")
-    state.set_user_input(UserInputKey.USERNAME, "testuser")
-    state.set_user_input(UserInputKey.DATA_PATH, "/home/testuser/data")
+    state.set_user_input(UserInputKey.DEVICE_ID, "007")
+    state.set_user_input(UserInputKey.USERNAME, "flashsys007")
+    state.set_user_input(UserInputKey.DATA_PATH, "/home/flashsys007/data/P1-3999028007_data")
     state.set_user_input(UserInputKey.WIFI_CONNECTED, True)
     state.set_user_input(UserInputKey.WIFI_SSID, "TestNetwork")
 
     # Mark first few steps as completed
-    for step in [WizardStep.PARTICIPANT_SETUP, WizardStep.WIFI_CONNECTION, WizardStep.TIME_SYNC]:
+    for step in [
+        WizardStep.PARTICIPANT_SETUP,
+        WizardStep.WIFI_CONNECTION,
+        WizardStep.TIME_SYNC,
+    ]:
         state.mark_step_completed(step)
 
     return state
@@ -98,17 +96,26 @@ def fully_completed_state() -> WizardState:
     """Create a WizardState with all steps completed (for final step tests)."""
     state = WizardState()
     state.set_user_input(UserInputKey.PARTICIPANT_ID, "P1-3999028")
-    state.set_user_input(UserInputKey.DEVICE_ID, "A")
-    state.set_user_input(UserInputKey.USERNAME, "testuser")
-    state.set_user_input(UserInputKey.DATA_PATH, "/home/testuser/data")
+    state.set_user_input(UserInputKey.DEVICE_ID, "007")
+    state.set_user_input(UserInputKey.USERNAME, "flashsys007")
+    state.set_user_input(UserInputKey.DATA_PATH, "/home/flashsys007/data/P1-3999028007_data")
     state.set_user_input(UserInputKey.SUDO_PASSWORD, "testpass")
     state.set_user_input(UserInputKey.WIFI_CONNECTED, True)
     state.set_user_input(UserInputKey.WIFI_SSID, "TestNetwork")
-    state.set_user_input(UserInputKey.CAMERA_INDEX, 0)
+    state.set_user_input(UserInputKey.SELECTED_CAMERA, "/dev/video0")
+    state.set_user_input(UserInputKey.SELECTED_CAMERA_NAME, "Test Camera")
+    state.set_user_input(UserInputKey.CAMERA_TESTED, True)
+    state.set_user_input(UserInputKey.POV_PICTURE_COMPLETE, True)
     state.set_user_input(UserInputKey.TIME_SYNCED, True)
-    state.set_user_input(UserInputKey.SMART_PLUG_CONFIGURED, True)
-    state.set_user_input(UserInputKey.GALLERY_CREATED, True)
+    state.set_user_input(UserInputKey.SMART_PLUG_VERIFIED, True)
+    state.set_user_input(
+        UserInputKey.GALLERY_PATH,
+        "/home/flashsys007/data/P1-3999028007_data/P1-3999028007_faces",
+    )
+    state.set_user_input(UserInputKey.GALLERY_VALIDATED, True)
+    state.set_user_input(UserInputKey.GALLERY_TOTAL_IMAGES, 15)
     state.set_user_input(UserInputKey.GAZE_TEST_COMPLETE, True)
+    state.set_user_input(UserInputKey.GAZE_DETECTION_VERIFIED, True)
     state.set_user_input(UserInputKey.SERVICES_VERIFIED, True)
 
     # Mark all steps as completed
@@ -136,7 +143,9 @@ def state_manager(temp_state_file: Path) -> StateManager:
 
 
 @pytest.fixture
-def state_manager_with_data(state_manager: StateManager, populated_state: WizardState) -> StateManager:
+def state_manager_with_data(
+    state_manager: StateManager, populated_state: WizardState
+) -> StateManager:
     """Create a StateManager with pre-saved state data."""
     state_manager.save_state(populated_state, force=True)
     return state_manager
@@ -157,9 +166,7 @@ def mock_process_runner(wizard_state: WizardState) -> ProcessRunner:
 @pytest.fixture
 def mock_subprocess() -> Generator[MagicMock, None, None]:
     """Mock subprocess module for testing command execution."""
-    with patch("subprocess.Popen") as mock_popen, \
-         patch("subprocess.run") as mock_run:
-
+    with patch("subprocess.Popen") as mock_popen, patch("subprocess.run") as mock_run:
         # Configure mock Popen
         mock_process = MagicMock()
         mock_process.poll.return_value = 0
@@ -170,11 +177,7 @@ def mock_subprocess() -> Generator[MagicMock, None, None]:
         mock_popen.return_value = mock_process
 
         # Configure mock run
-        mock_run.return_value = MagicMock(
-            returncode=0,
-            stdout="success",
-            stderr=""
-        )
+        mock_run.return_value = MagicMock(returncode=0, stdout="success", stderr="")
 
         yield {"popen": mock_popen, "run": mock_run, "process": mock_process}
 
@@ -201,6 +204,7 @@ def sample_step_definition() -> StepDefinition:
 def all_step_definitions() -> list[StepDefinition]:
     """Get all step definitions from the factory."""
     from steps import StepFactory
+
     return StepFactory.create_step_definitions()
 
 
@@ -212,9 +216,10 @@ def all_step_definitions() -> list[StepDefinition]:
 @pytest.fixture
 def mock_network() -> Generator[dict[str, MagicMock], None, None]:
     """Mock network-related operations."""
-    with patch("socket.socket") as mock_socket, \
-         patch("urllib.request.urlopen") as mock_urlopen:
-
+    with (
+        patch("socket.socket") as mock_socket,
+        patch("urllib.request.urlopen") as mock_urlopen,
+    ):
         mock_sock = MagicMock()
         mock_sock.connect_ex.return_value = 0  # Connection successful
         mock_socket.return_value.__enter__.return_value = mock_sock
@@ -247,17 +252,19 @@ def mock_file_system(tmp_path: Path) -> dict[str, Path]:
     data_dir = tmp_path / "data"
     data_dir.mkdir()
 
-    participant_data = data_dir / "P1-3999028A_data"
+    participant_data = data_dir / "P1-3999028007_data"
     participant_data.mkdir()
 
-    faces_dir = data_dir / "P1-3999028A_faces"
+    faces_dir = participant_data / "P1-3999028007_faces"
     faces_dir.mkdir()
 
     # Create some test files
-    log_file = participant_data / "P1-3999028A_flash_log_2025-01-01_12-00-00.txt"
-    log_file.write_text("2025-01-01 12:00:00.000 1 1 1 0.1 0.2 0.9 0.0 10 20 50 80 Gaze-det\n")
+    log_file = participant_data / "P1-3999028007_flash_log_2025-01-01_12-00-00.txt"
+    log_file.write_text(
+        "2025-01-01 12:00:00.000 1 1 1 0.1 0.2 0.9 0.0 10 20 50 80 Gaze-det\n"
+    )
 
-    stderr_log = participant_data / "P1-3999028A_stderr_log.txt"
+    stderr_log = participant_data / "P1-3999028007_flash_logstderr.log"
     stderr_log.write_text("Loading model...\nModel loaded successfully\n")
 
     return {
@@ -302,26 +309,32 @@ def sample_gaze_log_file(tmp_path: Path, sample_gaze_log_content: str) -> Path:
 @pytest.fixture
 def wait_signal(qtbot):
     """Helper to wait for Qt signals with timeout."""
+
     def _wait_signal(signal, timeout=1000):
         with qtbot.waitSignal(signal, timeout=timeout):
             pass
+
     return _wait_signal
 
 
 @pytest.fixture
 def click_button(qtbot):
     """Helper to click buttons in tests."""
+
     def _click(button):
         qtbot.mouseClick(button, Qt.MouseButton.LeftButton)
+
     return _click
 
 
 @pytest.fixture
 def type_text(qtbot):
     """Helper to type text into widgets."""
+
     def _type(widget, text):
         widget.clear()
         qtbot.keyClicks(widget, text)
+
     return _type
 
 
@@ -335,7 +348,7 @@ def happy_path_inputs() -> dict[str, Any]:
     """Input data for happy path e2e test."""
     return {
         "participant_id": "P1-3999028",
-        "device_id": "A",
+        "device_id": "007",
         "username": "flashsys007",
         "data_path": "/home/flashsys007/data",
         "sudo_password": "testpass123",
@@ -365,15 +378,16 @@ def disable_adaptive_font_scaling():
 @pytest.fixture(autouse=True)
 def mock_dialogs():
     """Mock all dialog boxes to prevent them from appearing during tests."""
-    with patch("PySide6.QtWidgets.QMessageBox.information") as mock_info, \
-         patch("PySide6.QtWidgets.QMessageBox.warning") as mock_warning, \
-         patch("PySide6.QtWidgets.QMessageBox.critical") as mock_critical, \
-         patch("PySide6.QtWidgets.QMessageBox.question") as mock_question, \
-         patch("PySide6.QtWidgets.QFileDialog.getOpenFileName") as mock_open, \
-         patch("PySide6.QtWidgets.QFileDialog.getSaveFileName") as mock_save, \
-         patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory") as mock_dir, \
-         patch("PySide6.QtWidgets.QInputDialog.getText") as mock_text:
-
+    with (
+        patch("PySide6.QtWidgets.QMessageBox.information") as mock_info,
+        patch("PySide6.QtWidgets.QMessageBox.warning") as mock_warning,
+        patch("PySide6.QtWidgets.QMessageBox.critical") as mock_critical,
+        patch("PySide6.QtWidgets.QMessageBox.question") as mock_question,
+        patch("PySide6.QtWidgets.QFileDialog.getOpenFileName") as mock_open,
+        patch("PySide6.QtWidgets.QFileDialog.getSaveFileName") as mock_save,
+        patch("PySide6.QtWidgets.QFileDialog.getExistingDirectory") as mock_dir,
+        patch("PySide6.QtWidgets.QInputDialog.getText") as mock_text,
+    ):
         # Configure default return values
         from PySide6.QtWidgets import QMessageBox
 

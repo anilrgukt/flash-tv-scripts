@@ -1,35 +1,12 @@
-#!/bin/bash
-# See the Home Assistant setup docx/pdf files for how to initialize Home Assistant after this
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Uninstall outdated Docker packages
-for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do sudo apt-get remove $pkg; done
+python_runner="$(command -v python3 || true)"
 
-# Add Docker's official GPG key:
-sudo apt-get update
-sudo apt-get install ca-certificates curl
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
+if [[ -z "$python_runner" ]]; then
+    printf 'FLASH-TV Home Assistant bootstrap needs python3. Install python3, then rerun this script.\n' >&2
+    exit 1
+fi
 
-# Add the repository to apt sources:
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "${VERSION_CODENAME}") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-sudo apt-get update
-
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-sudo usermod -aG docker $USER
-
-# Set up Home Assistant folder
-cd "${HOME}" || exit 1
-
-mkdir "homeassistant-compose"
-
-cd "homeassistant-compose" || exit 1
-
-mkdir "config"
-
-cp "${HOME}/flash-tv-scripts/install_scripts/compose.yaml" "."
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec "$python_runner" "$script_dir/../python_scripts/install_orchestrator.py" homeassistant-bootstrap "$@"

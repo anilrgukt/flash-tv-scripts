@@ -1,0 +1,36 @@
+#!/bin/bash
+
+export username={{USERNAME}}
+export participantID={{FULL_ID}}
+
+source "{{HOME_DIR}}/py38/bin/activate"
+
+sudo timedatectl set-ntp 1
+sleep 5
+
+sudo systemctl restart systemd-timesyncd.service
+sleep 5
+
+if sudo hwclock -w; then
+    echo "Internal RTC rtc0 (PSEQ_RTC, being used) was set"
+else
+    zenity --warning --text="Exiting the code since the internal RTC rtc0 (PSEQ_RTC, being used) time was unable to be set. Please check it and restart the script." --width 500 --height 100
+    exit 1
+fi
+sleep 1
+
+if sudo hwclock --rtc "/dev/rtc1" -w; then
+    echo "Internal RTC rtc1 (tegra-RTC, not being used) was set"
+else
+    echo "Internal RTC rtc1 (tegra-RTC, not being used) was unable to be set"
+fi
+sleep 1
+
+START_DATE_FILE_PATH="{{DATA_DIR}}/{{FULL_ID}}_start_date.txt"
+python3 "{{HOME_DIR}}/flash-tv-scripts/python_scripts/set_external_RTC_and_save_start_date.py" "${START_DATE_FILE_PATH}"
+external_RTC_set_correctly=$?
+
+if [ "${external_RTC_set_correctly}" -eq 1 ]; then
+	zenity --warning --text="Exiting the code since the external RTC time was unable to be set. Please check it and restart the script." --width 500 --height 100
+	exit 1
+fi

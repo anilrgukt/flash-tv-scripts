@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import numpy as np
 import pyqtgraph as pg
 
 
 class TimeAxisItem(pg.AxisItem):
-    """Custom axis item that formats time values as MM:SS with limited tick count.
-
-    This axis item is designed for displaying elapsed time data on plots,
-    automatically formatting labels as MM:SS or HH:MM:SS based on the time range.
-    """
+    """Axis item for local wall-clock timestamps."""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -70,24 +68,31 @@ class TimeAxisItem(pg.AxisItem):
         return [(spacing, major_ticks), (minor_spacing, minor_ticks)]
 
     def tickStrings(self, values, scale, spacing):
-        """Override to format tick labels as MM:SS or HH:MM:SS."""
+        """Format tick labels as local wall-clock time."""
         strings = []
+        finite_values = [value for value in values if np.isfinite(value)]
+        visible_span = (
+            max(finite_values) - min(finite_values)
+            if len(finite_values) >= 2
+            else spacing
+        )
+
         for value in values:
-            # Handle edge cases
             if not np.isfinite(value):
                 strings.append("")
                 continue
 
-            total_seconds = int(value)
-            hours = total_seconds // 3600
-            minutes = (total_seconds % 3600) // 60
-            seconds = total_seconds % 60
+            try:
+                local_dt = datetime.fromtimestamp(float(value))
+            except (OverflowError, OSError, ValueError):
+                strings.append("")
+                continue
 
-            if hours > 0:
-                # Show HH:MM:SS if duration is over 1 hour
-                strings.append(f"{hours:02d}:{minutes:02d}:{seconds:02d}")
+            if visible_span < 3600:
+                strings.append(local_dt.strftime("%H:%M:%S"))
+            elif visible_span <= 86400:
+                strings.append(local_dt.strftime("%H:%M"))
             else:
-                # Show MM:SS for durations under 1 hour
-                strings.append(f"{minutes:02d}:{seconds:02d}")
+                strings.append(local_dt.strftime("%m/%d %H:%M"))
 
         return strings

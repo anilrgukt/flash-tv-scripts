@@ -7,12 +7,33 @@ Provides a singleton config object for use throughout the application.
 
 from __future__ import annotations
 
+import importlib
 import os
-import re
 from pathlib import Path
+import re
 from typing import Any
 
-import yaml
+
+from config.install_defaults_loader import load_install_defaults_module
+
+
+yaml = importlib.import_module("yaml")
+
+
+install_defaults_module = load_install_defaults_module()
+DEFAULT_HOME_ASSISTANT_IMAGE = str(
+    getattr(install_defaults_module, "HOME_ASSISTANT_IMAGE")
+)
+DEFAULT_CONFIG_ENV_FALLBACKS = {
+    "HOME_ASSISTANT_IMAGE": DEFAULT_HOME_ASSISTANT_IMAGE,
+    "DEFAULT_SMART_PLUG_SWITCH_ENTITY_ID": str(
+        getattr(install_defaults_module, "DEFAULT_SMART_PLUG_SWITCH_ENTITY_ID")
+    ),
+    "DEFAULT_SMART_PLUG_POWER_SENSOR_ENTITY_ID": str(
+        getattr(install_defaults_module, "DEFAULT_SMART_PLUG_POWER_SENSOR_ENTITY_ID")
+    ),
+    "BACKUP_USB_VENDOR": str(getattr(install_defaults_module, "BACKUP_USB_VENDOR")),
+}
 
 
 class ConfigurationError(Exception):
@@ -57,6 +78,11 @@ class FlashConfig:
         if not config_path.exists():
             raise ConfigurationError(f"Configuration file not found: {config_path}")
 
+        if config_path.is_dir():
+            raise ConfigurationError(
+                f"Configuration path is a directory, not a file: {config_path}"
+            )
+
         try:
             with open(config_path, "r") as f:
                 raw_config = yaml.safe_load(f)
@@ -69,16 +95,19 @@ class FlashConfig:
 
     def _find_config_file(self) -> Path:
         """Find configuration file in default locations."""
-        search_paths = [
+        search_paths = []
+        env_config_path = os.environ.get("FLASH_CONFIG_PATH")
+        if env_config_path:
+            search_paths.append(Path(env_config_path))
+
+        search_paths.extend([
             # Docker volume mount location
             Path("/config/flash_config.yaml"),
             # Relative to script
             Path(__file__).parent / "flash_config.yaml",
             # Home directory
             Path.home() / "flash-tv-scripts" / "config" / "flash_config.yaml",
-            # Environment variable
-            Path(os.environ.get("FLASH_CONFIG_PATH", "")),
-        ]
+        ])
 
         for path in search_paths:
             if path.exists():
@@ -119,12 +148,13 @@ class FlashConfig:
         """
         pattern = r"\$\{([^}]+)\}"
 
-        def replace(match: re.Match) -> str:
+        def replace(match: re.Match[str]) -> str:
             var_name = match.group(1)
             value = os.environ.get(var_name, "")
             if not value:
-                # Check for common fallbacks
-                if var_name == "FLASH_USERNAME":
+                if var_name in DEFAULT_CONFIG_ENV_FALLBACKS:
+                    value = DEFAULT_CONFIG_ENV_FALLBACKS[var_name]
+                elif var_name == "FLASH_USERNAME":
                     value = os.environ.get("USER", os.environ.get("USERNAME", ""))
                 elif var_name == "PARTICIPANT_ID":
                     value = os.environ.get("FAMILY_ID", "UNKNOWN")
@@ -231,7 +261,7 @@ class FlashConfig:
         return errors
 
     def _flatten_dict(
-        self, d: dict, parent_key: str = "", sep: str = "."
+        self, d: dict[str, Any], parent_key: str = "", sep: str = "."
     ) -> dict[str, Any]:
         """Flatten nested dictionary for validation."""
         items: list[tuple[str, Any]] = []

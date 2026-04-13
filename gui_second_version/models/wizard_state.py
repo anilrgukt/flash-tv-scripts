@@ -6,6 +6,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from config.participant_contract import (
+    build_participant_full_id,
+    get_gallery_dir,
+    get_participant_data_dir,
+)
 from models.process_info import ProcessInfo
 from models.state_keys import (
     STEP_DEPENDENCIES,
@@ -185,7 +190,7 @@ class WizardState:
         device_id = self.get_device_id()
 
         if participant_id and device_id:
-            return f"{participant_id}{device_id}"
+            return build_participant_full_id(participant_id, device_id)
         return None
 
     def get_username(self) -> str | None:
@@ -203,7 +208,10 @@ class WizardState:
         combined_id = self.get_combined_id()
 
         if username and combined_id:
-            return Path("/home") / username / "data" / f"{combined_id}_data"
+            participant_id = self.get_participant_id()
+            device_id = self.get_device_id()
+            if participant_id and device_id:
+                return get_participant_data_dir(username, participant_id, device_id)
         return None
 
     def get_gallery_directory(self) -> Path | None:
@@ -213,11 +221,15 @@ class WizardState:
         Returns:
             Path object or None if components are missing
         """
-        username = self.get_username()
+        data_dir = self.get_data_directory()
         combined_id = self.get_combined_id()
 
-        if username and combined_id:
-            return Path("/home") / username / "data" / f"{combined_id}_faces"
+        if data_dir and combined_id:
+            username = self.get_username()
+            participant_id = self.get_participant_id()
+            device_id = self.get_device_id()
+            if username and participant_id and device_id:
+                return get_gallery_dir(username, participant_id, device_id)
         return None
 
     def get_log_file_path(self, log_type: str = "main") -> Path | None:
@@ -241,17 +253,6 @@ class WizardState:
 
             return data_dir / filename
         return None
-
-    def get_camera_index(self) -> int | None:
-        """Get selected camera index."""
-        camera_idx = self.user_inputs.get(UserInputKey.CAMERA_INDEX.value)
-        if camera_idx is not None:
-            return int(camera_idx)
-        return None
-
-    def set_camera_index(self, index: int) -> None:
-        """Set camera index."""
-        self.user_inputs[UserInputKey.CAMERA_INDEX.value] = index
 
     def get_wifi_ssid(self) -> str | None:
         """Get connected WiFi SSID."""
@@ -359,10 +360,6 @@ class WizardState:
             if not self.get_combined_id():
                 errors.append("Participant and device IDs are required")
 
-        elif step_num == WizardStep.CAMERA_SETUP:
-            if self.get_camera_index() is None:
-                errors.append("Camera must be configured first")
-
         elif step_num == WizardStep.SERVICE_STARTUP:
             if not self.get_data_directory():
                 errors.append("Data directory path cannot be determined")
@@ -409,7 +406,11 @@ class WizardState:
             "device_id": self.get_device_id(),
             "combined_id": self.get_combined_id(),
             "username": self.get_username(),
-            "camera_index": self.get_camera_index(),
+            "selected_camera": self.get_user_input(UserInputKey.SELECTED_CAMERA),
+            "camera_tested": self.get_user_input(UserInputKey.CAMERA_TESTED, False),
+            "gallery_validated": self.get_user_input(
+                UserInputKey.GALLERY_VALIDATED, False
+            ),
             "wifi_connected": self.is_wifi_connected(),
             "wifi_ssid": self.get_wifi_ssid(),
             "running_processes": self.get_running_process_count(),
